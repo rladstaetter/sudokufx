@@ -844,7 +844,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
             knownCells(newVal.intValue()) match {
               case sudokuCell: SudokuCell =>
                 updateSudokuCellView(stackPane, cellView, sudokuCell)
-              case EmptyCell =>
+              case _ =>
             }
           }
         }))
@@ -861,8 +861,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
           val solutionCells = toSolutionCells(solvedString)
           val filteredSolutionCells = solutionCells.filterNot(c => knownCells.exists(x => x match {
-            case EmptyCell => false
             case SudokuCell(col, row, _, _, _) => ((row == c.row) && (col == c.column))
+            case _ => false
           }))
           stackPane.getChildren.addAll(filteredSolutionCells.map(_.mkLabel(cellSize, cellSize)))
         }
@@ -884,8 +884,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
   def toSolverString(knownCells: Seq[SCell]): String = {
     val kCells = knownCells.map(c => c match {
-      case EmptyCell => None
       case SudokuCell(col, row, _, value, _) => Some((col, row) -> value.toString)
+      case _ => None
     }).flatten.toMap
 
     (for (r <- 0 to 8) yield {

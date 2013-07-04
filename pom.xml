@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>net.ladstatt.apps</groupId>
-    <artifactId>yasudoku</artifactId>
+    <artifactId>sudoku2go</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>yasudoku</name>
+    <name>sudoku2go</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -29,6 +29,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.13</version>
                 <configuration>
                     <skipTests>true</skipTests>
                     <!-- disable surefire -->
@@ -114,7 +115,7 @@
                 </executions>
                 <configuration>
                     <vendor>${project.organization.name}</vendor>
-                    <mainClass>net.ladstatt.apps.Yasudoku</mainClass>
+                    <mainClass>net.ladstatt.apps.Sudoku2go</mainClass>
                     <permissions>
                         <permission>all-permissions</permission>
                     </permissions>
