@@ -100,74 +100,6 @@ trait OpenCVUtils extends Utils {
   type FeatureDetectorType = Int
   type DescriptorExtractorType = Int
 
-  val featureDetectorTypes: Seq[FeatureDetectorType] = Seq(FeatureDetector.FAST,
-    FeatureDetector.STAR,
-    FeatureDetector.SIFT,
-    FeatureDetector.SURF,
-    FeatureDetector.ORB,
-    FeatureDetector.MSER,
-    FeatureDetector.GFTT,
-    FeatureDetector.HARRIS,
-    FeatureDetector.SIMPLEBLOB,
-    FeatureDetector.DENSE,
-    FeatureDetector.BRISK,
-    FeatureDetector.GRIDRETECTOR,
-    FeatureDetector.GRID_FAST,
-    FeatureDetector.GRID_STAR,
-    FeatureDetector.GRID_SIFT,
-    FeatureDetector.GRID_SURF,
-    FeatureDetector.GRID_ORB,
-    FeatureDetector.GRID_MSER,
-    FeatureDetector.GRID_GFTT,
-    FeatureDetector.GRID_HARRIS,
-    FeatureDetector.GRID_SIMPLEBLOB,
-    FeatureDetector.GRID_DENSE,
-    FeatureDetector.GRID_BRISK,
-    FeatureDetector.PYRAMID_FAST,
-    FeatureDetector.PYRAMID_STAR,
-    FeatureDetector.PYRAMID_SIFT,
-    FeatureDetector.PYRAMID_SURF,
-    FeatureDetector.PYRAMID_ORB,
-    FeatureDetector.PYRAMID_MSER,
-    FeatureDetector.PYRAMID_GFTT,
-    FeatureDetector.PYRAMID_HARRIS,
-    FeatureDetector.PYRAMID_SIMPLEBLOB,
-
-    FeatureDetector.PYRAMID_DENSE,
-    FeatureDetector.PYRAMID_BRISK
-    //   FeatureDetector.DYNAMIC_FAST,                  // TODO lookup issues on github
-    //   FeatureDetector.DYNAMIC_STAR,
-    //  FeatureDetector.DYNAMIC_SIFT,                 // after using this I get SIGFaults
-    //  FeatureDetector.DYNAMIC_SURF,
-    //  FeatureDetector.DYNAMIC_ORB,
-    //    FeatureDetector.DYNAMIC_MSER,
-    //    FeatureDetector.DYNAMIC_GFTT,
-    //    FeatureDetector.DYNAMIC_HARRIS,
-    //    FeatureDetector.DYNAMIC_SIMPLEBLOB,
-    //     FeatureDetector.DYNAMIC_DENSE,
-    //    FeatureDetector.DYNAMIC_BRISK
-  )
-
-  val descriptorExtractorTypes: Seq[DescriptorExtractorType] = Seq(DescriptorExtractor.SIFT,
-    DescriptorExtractor.SURF,
-    DescriptorExtractor.ORB,
-    DescriptorExtractor.BRIEF,
-    DescriptorExtractor.BRISK,
-    DescriptorExtractor.FREAK,
-    DescriptorExtractor.OPPONENT_SIFT,
-    DescriptorExtractor.OPPONENT_SURF,
-    DescriptorExtractor.OPPONENT_ORB,
-    DescriptorExtractor.OPPONENT_BRIEF,
-    DescriptorExtractor.OPPONENT_BRISK,
-    DescriptorExtractor.OPPONENT_FREAK)
-
-  val descriptorMatcherTypes: Seq[DescriptorMatcherType] = Seq(DescriptorMatcher.FLANNBASED,
-    DescriptorMatcher.BRUTEFORCE,
-    DescriptorMatcher.BRUTEFORCE_L1,
-    DescriptorMatcher.BRUTEFORCE_HAMMING,
-    DescriptorMatcher.BRUTEFORCE_HAMMINGLUT,
-    DescriptorMatcher.BRUTEFORCE_SL2)
-
   /**
    * Returns position and value for a template for a given image
    *
@@ -264,14 +196,6 @@ trait OpenCVUtils extends Utils {
       r
     }
 
-    /*   lazy val polygon = {
-         val p = new Polygon(approxCurve.toArray.toList.map(p => List(p.x, p.y)).flatten: _*)
-         p.setStroke(Color.FIREBRICK)
-         p.setFill(Color.GREEN)
-         p.setOpacity(1)
-         p
-       }
-      */
     lazy val resizedNumberData = {
       val size = new Size(25, 50)
       val resizedNumberData = new Mat(size, CvType.CV_8UC1)
@@ -460,32 +384,6 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
     override def toString = s"($nrDetections, $distance, $descriptorMatcher, $descriptorExtractor, $featureDetector)"
   }
 
-  def mkComparison(image: File, solution: String, trainingLibPath: File): ParSeq[Future[DetectionResult]] = {
-    val input = readImage(image, CvType.CV_8UC1)
-    val total = descriptorExtractorTypes.size * descriptorMatcherTypes.size * featureDetectorTypes.size
-    var i = 1
-    (for {
-      descriptorMatcher <- descriptorMatcherTypes.par
-      descriptorExtractor <- descriptorExtractorTypes.par
-      featureDetector <- featureDetectorTypes.par
-    } yield {
-      future {
-        val lib = mkComparisonLibrary(path = trainingLibPath
-          , featureDetectorType = featureDetector,
-          descriptorExtractorType = descriptorExtractor
-        )
-
-        val (warped, cells) = mkSudoku(input = input,
-          detectNumberMethod = withFeatureExtraction(lib))
-        i = i + 1
-        DetectionResult(filterKnownCells(cells).size, levensthein(toString(cells), solution),
-          descriptorMatcher, descriptorExtractor, featureDetector)
-      }
-    }).par
-    //Seq(Success(null))
-
-  }
-
   /**
    * for a given mat, returns the contour with the max area, whilst the contour has 4 sides
    *
@@ -500,20 +398,6 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
 
     (maxContour.contourArea, rearrangeCorners(maxContour.approxCurve))
   }
-
-  /*
-  def mkPolygon(openCVPoints: MatOfPoint2f): Polygon = {
-    val poly = new Polygon
-    poly.setStroke(Color.RED)
-    poly.setFill(Color.AZURE)
-    poly.setOpacity(0.5)
-    for (p <- openCVPoints.toList()) {
-      poly.getPoints.add(p.x.toDouble)
-      poly.getPoints.add(p.y.toDouble)
-    }
-    poly
-  }*/
-
 
   def equalizeHist(input: Mat): Mat = {
     val output = new Mat
@@ -537,8 +421,8 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
 
   def preprocess(input: Mat): Mat = {
     val blurred = blur(input)
-    val thresholded = adaptiveThreshold(blurred)
-    val inverted = bitwiseNot(thresholded)
+    val thresholdApplied = adaptiveThreshold(blurred)
+    val inverted = bitwiseNot(thresholdApplied)
     val dilated = dilate(inverted)
     dilated
   }
@@ -900,10 +784,6 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     val libraryPath = new File("src/test/resources/kleinezeitung/lib/")
     lazy val templateLibrary: Map[Int, Set[Mat]] = mkTemplateLibrary(libraryPath)
 
-    // lazy val comparisonLibrary: Map[Int, Set[Mat]] = mkComparisonLibrary(libraryPath)
-    //val (warped, cells) = mkSudoku(detectNumberMethod = withFeatureExtraction(comparisonLibrary), input = input)
-
-
     val canvas = new BorderPane
     val cBox = new ComboBox[String]()
     cBox.getItems.addAll((for (i <- 1 to 5) yield "sudoku%s.png".format(i)))
@@ -934,7 +814,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
 // ported and adapted from
 // https://github.com/fxexperience/code/blob/master/FXExperienceControls/src/com/fxexperience/javafx/animation/CachedTimelineTransition.java
-class CachedTimelineTransition(node: Node, timeline: Timeline, useCache: Boolean) extends Transition with JfxUtils {
+class CachedTimelineTransition(node: Node, timeline: Timeline, useCache: Boolean)
+  extends Transition with JfxUtils {
 
   var oldCache = false
   var oldCacheHint = CacheHint.DEFAULT
@@ -986,7 +867,6 @@ class BounceTransition(node: Node) extends CachedTimelineTransition(node, {
 }
 , false
 ) {
-
   setCycleDuration(Duration.seconds(1))
   setDelay(Duration.seconds(0.0))
 }
@@ -1027,7 +907,6 @@ trait SudokuSolver {
     // The board is represented by an array of strings (arrays of chars),
     // held in a global variable mx. The program begins by reading 9 lines
     // of input to fill the board
-
     val mx: Array[Array[Char]] = stringRep.stripMargin.split("\n").map(_.trim.toArray)
 
     var solution = new ListBuffer[String]()
@@ -1074,16 +953,15 @@ trait SudokuSolver {
 
     // The main part of the program uses the search function to accumulate
     // the total number of solutions
-
     search(0, 0, i => {
       print;
       i + 1
     }, 0)
 
     solution.toList.mkString("\n")
-
-    // yes thats all ;-)
+    // thats all ;-)
   }
+
 }
 
 
