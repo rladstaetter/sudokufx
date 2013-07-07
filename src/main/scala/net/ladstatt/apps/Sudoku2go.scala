@@ -25,14 +25,14 @@ import javafx.event.EventHandler
 import javafx.scene.Scene
 import javafx.scene.control._
 import javafx.scene.image.{Image, ImageView}
-import javafx.scene.layout.{VBox, HBox, BorderPane}
+import javafx.scene.layout.{StackPane, VBox, HBox, BorderPane}
 import javafx.stage.Stage
 import javafx.util.Callback
 import scala.collection.JavaConversions._
 import javafx.geometry.{Pos, Orientation}
 import javafx.scene.paint.Color
 import javafx.scene.Group
-import javafx.scene.shape.{Rectangle, Polygon}
+import javafx.scene.shape.{Polyline, Rectangle, Polygon}
 import org.opencv.features2d.{DescriptorMatcher, DescriptorExtractor, FeatureDetector}
 import scala.concurrent.Future
 import scala.collection.parallel.ParSeq
@@ -515,9 +515,9 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
     })
   }
 
-  def warp(input: Mat): Mat = {
+  def warp(input: Mat): (Mat, Seq[Point]) = {
     val (maxArea, corners) = findMaxArea(preprocess(input))
-    warp(input, corners)
+    (warp(input, corners), corners)
   }
 
 
@@ -602,8 +602,8 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
   def mkSudoku(input: Mat,
                widthFactor: Double = 1,
                heightFactor: Double = 1,
-               detectNumberMethod: Contour => Int): (Mat, Seq[SCell]) = {
-    val warped = warp(input)
+               detectNumberMethod: Contour => Int): (Mat, Seq[Point], Seq[SCell]) = {
+    val (warped, corners) = warp(input)
     val cells = {
 
       val (blockWidth, blockHeight) = calcBlockSize(warped, degree)
@@ -653,7 +653,9 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
         }
       }).flatten
     }
-    (warped, cells)
+    val scaledCorners = corners.map(p => new Point(p.x * widthFactor, p.y * heightFactor))
+
+    (warped, scaledCorners, cells)
   }
 
 }
@@ -679,14 +681,22 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     new BounceTransition(sudokuCell.contour.poly).play
   }
 
+  def mkPolyLine(points: Seq[Point]): Polyline = {
+    val line = new Polyline()
+    line.setStroke(Color.BLUE)
+    line.setStrokeWidth(5)
+    line.setEffect(new DropShadow())
+    val ps = points.map(p => List[java.lang.Double](p.x, p.y)).flatten.toList
+    line.getPoints.addAll(ps ++ List(ps(0), ps(1)))
+    line
+
+  }
+
   def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[(HBox, VBox)] = {
     val (inputWidth, inputHeight) = (input.size.width, input.size.height)
     val (widthFactor, heightFactor) = ((sudokuSize / inputWidth), (sudokuSize / inputHeight))
-    val (warped, cells) = mkSudoku(
-      detectNumberMethod = detectionMethod,
-      widthFactor = widthFactor,
-      heightFactor = heightFactor,
-      input = input)
+    val (warped, corners, cells) = mkSudoku(input = input, widthFactor = widthFactor, heightFactor = heightFactor, detectNumberMethod = detectionMethod
+    )
 
     for (inputImage <- toImage(input)) yield {
 
@@ -698,13 +708,16 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
       val centerBox = new HBox
       centerBox.setPadding(new Insets(40, 40, 40, 40))
-      val stackPane = new Group
-      stackPane.getChildren.add(outputView)
+      val outputGroup = new Group
+      outputGroup.getChildren.add(outputView)
 
+      val inputGroup = new Group
       val inputView = new ImageView
       inputView.setFitWidth(sudokuSize)
       inputView.setFitHeight(sudokuSize)
-      centerBox.getChildren.addAll(inputView, stackPane)
+      val cornerLines = mkPolyLine(corners)
+      inputGroup.getChildren.addAll(inputView, cornerLines)
+      centerBox.getChildren.addAll(inputGroup, outputGroup)
 
       val cellView = new ImageView
       updateImageView(inputView)(input)
@@ -713,7 +726,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
       if (knownCells.size > 0) {
         knownCells(0) match {
           case scell: SudokuCell => {
-            updateSudokuCellView(stackPane, cellView, scell)
+            updateSudokuCellView(outputGroup, cellView, scell)
           }
           case _ =>
         }
@@ -727,7 +740,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
           if (newVal.intValue < knownCells.size) {
             knownCells(newVal.intValue()) match {
               case sudokuCell: SudokuCell =>
-                updateSudokuCellView(stackPane, cellView, sudokuCell)
+                updateSudokuCellView(outputGroup, cellView, sudokuCell)
               case _ =>
             }
           }
@@ -748,7 +761,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
             case SudokuCell(col, row, _, _, _) => ((row == c.row) && (col == c.column))
             case _ => false
           }))
-          stackPane.getChildren.addAll(filteredSolutionCells.map(_.mkLabel(cellSize, cellSize)))
+          outputGroup.getChildren.addAll(filteredSolutionCells.map(_.mkLabel(cellSize, cellSize)))
         }
 
       }))

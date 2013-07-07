@@ -34,7 +34,7 @@ class SudokuTest extends Sudokuaner {
 
   def levi(sudokuTestData: SudokuTestData, fileName: String): Int = {
     val expected = sudokuTestData.data(fileName)
-    val (warped, cells) = mkSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
+    val (warped, corners,cells) = mkSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
       // detectNumberMethod = withFeatureExtraction(mkComparisonLibrary(sudokuTestData.trainingPath)))
       detectNumberMethod = withTemplateMatching(mkTemplateLibrary(sudokuTestData.trainingPath)))
     levensthein(toString(cells), expected)
@@ -42,7 +42,7 @@ class SudokuTest extends Sudokuaner {
 
   def fullTextCompare(sudokuTestData: SudokuTestData)(fileName: String) = {
     val expected = sudokuTestData.data(fileName)
-    val (warped, cells) = mkSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
+    val (warped, corners,cells) = mkSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
       //  detectNumberMethod = withFeatureExtraction(mkComparisonLibrary(sudokuTestData.trainingPath)))
       detectNumberMethod = withTemplateMatching(mkTemplateLibrary(sudokuTestData.trainingPath)))
 

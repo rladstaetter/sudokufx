@@ -13,7 +13,7 @@ object LibGenerator extends Sudokuaner {
 
   def generateTrainData(testData : SudokuTestData, fileName: String, targetPath : File): Unit = {
     val expected = testData.data(fileName)
-    val (warped, cells) = mkSudoku(input = readImage(new File(testData.resPath, fileName), CvType.CV_8UC1),
+    val (warped, corners,cells) = mkSudoku(input = readImage(new File(testData.resPath, fileName), CvType.CV_8UC1),
       detectNumberMethod = withFeatureExtraction(mkComparisonLibrary(testData.trainingPath)))
 
     val mappedCells = (cells.filter(c => c match {
