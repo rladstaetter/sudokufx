@@ -35,13 +35,14 @@ import javafx.scene.Group
 import javafx.scene.shape.{Polyline, Rectangle, Polygon}
 import org.opencv.features2d.{DescriptorMatcher, DescriptorExtractor, FeatureDetector}
 import scala.concurrent.Future
-import scala.collection.parallel.ParSeq
 import javafx.scene.text.Font
 import javafx.animation.Animation.Status
 import scala.util.Failure
 import scala.Some
 import scala.util.Success
-
+import scala.concurrent._
+import ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
@@ -266,28 +267,6 @@ trait OpenCVUtils extends Utils {
     }).sortWith((a, b) => a.contourArea > b.contourArea).headOption
   }
 
-  /**
-   *
-   * @param input
-   * @param original
-   * @return  a sequence of contours with their area, points, boundingrectangle and visual representation
-   */
-  /*
-  def findContours(input: Mat, original: Mat): Seq[Contour] = {
-    val contours = time(coreFindContours(input), gg => println("corefind: %s".format(gg)))
-    for (i <- 0 until contours.size) yield {
-      val curve = new MatOfPoint2f
-      curve.fromArray(contours(i).toList: _*)
-      val boundingRect = Imgproc.boundingRect(contours(i))
-      val contourArea = Imgproc.contourArea(curve)
-      val arcLength = Imgproc.arcLength(curve, true)
-      val approxCurve = new MatOfPoint2f
-      Imgproc.approxPolyDP(curve, approxCurve, 0.02 * arcLength, true)
-      val contourMat = original.submat(new Range(boundingRect.y, boundingRect.y + boundingRect.height), new Range(boundingRect.x, boundingRect.x + boundingRect.width))
-      Contour(contourArea, approxCurve, boundingRect, contourMat, original, mkPolygon(approxCurve))
-    }
-  }
-        */
   /**
    * sort points in following order:
    * topleft, topright, bottomright, bottomleft
@@ -581,7 +560,6 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
   def extractContour(cellRawData: Mat): Option[Contour] = {
     // only search for contours in a subrange of the original cell to get rid of possible border lines
     val (width, height) = (cellRawData.size.width, cellRawData.size.height)
-    println(s"$width/$height")
     val cellData = new Mat(cellRawData, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
     val cellArea = cellData.size().area
     val (minArea, maxArea) = (0.15 * cellArea, 0.5 * cellArea)
@@ -645,53 +623,54 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
                heightFactor: Double = 1,
                detectNumberMethod: Contour => Int): (Mat, Seq[Point], Seq[SCell]) = {
     val (warped, corners) = time(warp(input), ms => println("warping: %s".format(ms)))
-    val cells = {
+    val futureCells = {
       val (blockWidth, blockHeight) = calcBlockSize(warped, degree)
-      (for (row <- 0 until degree) yield {
-        for (column <- 0 until degree) yield {
-          val (xl, xr, yl, yr) = (column * blockWidth,
-            (column + 1) * blockWidth,
-            row * blockHeight,
-            (row + 1) * blockHeight)
+      (for {row <- 0 until degree
+            column <- 0 until degree} yield future {
+        val (xl, xr, yl, yr) = (column * blockWidth,
+          (column + 1) * blockWidth,
+          row * blockHeight,
+          (row + 1) * blockHeight)
 
-          val (pxl, pxr, pyl, pyr) = ((xl * widthFactor).toInt,
-            (xr * widthFactor).toInt,
-            (yl * heightFactor).toInt,
-            (yr * heightFactor).toInt)
+        val (pxl, pxr, pyl, pyr) = ((xl * widthFactor).toInt,
+          (xr * widthFactor).toInt,
+          (yl * heightFactor).toInt,
+          (yr * heightFactor).toInt)
 
-          val cellData = warped.submat(new Range(yl, yr), new Range(xl, xr))
+        val cellData = warped.submat(new Range(yl, yr), new Range(xl, xr))
 
-          option(extractContour(cellData))(EmptyCell,
-            contour => {
-              SudokuCell(column = column,
-                row = row,
-                border = {
-                  val poly = new Polygon(
-                    pxl + 1, pyl + 1,
-                    pxr, pyl + 1,
-                    pxr, pyr,
-                    pxl + 1, pyr)
-                  poly.setStroke(Color.RED)
-                  poly.setFill(Color.AZURE)
-                  poly.setOpacity(0.5)
-                  poly
-                },
-                value = detectNumberMethod(contour),
-                contour = contour.copy(poly = {
-                  val p = contour.poly
-                  val g = new DropShadow
-                  p.setEffect(g)
-                  val corrX = if (column >= degree - 2) -(cellSize * degree / 9) * 2 else 0
-                  val corrY = if (row >= degree - 2) -(cellSize * degree / 9) * 2 else 0
-                  p.setTranslateX(pxl + corrX)
-                  p.setTranslateY(pyl + corrY)
-                  p
-                }))
-            })
-        }
-      }).flatten
+        option(extractContour(cellData))(EmptyCell,
+          contour => {
+            SudokuCell(column = column,
+              row = row,
+              border = {
+                val poly = new Polygon(
+                  pxl + 1, pyl + 1,
+                  pxr, pyl + 1,
+                  pxr, pyr,
+                  pxl + 1, pyr)
+                poly.setStroke(Color.RED)
+                poly.setFill(Color.AZURE)
+                poly.setOpacity(0.5)
+                poly
+              },
+              value = detectNumberMethod(contour),
+              contour = contour.copy(poly = {
+                val p = contour.poly
+                val g = new DropShadow
+                p.setEffect(g)
+                val corrX = if (column >= degree - 2) -(cellSize * degree / 9) * 2 else 0
+                val corrY = if (row >= degree - 2) -(cellSize * degree / 9) * 2 else 0
+                p.setTranslateX(pxl + corrX)
+                p.setTranslateY(pyl + corrY)
+                p
+              }))
+          })
+      })
     }
     val scaledCorners = corners.map(p => new Point(p.x * widthFactor, p.y * heightFactor))
+    val cells = for (fc <- futureCells) yield Await.result(fc, 1000 millis)
+
 
     (warped, scaledCorners, cells)
   }
@@ -765,7 +744,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
 
   def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[(HBox, VBox)] = {
-    time(coreCalc(input, detectionMethod, sudokuSize), ms => println("Calced: %s".format(ms))) match {
+    time(coreCalc(input, detectionMethod, sudokuSize), ms => println("Calc: %s".format(ms))) match {
       case Success((warped, corners, solution)) => {
 
         val outputImage = toImage(warped) match {
