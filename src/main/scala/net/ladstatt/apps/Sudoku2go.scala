@@ -806,6 +806,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         outputView.imageProperty.set(outputImage)
         val centerBox = new HBox
         centerBox.setPadding(new Insets(40, 40, 40, 40))
+
+        // using javafx to overlay (should use opencv's mat i guess)
         val outputGroup = new Group
         outputGroup.getChildren.add(outputView)
         outputGroup.getChildren.addAll(solution.map(_.mkRepresentation(cellSize, cellSize)))
@@ -821,7 +823,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         val solutionView = new ImageView
         solutionView.setFitWidth(sudokuSize)
         solutionView.setFitHeight(sudokuSize)
-        solutionView.setBlendMode(BlendMode.COLOR_DODGE)  // works well enough
+        solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
         val inputGroup = new Group
         val inputView = new ImageView
         inputView.setFitWidth(sudokuSize)
@@ -829,7 +831,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         val cornerLines = mkPolyLine(corners)
 
         inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
-        centerBox.getChildren.addAll(inputGroup, outputGroup)
+        centerBox.getChildren.addAll(inputGroup)
 
         val cellView = new ImageView
         updateImageView(inputView)(input)
@@ -876,7 +878,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     val cBox = new ComboBox[String]()
     cBox.getItems.addAll((for (i <- 1 to 5) yield "sudoku%s.png".format(i)))
     cBox.setOnAction(mkEventHandler(e => {
-      calcSudoku(readImage(new File(imagePath, cBox.getValue), CvType.CV_8UC1), withTemplateMatching(templateLibrary)) match {
+      val image2process = readImage(new File(imagePath, cBox.getValue), CvType.CV_8UC1)
+      calcSudoku(image2process, withTemplateMatching(templateLibrary)) match {
         case Success(centerBox) => {
           canvas.setCenter(centerBox)
         }
@@ -888,7 +891,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     BorderPane.setAlignment(cBox, Pos.CENTER)
 
 
-    val scene = new Scene(canvas, 1200, 768)
+    val scene = new Scene(canvas, sudokuSize * 1.1, sudokuSize * 1.3)
     stage.setScene(scene)
 
     stage.show
