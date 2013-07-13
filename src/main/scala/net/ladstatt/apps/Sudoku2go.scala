@@ -14,9 +14,9 @@ import java.io.{FilenameFilter, ByteArrayInputStream, File}
 import scala.collection.mutable.{ListBuffer, ArrayBuffer}
 import scala.util.Try
 import org.opencv.core._
-import org.opencv.highgui.Highgui
+import org.opencv.highgui.{VideoCapture, Highgui}
 import org.opencv.imgproc.Imgproc
-import javafx.application.Application
+import javafx.application.{Platform, Application}
 import javafx.beans.value.{WritableValue, ChangeListener, ObservableValue}
 import javafx.collections.ListChangeListener
 import javafx.event.Event
@@ -45,6 +45,7 @@ import scala.Some
 import scala.util.Success
 import javax.imageio.ImageIO
 import javafx.embed.swing.SwingFXUtils
+import javafx.concurrent.{Task, Service}
 
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
@@ -384,6 +385,10 @@ trait JfxUtils {
     def handle(e: E) = f(e)
   }
 
+  def mkTask[X](callFn: => X): Task[X] = new Task[X] {
+    override def call(): X = callFn
+  }
+
 }
 
 object Sudoku2go {
@@ -476,10 +481,8 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
           println("h:%s, w: %s /// %s / %s".format(image.getHeight, image.getWidth, cellHeight, cellWidth))
 
           val iv = new ImageView(image)
-          iv.setFitHeight(cellHeight)
-          iv.setFitWidth(cellWidth)
-          val x = column * cellWidth
-          val y = row * cellHeight
+          val x = column * cell.size.width
+          val y = row * cell.size.height
           iv.setTranslateX(x)
           iv.setTranslateY(y)
           iv
@@ -562,9 +565,8 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
   }
 
   def warp(input: Mat): (Mat, Seq[Point]) = {
-    val preprocessed = time(preprocess(input), ms => println("preprocessing: %s".format(ms)))
-    val (maxArea, srcCorners) = time(findMaxArea(preprocessed), ms => println("findmaxarea: %s".format(ms)))
-
+    val preprocessed = preprocess(input)
+    val (maxArea, srcCorners) = findMaxArea(preprocessed)
     (warp(input, srcCorners, mkCorners(input)), srcCorners)
   }
 
@@ -647,7 +649,7 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
                widthFactor: Double = 1,
                heightFactor: Double = 1,
                detectNumberMethod: Contour => Int): (Mat, Seq[Point], Seq[SCell]) = {
-    val (warped, corners) = time(warp(input), ms => println("warping: %s".format(ms)))
+    val (warped, corners) = warp(input)
     val futureCells = {
       val (blockWidth, blockHeight) = calcBlockSize(warped, degree)
       (for {row <- 0 until degree
@@ -767,22 +769,34 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
    */
   def coreCalc(input: Mat, detectionMethod: Contour => Int, sudokuSize: Int): Try[(Mat, Seq[Point], Seq[SolvedCell])] = {
     val (inputWidth, inputHeight) = (input.size.width, input.size.height)
-    val (widthFactor, heightFactor) = ((sudokuSize / inputWidth), (sudokuSize / inputHeight))
-    val (warped, corners, cells) = time(mkSudoku(input, widthFactor, heightFactor, detectionMethod), ns => println("image processing: %s".format(ns)))
+    // val (widthFactor, heightFactor) = ((sudokuSize / inputWidth), (sudokuSize / inputHeight))
+    val (widthFactor, heightFactor) = ((inputWidth / inputWidth), (inputHeight / inputHeight))
+    val (warped, corners, cells) = mkSudoku(input, widthFactor, heightFactor, detectionMethod)
     toImage(input) match {
       case Success(inputImage) =>
         try {
           val knownCells = filterKnownCells(cells)
           val digitLibrary = mkDigitLibrary(knownCells)
-          val sudokuAsString = toSolverString(knownCells)
-          val solvedString = solve(sudokuAsString)
 
-          val allCells = toSolutionCells(digitLibrary, solvedString)
-          val solutionCells = allCells.filterNot(c => knownCells.exists(x => x match {
-            case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
-            case _ => false
-          }))
-          Success((warped, corners, solutionCells))
+         // println("Detected cells: %s".format(knownCells.size))
+          if (knownCells.size >= 20) {
+
+            val sudokuAsString = toSolverString(knownCells)
+            val solvedString = solve(sudokuAsString)
+
+            val allCells = toSolutionCells(digitLibrary, solvedString)
+            val solutionCells = allCells.filterNot(c => knownCells.exists(x => x match {
+              case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
+              case _ => false
+            }))
+            println
+            println(("D %s, S %s A %s".format(knownCells.size, solutionCells.size, knownCells.size + solutionCells.size)))
+            println(solvedString)
+            println
+            Success((warped, corners, solutionCells))
+          } else {
+            Failure(new RuntimeException("Couldn't detect enough digits."))
+          }
         } catch {
           case e: Throwable => Failure(e)
         }
@@ -791,8 +805,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
   }
 
 
-  def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[HBox] = {
-    time(coreCalc(input, detectionMethod, sudokuSize), ms => println("Calc: %s".format(ms))) match {
+  def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[Group] = {
+    coreCalc(input, detectionMethod, sudokuSize) match {
       case Success((warped, corners, solution)) => {
 
         val outputImage = toImage(warped) match {
@@ -801,11 +815,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         }
 
         val outputView = new ImageView()
-        outputView.setFitWidth(sudokuSize)
-        outputView.setFitHeight(sudokuSize)
         outputView.imageProperty.set(outputImage)
         val centerBox = new HBox
-        centerBox.setPadding(new Insets(40, 40, 40, 40))
 
         // using javafx to overlay (should use opencv's mat i guess)
         val outputGroup = new Group
@@ -816,18 +827,15 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         // major hackativity
         val i = outputGroup.snapshot(new SnapshotParameters, null)
         val f = File.createTempFile("sudoku", "png")
+        f.deleteOnExit
         ImageIO.write(SwingFXUtils.fromFXImage(i, null), "png", f)
         val solMat = readImage(f, CvType.CV_8UC1)
         val warpedSolutionMat = warp(solMat, mkCorners(solMat), corners)
 
         val solutionView = new ImageView
-        solutionView.setFitWidth(sudokuSize)
-        solutionView.setFitHeight(sudokuSize)
         solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
         val inputGroup = new Group
         val inputView = new ImageView
-        inputView.setFitWidth(sudokuSize)
-        inputView.setFitHeight(sudokuSize)
         val cornerLines = mkPolyLine(corners)
 
         inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
@@ -838,8 +846,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         updateImageView(solutionView)(warpedSolutionMat)
         updateImageView(outputView)(warped)
 
-
-        Success(centerBox)
+        Success(inputGroup)
       }
       case Failure(f) => Failure(f)
     }
@@ -868,6 +875,12 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
   }
 
 
+  def colorSpace(input: Mat): Mat = {
+    val colorTransformed = new Mat
+    Imgproc.cvtColor(input, colorTransformed, Imgproc.COLOR_BGR2GRAY)
+    colorTransformed
+  }
+
   override def start(stage: Stage): Unit = {
     stage.setTitle("JavaFX OpenCV Scala Sudoku")
     val imagePath = new File("src/test/resources/kleinezeitung/examples/")
@@ -875,25 +888,56 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     lazy val templateLibrary: Map[Int, Set[Mat]] = mkTemplateLibrary(libraryPath)
 
     val canvas = new BorderPane
-    val cBox = new ComboBox[String]()
-    cBox.getItems.addAll((for (i <- 1 to 5) yield "sudoku%s.png".format(i)))
-    cBox.setOnAction(mkEventHandler(e => {
-      val image2process = readImage(new File(imagePath, cBox.getValue), CvType.CV_8UC1)
-      calcSudoku(image2process, withTemplateMatching(templateLibrary)) match {
-        case Success(centerBox) => {
-          canvas.setCenter(centerBox)
-        }
-        case Failure(e) => canvas.setCenter(new Label("Error during sudoku calculation: %s".format(e.getMessage)))
-      }
-    }))
-    canvas.setTop(cBox)
 
-    BorderPane.setAlignment(cBox, Pos.CENTER)
+    val imageService = new WebcamService
+    imageService.setOnSucceeded(
+      mkEventHandler(
+        event => {
+          time({
+            val image2process = colorSpace(event.getSource.getValue.asInstanceOf[Mat])
+            calcSudoku(image2process, withTemplateMatching(templateLibrary)) match {
+              case Success(centerBox) => {
+                canvas.setCenter(centerBox)
+              }
+              case Failure(e) => {
+                Platform.runLater(
+                  new Runnable() {
+                    def run = {
+                      toImage(image2process) match {
+                        case Success(i) => {
+                          val iv = new ImageView(i)
+                          canvas.setCenter(iv)
+                          val eL = new Label("Sudoku calculation: %s".format(e.getMessage))
+                          BorderPane.setAlignment(eL, Pos.CENTER)
+                          canvas.setBottom(eL)
+                        }
+                        case Failure(e) => {
+                          canvas.setCenter(new Label(e.getMessage))
+                          val eL = new Label("Sudoku calculation: %s".format(e.getMessage))
+                          BorderPane.setAlignment(eL, Pos.CENTER)
+                          canvas.setBottom(eL)
+                        }
+                      }
+                    }
+                  }
+                )
+              }
+            }
+            Platform.runLater(
+              new Runnable() {
+                def run = {
+                  imageService.restart
+                }
+              })
+          }, time =>
+            println("Calculation %d ms".format(time)))
+        }))
+
+    imageService.start
 
 
-    val scene = new Scene(canvas, sudokuSize * 1.1, sudokuSize * 1.3)
+    val scene = new Scene(canvas, 1400, 800)
     stage.setScene(scene)
-
     stage.show
 
   }
@@ -1055,4 +1099,24 @@ trait SudokuSolver {
 }
 
 
+class WebcamService extends Service[Mat] with OpenCVUtils with JfxUtils {
 
+  val videoCapture: VideoCapture = new VideoCapture(0)
+
+  def takeImage: Mat = {
+    val image = new Mat()
+    while (videoCapture.read(image) == false) {}
+    image
+  }
+
+  def sourceMat: Mat = {
+    assert(videoCapture.isOpened())
+    if (videoCapture.grab) {
+      takeImage
+    } else
+      throw new RuntimeException("Couldn't grab image!")
+  }
+
+  def createTask = mkTask(sourceMat)
+
+}
