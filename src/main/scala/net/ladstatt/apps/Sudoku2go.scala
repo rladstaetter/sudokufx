@@ -697,7 +697,7 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
       })
     }
     val scaledCorners = corners.map(p => new Point(p.x * widthFactor, p.y * heightFactor))
-    val cells = for (fc <- futureCells) yield Await.result(fc, 1000 millis)
+    val cells = for (fc <- futureCells) yield Await.result(fc, 5000 millis)
 
 
     (warped, scaledCorners, cells)
