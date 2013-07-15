@@ -1,5 +1,21 @@
 package net.ladstatt.apps
 
+/**
+ * Copyright (c) 2013, Robert Ladstätter @rladstaetter
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * - Neither the name of Robert Ladstätter nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * See http://opensource.org/licenses/BSD-3-Clause.
+ **/
+
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import javafx.animation._
@@ -46,6 +62,7 @@ import scala.util.Success
 import javax.imageio.ImageIO
 import javafx.embed.swing.SwingFXUtils
 import javafx.concurrent.{Task, Service}
+import java.util.Date
 
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
@@ -126,13 +143,6 @@ trait OpenCVUtils extends Utils {
         minMaxResult.minLoc
       else minMaxResult.maxLoc
     (minMaxResult.maxVal, matchLoc)
-  }
-
-  def updateImageView(imageView: ImageView)(mat: Mat): Unit = {
-    toImage(mat) match {
-      case Success(image) => imageView.setImage(image)
-      case Failure(e) => sys.error(e.getMessage)
-    }
   }
 
   /**
@@ -224,7 +234,8 @@ trait OpenCVUtils extends Utils {
   }
 
 
-  def findContourWithMaxArea(input: Mat, original: Mat): Contour = {
+  // TODO
+  def findContourWithMaxArea(input: Mat, original: Mat): Option[Contour] = {
     val contours = coreFindContours(input)
     val contourMetrics = (for (i <- 0 until contours.size) yield {
       val curve = new MatOfPoint2f
@@ -237,11 +248,15 @@ trait OpenCVUtils extends Utils {
       (contourArea, approxCurve, boundingRect)
     })
 
-    val (maxContourArea, maxApproxCurve, boundingRect) = contourMetrics.filter {
-      case (contourArea, approxCurve, bRect) => approxCurve.size == new Size(1, 4)
-    }.toSeq.sortWith((a, b) => a._1 > b._1).head
-    val contourMat = original.submat(new Range(boundingRect.y, boundingRect.y + boundingRect.height), new Range(boundingRect.x, boundingRect.x + boundingRect.width))
-    Contour(maxContourArea, maxApproxCurve, boundingRect, contourMat, original, mkPolygon(maxApproxCurve))
+    if (!contourMetrics.isEmpty) {
+      val (maxContourArea, maxApproxCurve, boundingRect) = contourMetrics.filter {
+        case (contourArea, approxCurve, bRect) => approxCurve.size == new Size(1, 4)
+      }.toSeq.sortWith((a, b) => a._1 > b._1).head
+      val contourMat = original.submat(new Range(boundingRect.y, boundingRect.y + boundingRect.height), new Range(boundingRect.x, boundingRect.x + boundingRect.width))
+      Some(Contour(maxContourArea, maxApproxCurve, boundingRect, contourMat, original, mkPolygon(maxApproxCurve)))
+    } else {
+      None
+    }
 
   }
 
@@ -336,14 +351,11 @@ trait OpenCVUtils extends Utils {
     out
   }
 
-  def toImage(mat: Mat): Try[Image] =
-    try {
-      val memory = new MatOfByte
-      Highgui.imencode(".png", mat, memory)
-      Success(new Image(new ByteArrayInputStream(memory.toArray())))
-    } catch {
-      case e: Throwable => Failure(e)
-    }
+  def toImage(mat: Mat): Image = {
+    val memory = new MatOfByte
+    Highgui.imencode(".png", mat, memory)
+    new Image(new ByteArrayInputStream(memory.toArray()))
+  }
 
 }
 
@@ -418,9 +430,12 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
    *
    * (if you happen to look at a sudoku, it is likely to get the whole sudoku frame with this trick)
    */
-  def findMaxArea(input: Mat): (Double, Seq[Point]) = {
-    val maxContour = findContourWithMaxArea(input, input)
-    (maxContour.contourArea, rearrangeCorners(maxContour.approxCurve))
+  def findSomeMaxArea(input: Mat): Option[(Double, Seq[Point])] = {
+    findContourWithMaxArea(input, input) match {
+      case Some(maxContour) => Some((maxContour.contourArea, rearrangeCorners(maxContour.approxCurve)))
+      case None => None
+    }
+
   }
 
   def equalizeHist(input: Mat): Mat = {
@@ -476,19 +491,12 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
       option(someCell)(mkLabel(cellWidth, cellHeight), cell => mkImage(cell, cellWidth, cellHeight))
 
     def mkImage(cell: Mat, cellWidth: Float, cellHeight: Float): Node = {
-      toImage(cell) match {
-        case Success(image) => {
-          println("h:%s, w: %s /// %s / %s".format(image.getHeight, image.getWidth, cellHeight, cellWidth))
-
-          val iv = new ImageView(image)
-          val x = column * cell.size.width
-          val y = row * cell.size.height
-          iv.setTranslateX(x)
-          iv.setTranslateY(y)
-          iv
-        }
-        case Failure(e) => mkLabel(cellWidth, cellHeight)
-      }
+      val iv = new ImageView(toImage(cell))
+      val x = column * cell.size.width
+      val y = row * cell.size.height
+      iv.setTranslateX(x)
+      iv.setTranslateY(y)
+      iv
     }
 
     def mkLabel(cellWidth: Float, cellHeight: Float): Node = {
@@ -547,7 +555,6 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
       }
     }
 
-
     (((for (i <- 1 to 9) yield ("-" * 9).toList.mkString("|", "|", "|")).toList zip
       toStringList(cells)).map(x => List(x._1, x._2)).flatten ++ List(("-" * 9).toList.mkString("|", "|", "|"))).mkString("\n")
   }
@@ -564,10 +571,14 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
     List(new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height))
   }
 
-  def warp(input: Mat): (Mat, Seq[Point]) = {
+  def warp(input: Mat): Option[(Mat, Seq[Point])] = {
     val preprocessed = preprocess(input)
-    val (maxArea, srcCorners) = findMaxArea(preprocessed)
-    (warp(input, srcCorners, mkCorners(input)), srcCorners)
+    //val (maxArea, srcCorners) = findSomeMaxArea(preprocessed)
+    findSomeMaxArea(preprocessed) match {
+      case Some((maxArea, srcCorners)) => Some((warp(input, srcCorners, mkCorners(input)), srcCorners))
+      case None => None
+    }
+
   }
 
 
@@ -645,62 +656,64 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
    * @param detectNumberMethod
    * @return
    */
-  def mkSudoku(input: Mat,
+  def mkSomeSudoku(input: Mat,
                widthFactor: Double = 1,
                heightFactor: Double = 1,
-               detectNumberMethod: Contour => Int): (Mat, Seq[Point], Seq[SCell]) = {
-    val (warped, corners) = warp(input)
-    val futureCells = {
-      val (blockWidth, blockHeight) = calcBlockSize(warped, degree)
-      (for {row <- 0 until degree
-            column <- 0 until degree} yield future {
-        val (xl, xr, yl, yr) = (column * blockWidth,
-          (column + 1) * blockWidth,
-          row * blockHeight,
-          (row + 1) * blockHeight)
+               detectNumberMethod: Contour => Int): Option[(Mat, Seq[Point], Seq[SCell])] = {
+    warp(input) match {
+      case Some((warped, corners)) => {
+        val futureCells = {
+          val (blockWidth, blockHeight) = calcBlockSize(warped, degree)
+          (for {row <- 0 until degree
+                column <- 0 until degree} yield future {
+            val (xl, xr, yl, yr) = (column * blockWidth,
+              (column + 1) * blockWidth,
+              row * blockHeight,
+              (row + 1) * blockHeight)
 
-        val (pxl, pxr, pyl, pyr) = ((xl * widthFactor).toInt,
-          (xr * widthFactor).toInt,
-          (yl * heightFactor).toInt,
-          (yr * heightFactor).toInt)
+            val (pxl, pxr, pyl, pyr) = ((xl * widthFactor).toInt,
+              (xr * widthFactor).toInt,
+              (yl * heightFactor).toInt,
+              (yr * heightFactor).toInt)
 
-        val cellData = warped.submat(new Range(yl, yr), new Range(xl, xr))
+            val cellData = warped.submat(new Range(yl, yr), new Range(xl, xr))
 
-        option(extractContour(cellData))(EmptyCell,
-          contour => {
-            SudokuCell(column = column,
-              row = row,
-              border = {
-                val poly = new Polygon(
-                  pxl + 1, pyl + 1,
-                  pxr, pyl + 1,
-                  pxr, pyr,
-                  pxl + 1, pyr)
-                poly.setStroke(Color.RED)
-                poly.setFill(Color.AZURE)
-                poly.setOpacity(0.5)
-                poly
-              },
-              value = detectNumberMethod(contour),
-              contour = contour.copy(poly = {
-                val p = contour.poly
-                val g = new DropShadow
-                p.setEffect(g)
-                val corrX = if (column >= degree - 2) -(cellSize * degree / 9) * 2 else 0
-                val corrY = if (row >= degree - 2) -(cellSize * degree / 9) * 2 else 0
-                p.setTranslateX(pxl + corrX)
-                p.setTranslateY(pyl + corrY)
-                p
-              }),
-              cellData = cellData)
+            option(extractContour(cellData))(EmptyCell,
+              contour => {
+                SudokuCell(column = column,
+                  row = row,
+                  border = {
+                    val poly = new Polygon(
+                      pxl + 1, pyl + 1,
+                      pxr, pyl + 1,
+                      pxr, pyr,
+                      pxl + 1, pyr)
+                    poly.setStroke(Color.RED)
+                    poly.setFill(Color.AZURE)
+                    poly.setOpacity(0.5)
+                    poly
+                  },
+                  value = detectNumberMethod(contour),
+                  contour = contour.copy(poly = {
+                    val p = contour.poly
+                    val g = new DropShadow
+                    p.setEffect(g)
+                    val corrX = if (column >= degree - 2) -(cellSize * degree / 9) * 2 else 0
+                    val corrY = if (row >= degree - 2) -(cellSize * degree / 9) * 2 else 0
+                    p.setTranslateX(pxl + corrX)
+                    p.setTranslateY(pyl + corrY)
+                    p
+                  }),
+                  cellData = cellData)
+              })
           })
-      })
+        }
+        val scaledCorners = corners.map(p => new Point(p.x * widthFactor, p.y * heightFactor))
+        val cells = for (fc <- futureCells) yield Await.result(fc, 5000 millis)
+        Some((warped, scaledCorners, cells))
+      }
+      case None => None
     }
-    val scaledCorners = corners.map(p => new Point(p.x * widthFactor, p.y * heightFactor))
-    val cells = for (fc <- futureCells) yield Await.result(fc, 5000 millis)
-
-
-    (warped, scaledCorners, cells)
   }
 
 }
@@ -710,21 +723,6 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
   override def init(): Unit = loadNativeLibs // important to have this statement on the "right" thread
 
-  def updateSudokuCellView(stackPane: Group,
-                           cellView: ImageView,
-                           sudokuCell: SudokuCell): Unit = {
-
-    // remove all except background image
-    if (stackPane.getChildren.size > 1) {
-      val bg = stackPane.getChildren.get(0)
-      stackPane.getChildren.clear
-      stackPane.getChildren.add(bg)
-    }
-
-    stackPane.getChildren.addAll(sudokuCell.border, sudokuCell.contour.poly)
-    updateImageView(cellView)(sudokuCell.contour.cellMat)
-    new BounceTransition(sudokuCell.contour.poly).play
-  }
 
   def mkPolyLine(points: Seq[Point]): Polyline = {
     val line = new Polyline()
@@ -771,14 +769,14 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     val (inputWidth, inputHeight) = (input.size.width, input.size.height)
     // val (widthFactor, heightFactor) = ((sudokuSize / inputWidth), (sudokuSize / inputHeight))
     val (widthFactor, heightFactor) = ((inputWidth / inputWidth), (inputHeight / inputHeight))
-    val (warped, corners, cells) = mkSudoku(input, widthFactor, heightFactor, detectionMethod)
-    toImage(input) match {
-      case Success(inputImage) =>
+    mkSomeSudoku(input, widthFactor, heightFactor, detectionMethod) match {
+      case Some((warped, corners, cells)) => {
+        val inputImage = toImage(input)
         try {
           val knownCells = filterKnownCells(cells)
           val digitLibrary = mkDigitLibrary(knownCells)
 
-         // println("Detected cells: %s".format(knownCells.size))
+          // println("Detected cells: %s".format(knownCells.size))
           if (knownCells.size >= 20) {
 
             val sudokuAsString = toSolverString(knownCells)
@@ -789,34 +787,32 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
               case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
               case _ => false
             }))
-            println
-            println(("D %s, S %s A %s".format(knownCells.size, solutionCells.size, knownCells.size + solutionCells.size)))
-            println(solvedString)
-            println
+            //println
+            //println(("D %s, S %s A %s".format(knownCells.size, solutionCells.size, knownCells.size + solutionCells.size)))
+            //println(solvedString)
+            //println
             Success((warped, corners, solutionCells))
           } else {
+            //Success((warped, corners, Seq()))
             Failure(new RuntimeException("Couldn't detect enough digits."))
           }
         } catch {
           case e: Throwable => Failure(e)
         }
-      case Failure(e) => Failure(e)
+      }
+      case None => Failure(new RuntimeException("Could not detect sudoku corners."))
     }
   }
 
 
   def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[Group] = {
-    coreCalc(input, detectionMethod, sudokuSize) match {
+    coreCalc(colorSpace(input), detectionMethod, sudokuSize) match {
       case Success((warped, corners, solution)) => {
 
-        val outputImage = toImage(warped) match {
-          case Success(image) => image
-          case Failure(_) => null
-        }
+        val outputImage = toImage(warped)
 
         val outputView = new ImageView()
-        outputView.imageProperty.set(outputImage)
-        val centerBox = new HBox
+        outputView.setImage(outputImage)
 
         // using javafx to overlay (should use opencv's mat i guess)
         val outputGroup = new Group
@@ -832,19 +828,13 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
         val solMat = readImage(f, CvType.CV_8UC1)
         val warpedSolutionMat = warp(solMat, mkCorners(solMat), corners)
 
-        val solutionView = new ImageView
-        solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
         val inputGroup = new Group
-        val inputView = new ImageView
+        val inputView = new ImageView(toImage(input))
+        val solutionView = new ImageView (toImage(warpedSolutionMat))
+        solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
         val cornerLines = mkPolyLine(corners)
 
         inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
-        centerBox.getChildren.addAll(inputGroup)
-
-        val cellView = new ImageView
-        updateImageView(inputView)(input)
-        updateImageView(solutionView)(warpedSolutionMat)
-        updateImageView(outputView)(warped)
 
         Success(inputGroup)
       }
@@ -882,56 +872,48 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
   }
 
   override def start(stage: Stage): Unit = {
-    stage.setTitle("JavaFX OpenCV Scala Sudoku")
-    val imagePath = new File("src/test/resources/kleinezeitung/examples/")
+    stage.setTitle("Sudoku2go - JavaFX OpenCV Scala Sudoku Grabber and Solver")
     val libraryPath = new File("src/test/resources/kleinezeitung/lib/")
     lazy val templateLibrary: Map[Int, Set[Mat]] = mkTemplateLibrary(libraryPath)
 
     val canvas = new BorderPane
-
+    val eL = new Label()
+    BorderPane.setAlignment(eL, Pos.CENTER)
+    canvas.setBottom(eL)
     val imageService = new WebcamService
+    val templateMatchingDetector = withTemplateMatching(templateLibrary) _
+
     imageService.setOnSucceeded(
       mkEventHandler(
         event => {
-          time({
-            val image2process = colorSpace(event.getSource.getValue.asInstanceOf[Mat])
-            calcSudoku(image2process, withTemplateMatching(templateLibrary)) match {
-              case Success(centerBox) => {
-                canvas.setCenter(centerBox)
-              }
-              case Failure(e) => {
-                Platform.runLater(
-                  new Runnable() {
-                    def run = {
-                      toImage(image2process) match {
-                        case Success(i) => {
-                          val iv = new ImageView(i)
-                          canvas.setCenter(iv)
-                          val eL = new Label("Sudoku calculation: %s".format(e.getMessage))
-                          BorderPane.setAlignment(eL, Pos.CENTER)
-                          canvas.setBottom(eL)
-                        }
-                        case Failure(e) => {
-                          canvas.setCenter(new Label(e.getMessage))
-                          val eL = new Label("Sudoku calculation: %s".format(e.getMessage))
-                          BorderPane.setAlignment(eL, Pos.CENTER)
-                          canvas.setBottom(eL)
-                        }
-                      }
-                    }
-                  }
-                )
-              }
+          val grabbedMat = event.getSource.getValue.asInstanceOf[Mat]
+          var processingTime = 0l
+          val calcResult = time(calcSudoku(grabbedMat, templateMatchingDetector), t => processingTime = t)
+          calcResult match {
+            case Success(decoratedImage) => {
+              canvas.setCenter(decoratedImage)
+              eL.setText("Sudoku recognized in %s ms".format(processingTime))
             }
-            Platform.runLater(
-              new Runnable() {
-                def run = {
-                  imageService.restart
+            case Failure(e) => {
+              Platform.runLater(
+                new Runnable() {
+                  def run = {
+                    canvas.setCenter(new ImageView(toImage(grabbedMat)))
+                    eL.setText("No Sudoku detected in %s ms (reason: %s)".format(processingTime, e.getMessage))
+                  }
                 }
-              })
-          }, time =>
-            println("Calculation %d ms".format(time)))
-        }))
+              )
+            }
+          }
+          Platform.runLater(
+            new Runnable() {
+              def run = {
+                imageService.restart
+              }
+            })
+        }
+
+      ))
 
     imageService.start
 
@@ -946,69 +928,9 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 }
 
 
-// ported and adapted from
-// https://github.com/fxexperience/code/blob/master/FXExperienceControls/src/com/fxexperience/javafx/animation/CachedTimelineTransition.java
-class CachedTimelineTransition(node: Node, timeline: Timeline, useCache: Boolean)
-  extends Transition with JfxUtils {
-
-  var oldCache = false
-  var oldCacheHint = CacheHint.DEFAULT
-
-  statusProperty().addListener(mkChangeListener[Status](
-    (observable, oldStatus, newStatus) => newStatus match {
-      case Status.RUNNING => starting
-      case _ => stopping
-    }
-  ))
-
-  def starting() {
-    if (useCache) {
-      oldCache = node.isCache()
-      oldCacheHint = node.getCacheHint()
-      node.setCache(true)
-      node.setCacheHint(CacheHint.SPEED)
-    }
-  }
-
-  def stopping() {
-    if (useCache) {
-      node.setCache(oldCache)
-      node.setCacheHint(oldCacheHint)
-    }
-  }
-
-  override def interpolate(d: Double) {
-    timeline.playFrom(Duration.seconds(d))
-    timeline.stop()
-  }
-
-}
-
-// ported and adapted from https://github.com/fxexperience/code/blob/master/FXExperienceControls/src/com/fxexperience/javafx/animation/BounceTransition.java
-class BounceTransition(node: Node) extends CachedTimelineTransition(node, {
-  val y = node.getTranslateY
-  TimelineBuilder.create()
-    .keyFrames(
-    new KeyFrame(Duration.millis(0), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + 0, Interpolator.EASE_BOTH)),
-    new KeyFrame(Duration.millis(200), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + 0, Interpolator.EASE_BOTH)),
-    new KeyFrame(Duration.millis(400), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + -0.30 * node.getBoundsInParent().getHeight(), Interpolator.EASE_BOTH)),
-    new KeyFrame(Duration.millis(500), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + 0, Interpolator.EASE_BOTH)),
-    new KeyFrame(Duration.millis(600), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + -0.15 * node.getBoundsInParent().getHeight(), Interpolator.EASE_BOTH)),
-    new KeyFrame(Duration.millis(800), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + 0, Interpolator.EASE_BOTH)),
-    new KeyFrame(Duration.millis(1000), new KeyValue(node.translateYProperty().asInstanceOf[WritableValue[Any]], y + 0, Interpolator.EASE_BOTH))
-  )
-    .build()
-}
-, false
-) {
-  setCycleDuration(Duration.seconds(1))
-  setDelay(Duration.seconds(0.0))
-}
-
-
 /**
  * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
- * I hope the author ( doesn't mind me reusing the code for educational purposes.
+ * I hope the author doesn't mind me reusing the code for educational purposes.
  *
  * http://scala-programming-language.1934581.n4.nabble.com/25-lines-Sudoku-solver-in-Scala-td1987506.html
  *
@@ -1068,12 +990,12 @@ trait SudokuSolver {
     // The function is itself a higher-order fold, accumulating the value
     // accu by applying the given function f to it whenever a solution m
     // is found
-    def search(x: Int, y: Int, f: (Int) => Int, accu: Int): Int = Pair(x, y) match {
-      case Pair(9, y) => search(0, y + 1, f, accu) // next row
-      case Pair(0, 9) => {
+    def search(x: Int, y: Int, f: (Int) => Int, accu: Int): Int = (x, y) match {
+      case (9, y) => search(0, y + 1, f, accu) // next row
+      case (0, 9) => {
         f(accu)
       } // found a solution
-      case Pair(x, y) => if (mx(y)(x) != '0') search(x + 1, y, f, accu)
+      case (x, y) => if (mx(y)(x) != '0') search(x + 1, y, f, accu)
       else
         fold((accu: Int, n: Int) =>
           if (invalid(0, x, y, (n + 48).asInstanceOf[Char])) accu

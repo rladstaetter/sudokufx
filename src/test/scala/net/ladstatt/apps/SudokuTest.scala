@@ -34,20 +34,27 @@ class SudokuTest extends Sudokuaner {
 
   def levi(sudokuTestData: SudokuTestData, fileName: String): Int = {
     val expected = sudokuTestData.data(fileName)
-    val (warped, corners,cells) = mkSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
+    mkSomeSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
       // detectNumberMethod = withFeatureExtraction(mkComparisonLibrary(sudokuTestData.trainingPath)))
-      detectNumberMethod = withTemplateMatching(mkTemplateLibrary(sudokuTestData.trainingPath)))
-    levensthein(toString(cells), expected)
+      detectNumberMethod = withTemplateMatching(mkTemplateLibrary(sudokuTestData.trainingPath))) match {
+      case Some((warped, corners, cells)) => levensthein(toString(cells), expected)
+      case None => sys.error("failed")
+    }
+
   }
 
   def fullTextCompare(sudokuTestData: SudokuTestData)(fileName: String) = {
     val expected = sudokuTestData.data(fileName)
-    val (warped, corners,cells) = mkSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
+    mkSomeSudoku(input = readImage(new File(sudokuTestData.resPath, fileName), CvType.CV_8UC1),
       //  detectNumberMethod = withFeatureExtraction(mkComparisonLibrary(sudokuTestData.trainingPath)))
-      detectNumberMethod = withTemplateMatching(mkTemplateLibrary(sudokuTestData.trainingPath)))
+      detectNumberMethod = withTemplateMatching(mkTemplateLibrary(sudokuTestData.trainingPath))) match {
+      case Some((warped, corners, cells)) => {
+        val lev = levensthein(toString(cells), expected)
+        assertEquals("Distance: %s".format(lev), expected, toString(cells))
+      }
+      case None => fail()
+    }
 
-    val lev = levensthein(toString(cells), expected)
-    assertEquals("Distance: %s".format(lev), expected, toString(cells))
   }
 
 }
