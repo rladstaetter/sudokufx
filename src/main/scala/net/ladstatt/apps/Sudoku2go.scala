@@ -19,7 +19,7 @@ package net.ladstatt.apps
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import javafx.animation._
-
+import scala.util.control.NonFatal
 
 import javafx.scene._
 import javafx.util.Duration
@@ -657,9 +657,9 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
    * @return
    */
   def mkSomeSudoku(input: Mat,
-               widthFactor: Double = 1,
-               heightFactor: Double = 1,
-               detectNumberMethod: Contour => Int): Option[(Mat, Seq[Point], Seq[SCell])] = {
+                   widthFactor: Double = 1,
+                   heightFactor: Double = 1,
+                   detectNumberMethod: Contour => Int): Option[(Mat, Seq[Point], Seq[SCell])] = {
     warp(input) match {
       case Some((warped, corners)) => {
         val futureCells = {
@@ -709,8 +709,19 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
           })
         }
         val scaledCorners = corners.map(p => new Point(p.x * widthFactor, p.y * heightFactor))
-        val cells = for (fc <- futureCells) yield Await.result(fc, 5000 millis)
-        Some((warped, scaledCorners, cells))
+        try {
+          val cells = for (fc <- futureCells) yield Await.result(fc, 50 millis)
+          Some((warped, scaledCorners, cells))
+        } catch {
+          case e: TimeoutException => {
+            println(e.getMessage)
+            None
+          }
+          case x: Throwable => {
+            x.printStackTrace
+            None
+          }
+        }
       }
       case None => None
     }
@@ -776,22 +787,32 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
           val knownCells = filterKnownCells(cells)
           val digitLibrary = mkDigitLibrary(knownCells)
 
-          // println("Detected cells: %s".format(knownCells.size))
-          if (knownCells.size >= 20) {
+          println("Detected cells: %s".format(knownCells.size))
+          if (knownCells.size >= 17) {
 
             val sudokuAsString = toSolverString(knownCells)
-            val solvedString = solve(sudokuAsString)
 
-            val allCells = toSolutionCells(digitLibrary, solvedString)
-            val solutionCells = allCells.filterNot(c => knownCells.exists(x => x match {
-              case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
-              case _ => false
-            }))
-            //println
-            //println(("D %s, S %s A %s".format(knownCells.size, solutionCells.size, knownCells.size + solutionCells.size)))
-            //println(solvedString)
-            //println
-            Success((warped, corners, solutionCells))
+            try {
+              val solvedString = time(Await.result(solve(sudokuAsString), 1000 millis), t => println("solved in %s ms".format(t)))
+              val allCells = toSolutionCells(digitLibrary, solvedString)
+              val solutionCells = allCells.filterNot(c => knownCells.exists(x => x match {
+                case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
+                case _ => false
+              }))
+              if (allCells.foldLeft(0)((sum, a) => sum + a.value) != 405) {
+                // all fields together for a sudoku have sum 405
+                val msg = "Solving failed - either there is no solution or wrong digits detected."
+                println(msg)
+                Failure(new RuntimeException(msg))
+              } else {
+                Success((warped, corners, solutionCells))
+              }
+            } catch {
+              case t: TimeoutException => {
+                Failure(new RuntimeException("Timeout for solver - couldn't find solution in reasonable time!"))
+              }
+              case NonFatal(e) => sys.error(e.getMessage)
+            }
           } else {
             //Success((warped, corners, Seq()))
             Failure(new RuntimeException("Couldn't detect enough digits."))
@@ -830,8 +851,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
         val inputGroup = new Group
         val inputView = new ImageView(toImage(input))
-        val solutionView = new ImageView (toImage(warpedSolutionMat))
-        solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
+        val solutionView = new ImageView(toImage(warpedSolutionMat))
+        //    solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
         val cornerLines = mkPolyLine(corners)
 
         inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
@@ -959,7 +980,7 @@ trait SudokuSolver {
    * @param stringRep
    * @return
    */
-  def solve(stringRep: String): String = {
+  def solve(stringRep: String): Future[String] = future {
     // The board is represented by an array of strings (arrays of chars),
     // held in a global variable mx. The program begins by reading 9 lines
     // of input to fill the board

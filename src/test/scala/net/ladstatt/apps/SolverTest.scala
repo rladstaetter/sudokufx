@@ -1,9 +1,12 @@
 package net.ladstatt.apps
 
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 import org.junit.Assert._
-import scala.util.{Success, Failure}
+
+import scala.concurrent._
+import scala.concurrent.duration._
+
 
 /**
  * Created by lad on 10.06.13.
@@ -15,7 +18,8 @@ class SolverTest extends SudokuSolver {
 
     val solvedSudokus = for (sudokuAsString <- easySudokus.split("========")) yield solve(sudokuAsString.trim)
 
-    for (s <- solvedSudokus) {
+    for (fs <- solvedSudokus) {
+      val s = Await.result(fs, 5000 millis)
       assertEquals(405, s.replaceAll( """\W""", "").map(_.asDigit).sum) // 405 is the sum of all squares
       println(s)
       println
