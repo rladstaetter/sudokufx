@@ -137,7 +137,7 @@
         <dependency>
             <groupId>org.opencv</groupId>
             <artifactId>opencv-java</artifactId>
-            <version>2.4.4</version>
+            <version>2.4.6</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

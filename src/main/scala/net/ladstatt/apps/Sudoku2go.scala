@@ -337,7 +337,7 @@ trait OpenCVUtils extends Utils {
   def toGray(input: Mat): Mat = new Mat(input.size, CvType.CV_8UC1)
 
   def loadNativeLibs() = {
-    val nativeLibName = if (runOnMac) "/opt/local/share/OpenCV/java/libopencv_java244.dylib" else "c:/openCV/build/java/x64/opencv_java244.dll"
+    val nativeLibName = if (runOnMac) "/opt/local/share/OpenCV/java/libopencv_java246.dylib" else "c:/openCV/build/java/x64/opencv_java246.dll"
     System.load(new File(nativeLibName).getAbsolutePath())
   }
 
@@ -827,37 +827,39 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
 
 
   def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[Group] = {
-    coreCalc(colorSpace(input), detectionMethod, sudokuSize) match {
+    time(coreCalc(colorSpace(input), detectionMethod, sudokuSize), t => println("CoreCalc: %s".format(t))) match {
       case Success((warped, corners, solution)) => {
+        time({
+          val outputImage = toImage(warped)
 
-        val outputImage = toImage(warped)
+          val outputView = new ImageView()
+          outputView.setImage(outputImage)
 
-        val outputView = new ImageView()
-        outputView.setImage(outputImage)
+          // using javafx to overlay (should use opencv's mat i guess)
+          val outputGroup = new Group
+          outputGroup.getChildren.add(outputView)
+          outputGroup.getChildren.addAll(solution.map(_.mkRepresentation(cellSize, cellSize)))
 
-        // using javafx to overlay (should use opencv's mat i guess)
-        val outputGroup = new Group
-        outputGroup.getChildren.add(outputView)
-        outputGroup.getChildren.addAll(solution.map(_.mkRepresentation(cellSize, cellSize)))
+          // create snapshot from solution
+          // major hackativity
+          val i = outputGroup.snapshot(new SnapshotParameters, null)
+          val f = File.createTempFile("sudoku", "png")
+          f.deleteOnExit
+          ImageIO.write(SwingFXUtils.fromFXImage(i, null), "png", f)
+          val solMat = readImage(f, CvType.CV_8UC1)
+          val warpedSolutionMat = warp(solMat, mkCorners(solMat), corners)
 
-        // create snapshot from solution
-        // major hackativity
-        val i = outputGroup.snapshot(new SnapshotParameters, null)
-        val f = File.createTempFile("sudoku", "png")
-        f.deleteOnExit
-        ImageIO.write(SwingFXUtils.fromFXImage(i, null), "png", f)
-        val solMat = readImage(f, CvType.CV_8UC1)
-        val warpedSolutionMat = warp(solMat, mkCorners(solMat), corners)
+          val inputGroup = new Group
+          val inputView = new ImageView(toImage(input))
+          val solutionView = new ImageView(toImage(warpedSolutionMat))
+          //    solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
+          val cornerLines = mkPolyLine(corners)
 
-        val inputGroup = new Group
-        val inputView = new ImageView(toImage(input))
-        val solutionView = new ImageView(toImage(warpedSolutionMat))
-        //    solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
-        val cornerLines = mkPolyLine(corners)
+          inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
 
-        inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
 
-        Success(inputGroup)
+          Success(inputGroup)
+        }, t => println("Postprocessing : %s".format(t)))
       }
       case Failure(f) => Failure(f)
     }
