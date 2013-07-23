@@ -577,11 +577,31 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
     List(new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height))
   }
 
+
+  def calcAngle(a: Point, b: Point) = {
+    scala.math.atan2(b.y - a.y, b.x - a.x) * 180 / scala.math.Pi
+  }
+
+  /**
+   * the idea is to detect contours with 4 sides which have the same angles
+   *
+   * @param input
+   * @return
+   */
   def warp(input: Mat): Option[(Mat, Seq[Point])] = {
     val preprocessed = preprocess(input)
-    //val (maxArea, srcCorners) = findSomeMaxArea(preprocessed)
     findSomeMaxArea(preprocessed) match {
-      case Some((maxArea, srcCorners)) => Some((warp(input, srcCorners, mkCorners(input)), srcCorners))
+      case Some((maxArea, srcCorners)) => {
+        if (scala.math.abs(
+          calcAngle(srcCorners(0), srcCorners(1)) - calcAngle(srcCorners(3), srcCorners(2))) < 10 &&
+          scala.math.abs(
+            calcAngle(srcCorners(0), srcCorners(3)) - calcAngle(srcCorners(1), srcCorners(2))) < 10
+        ) {
+          Some((warp(input, srcCorners, mkCorners(input)), srcCorners))
+        } else {
+          None
+        }
+      }
       case None => None
     }
 
@@ -784,48 +804,50 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
    */
   def coreCalc(input: Mat, detectionMethod: Contour => Int, sudokuSize: Int): Try[(Mat, Seq[Point], Seq[SolvedCell])] = {
     val (inputWidth, inputHeight) = (input.size.width, input.size.height)
-    // val (widthFactor, heightFactor) = ((sudokuSize / inputWidth), (sudokuSize / inputHeight))
     val (widthFactor, heightFactor) = ((inputWidth / inputWidth), (inputHeight / inputHeight))
     mkSomeSudoku(input, widthFactor, heightFactor, detectionMethod) match {
       case Some((warped, corners, cells)) => {
-        val inputImage = toImage(input)
-        try {
-          val knownCells = filterKnownCells(cells)
-          val digitLibrary = mkDigitLibrary(knownCells)
+        println("corners: %s".format(corners.size))
+        if (corners.size != 4) {
+          Failure(new RuntimeException("Could not detect anything which looks like a sudoku. Please show me one."))
+        } else
+          try {
+            val knownCells = filterKnownCells(cells)
+            val digitLibrary = mkDigitLibrary(knownCells)
 
-          //println("Detected cells: %s".format(knownCells.size))
-          if (knownCells.size >= 17) {
+            //println("Detected cells: %s".format(knownCells.size))
+            if (knownCells.size >= 17) {
 
-            val sudokuAsString = toSolverString(knownCells)
+              val sudokuAsString = toSolverString(knownCells)
 
-            try {
-              val solvedString = time(Await.result(solve(sudokuAsString), 1000 millis), t => println("solved in %s ms".format(t)))
-              val allCells = toSolutionCells(digitLibrary, solvedString)
-              val solutionCells = allCells.filterNot(c => knownCells.exists(x => x match {
-                case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
-                case _ => false
-              }))
-              if (allCells.foldLeft(0)((sum, a) => sum + a.value) != 405) {
-                // all fields together for a sudoku have sum 405
-                val msg = "Solving failed - either there is no solution or wrong digits detected."
-                println(msg)
-                Failure(new RuntimeException(msg))
-              } else {
-                Success((warped, corners, solutionCells))
+              try {
+                val solvedString = time(Await.result(solve(sudokuAsString), 1000 millis), t => println("solved in %s ms".format(t)))
+                val allCells = toSolutionCells(digitLibrary, solvedString)
+                val solutionCells = allCells.filterNot(c => knownCells.exists(x => x match {
+                  case SudokuCell(col, row, _, _, _, _) => ((row == c.row) && (col == c.column))
+                  case _ => false
+                }))
+                if (allCells.foldLeft(0)((sum, a) => sum + a.value) != 405) {
+                  // all fields together for a sudoku have sum 405
+                  val msg = "Solving failed - either there is no solution or wrong digits detected."
+                  println(msg)
+                  Failure(new RuntimeException(msg))
+                } else {
+                  Success((warped, corners, solutionCells))
+                }
+              } catch {
+                case t: TimeoutException => {
+                  Failure(new RuntimeException("Timeout for solver - couldn't find solution in reasonable time!"))
+                }
+                case NonFatal(e) => sys.error(e.getMessage)
               }
-            } catch {
-              case t: TimeoutException => {
-                Failure(new RuntimeException("Timeout for solver - couldn't find solution in reasonable time!"))
-              }
-              case NonFatal(e) => sys.error(e.getMessage)
+            } else {
+              Success((warped, corners, Seq()))
+              //Failure(new RuntimeException("Couldn't detect enough digits."))
             }
-          } else {
-            //Success((warped, corners, Seq()))
-            Failure(new RuntimeException("Couldn't detect enough digits."))
+          } catch {
+            case e: Throwable => Failure(e)
           }
-        } catch {
-          case e: Throwable => Failure(e)
-        }
       }
       case None => Failure(new RuntimeException("Could not detect sudoku corners."))
     }
