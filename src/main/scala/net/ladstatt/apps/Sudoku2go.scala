@@ -488,12 +488,13 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
   case class SolvedCell(column: Int, row: Int, value: Int, someCell: Option[Mat]) extends SCell {
 
     def mkRepresentation(cellWidth: Float, cellHeight: Float) =
-      option(someCell)(mkLabel(cellWidth, cellHeight), cell => mkImage(cell, cellWidth, cellHeight))
+      option(someCell)(mkLabel(cellWidth, cellHeight), cell => mkImage(cell))
 
-    def mkImage(cell: Mat, cellWidth: Float, cellHeight: Float): Node = {
+    def getUpperLeftCoordinates(cell: Mat): (Double, Double) = (column * cell.size.width, row * cell.size.height)
+
+    def mkImage(cell: Mat): Node = {
       val iv = new ImageView(toImage(cell))
-      val x = column * cell.size.width
-      val y = row * cell.size.height
+      val (x, y) = getUpperLeftCoordinates(cell)
       iv.setTranslateX(x)
       iv.setTranslateY(y)
       iv
@@ -566,6 +567,11 @@ trait Sudokuaner extends OpenCVUtils with JfxUtils {
     })
   }
 
+  /**
+   * Creates a bounding box around the mat
+   * @param mat
+   * @return
+   */
   def mkCorners(mat: Mat): Seq[Point] = {
     val (width, height) = (mat.size.width, mat.size.height)
     List(new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height))
@@ -787,7 +793,7 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
           val knownCells = filterKnownCells(cells)
           val digitLibrary = mkDigitLibrary(knownCells)
 
-          println("Detected cells: %s".format(knownCells.size))
+          //println("Detected cells: %s".format(knownCells.size))
           if (knownCells.size >= 17) {
 
             val sudokuAsString = toSolverString(knownCells)
@@ -825,41 +831,41 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     }
   }
 
+  /**
+   * create a sudoku image representation which contains the solution, that means that
+   * every cell is filled.
+   *
+   * @return the solution
+   */
+  def mkSolMat(warped: Mat, solution: Seq[SolvedCell]): Mat = {
+    for (c <- solution if (c.someCell.isDefined)) {
+      val cellMat = c.someCell.get
+      val (x, y) = c.getUpperLeftCoordinates(cellMat)
+      val subRegion = new Mat(warped, new Rect(x.toInt, y.toInt, cellMat.size().width.toInt, cellMat.size.height.toInt))
+      cellMat.copyTo(subRegion)
+    }
+    warped
+  }
+
 
   def calcSudoku(input: Mat, detectionMethod: Contour => Int): Try[Group] = {
-    time(coreCalc(colorSpace(input), detectionMethod, sudokuSize), t => println("CoreCalc: %s".format(t))) match {
+    time(coreCalc(colorSpace(input), detectionMethod, sudokuSize), t => println("CoreCalc: %s ms".format(t))) match {
       case Success((warped, corners, solution)) => {
         time({
-          val outputImage = toImage(warped)
 
-          val outputView = new ImageView()
-          outputView.setImage(outputImage)
-
-          // using javafx to overlay (should use opencv's mat i guess)
-          val outputGroup = new Group
-          outputGroup.getChildren.add(outputView)
-          outputGroup.getChildren.addAll(solution.map(_.mkRepresentation(cellSize, cellSize)))
-
-          // create snapshot from solution
-          // major hackativity
-          val i = outputGroup.snapshot(new SnapshotParameters, null)
-          val f = File.createTempFile("sudoku", "png")
-          f.deleteOnExit
-          ImageIO.write(SwingFXUtils.fromFXImage(i, null), "png", f)
-          val solMat = readImage(f, CvType.CV_8UC1)
+          val solMat = time(mkSolMat(warped, solution), t => println("Create solMat: %s ms".format(t)))
           val warpedSolutionMat = warp(solMat, mkCorners(solMat), corners)
 
           val inputGroup = new Group
           val inputView = new ImageView(toImage(input))
           val solutionView = new ImageView(toImage(warpedSolutionMat))
-          //    solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
+          solutionView.setBlendMode(BlendMode.COLOR_DODGE) // works well enough
           val cornerLines = mkPolyLine(corners)
 
           inputGroup.getChildren.addAll(inputView, solutionView, cornerLines)
 
-
           Success(inputGroup)
-        }, t => println("Postprocessing : %s".format(t)))
+        }, t => println("Postprocessing : %s ms".format(t)))
       }
       case Failure(f) => Failure(f)
     }
