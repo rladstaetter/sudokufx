@@ -334,8 +334,6 @@ trait OpenCVUtils extends Utils {
     dest
   }
 
-  def toGray(input: Mat): Mat = new Mat(input.size, CvType.CV_8UC1)
-
   def loadNativeLibs() = {
     val nativeLibName = if (runOnMac) "/opt/local/share/OpenCV/java/libopencv_java246.dylib" else "c:/openCV/build/java/x64/opencv_java246.dll"
     System.load(new File(nativeLibName).getAbsolutePath())
@@ -807,17 +805,13 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     val (widthFactor, heightFactor) = ((inputWidth / inputWidth), (inputHeight / inputHeight))
     mkSomeSudoku(input, widthFactor, heightFactor, detectionMethod) match {
       case Some((warped, corners, cells)) => {
-        println("corners: %s".format(corners.size))
         if (corners.size != 4) {
           Failure(new RuntimeException("Could not detect anything which looks like a sudoku. Please show me one."))
         } else
           try {
             val knownCells = filterKnownCells(cells)
             val digitLibrary = mkDigitLibrary(knownCells)
-
-            //println("Detected cells: %s".format(knownCells.size))
             if (knownCells.size >= 17) {
-
               val sudokuAsString = toSolverString(knownCells)
 
               try {
@@ -842,8 +836,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
                 case NonFatal(e) => sys.error(e.getMessage)
               }
             } else {
+              println("No sudoku solution possible: could not detect enough digits, only %s digits detected.".format(knownCells.size))
               Success((warped, corners, Seq()))
-              //Failure(new RuntimeException("Couldn't detect enough digits."))
             }
           } catch {
             case e: Throwable => Failure(e)
@@ -937,6 +931,8 @@ class Sudoku2go extends Application with JfxUtils with OpenCVUtils with Sudokuan
     imageService.setOnSucceeded(
       mkEventHandler(
         event => {
+          // if you want to test, here is the right place to bypass the webcam
+          // val grabbedMat = Highgui.imread("/path/to/test/pic.png")
           val grabbedMat = event.getSource.getValue.asInstanceOf[Mat]
           var processingTime = 0l
           val calcResult = time(calcSudoku(grabbedMat, templateMatchingDetector), t => processingTime = t)
