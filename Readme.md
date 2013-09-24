@@ -1,7 +1,9 @@
 Sudoku2Go
 ---------
 
-![a screenshot of the sudoku2go application](/screenshot.png "A screenshot from the project")
+Attention: In the meantime the code is hosted here: https://github.com/rladstaetter/net.ladstatt
+
+![a screenshot of the sudoku2go application](/screenshot.png "A screenshot of the project")
 
 This is a project demonstrating what is necessary implement a sudoku grabber and solver using the OpenCV Java API.
 
@@ -10,3 +12,5 @@ discussion of the used concepts.
 
 Make sure you have openCV installed and changed the path in the scala source code to the correct DLL or lib on your
 system.
+
+
