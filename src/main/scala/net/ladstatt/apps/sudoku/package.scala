@@ -8,11 +8,10 @@ import scala.concurrent.Future
  */
 package object sudoku {
 
-  type Pos = (Int, Int)
+  type Pos = (Int, Int) // row, col
   type SNum = Int
   type SCount = Int
   type SHitQuality = Double
-  //type Frequency = Map[SNum, SCount]
   type Frequency = Array[SCount]
   type DetectionMethod = Option[Mat] => Future[(SNum, SHitQuality)]
 
@@ -20,4 +19,5 @@ package object sudoku {
   // the graphical representation should be a single mat with the matrixes edited inline
   // (meaning the matrix represents the whole canvas and the app is copying submatrixes
   type Cells = Map[Pos, SCell]
+ // type Cells = Array[SCell]
 }

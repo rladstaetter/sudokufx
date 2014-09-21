@@ -130,7 +130,7 @@ case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
     val image = new Mat()
     if (videoCapture.isOpened) {
       videoCapture.read(image)
-      nullable(image)(throw new RuntimeException("videoCapture.read(...) returned null"), image => image)
+      isNull(image)(throw new RuntimeException("videoCapture.read(...) returned null"), image => image)
     } else {
       throw new RuntimeException("Video capture device is closed.")
     }

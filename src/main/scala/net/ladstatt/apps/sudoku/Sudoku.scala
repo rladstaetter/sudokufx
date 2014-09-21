@@ -4,6 +4,7 @@ package net.ladstatt.apps.sudoku
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import net.ladstatt.apps.sudoku.SudokuAlgos.BruteForceSolver
 import net.ladstatt.core.{CanLog, HasDescription, Utils}
 import net.ladstatt.opencv.OpenCVUtils
 import org.opencv.core._
@@ -16,14 +17,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 
-trait HasDetectionMethod extends HasDescription {
-
-  def detect: DetectionMethod
-
-}
 
 
-object TemplateDetectionStrategy extends HasDetectionMethod with OpenCVUtils {
+
+object TemplateDetectionStrategy extends OpenCVUtils {
 
   val description = "template detection"
   val (templateWidth, templateHeight) = (25.0, 50.0)
@@ -44,7 +41,7 @@ object TemplateDetectionStrategy extends HasDetectionMethod with OpenCVUtils {
    * @return
    */
   // TODO change return type to Future[(SNum,SQuality)] -> Number
-  def withTemplateMatching(someCandidate: Option[Mat]): Future[(SNum, SHitQuality)] = {
+  def detect(someCandidate: Option[Mat]): Future[(SNum, SHitQuality)] = {
     val tmp = Promise[(SNum, SHitQuality)]()
 
     someCandidate match {
@@ -65,7 +62,7 @@ object TemplateDetectionStrategy extends HasDetectionMethod with OpenCVUtils {
   }
 
 
-  override lazy val detect: (Option[Mat]) => Future[(SNum, SHitQuality)] = withTemplateMatching
+  // override lazy val detect: (Option[Mat]) => Future[(SNum, SHitQuality)] = withTemplateMatching
 
 }
 
@@ -84,12 +81,12 @@ case class ImageIOChain(input: Mat,
                         eroded: Mat,
                         corners: MatOfPoint2f) extends FrameResult
 
-case class FrameSuccess(solution: Mat,
-                        imageIoChain: ImageIOChain,
-                        solutionString: String,
+case class FrameSuccess(imageIoChain: ImageIOChain,
+                        solution: Mat,
                         detectedCells: Cells,
-                        solutionCells: Cells,
-                        corners: MatOfPoint2f) extends FrameResult {
+                        corners: MatOfPoint2f,
+                        solutionString: String,
+                        solutionCells: Cells) extends FrameResult {
   //  println("SOLUTION:")
   //  println("SOLUTION:")
   //  println(solutionString)
@@ -97,7 +94,7 @@ case class FrameSuccess(solution: Mat,
   //  println("SOLUTION:")
 }
 
-case class FrameHistory(index: Int, file: File, result: FrameResult)
+//case class FrameHistory(index: Int, file: File, result: FrameResult)
 
 // TODO remove: replace with Array in SudokuHistory
 case class SCell(value: Int, quality: Double, data: Mat) {
@@ -106,103 +103,196 @@ case class SCell(value: Int, quality: Double, data: Mat) {
 
 }
 
-trait SudokuAlgos extends SudokuOpenCVUtils {
-
-  import SudokuParameters._
-
-  def isValid(solution: Cells): Boolean = {
-    val allVals = for ((k, SCell(value, _, _)) <- solution) yield value
-    allVals.foldLeft(0)((acc, e) => acc + e) == 405
-  }
-
-  def copyTo(data: Mat, canvas: Mat, roi: Rect): Unit = {
-    val cellTarget = new Mat(canvas, roi)
-    data.copyTo(cellTarget)
-  }
+object SudokuAlgos extends SudokuOpenCVUtils {
 
   /**
-   * paints the solution to the canvas.
+   * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
+   * I hope the author doesn't mind me reusing the code.
    *
-   * returns the modified canvas with the solution painted upon.
+   * http://scala-programming-language.1934581.n4.nabble.com/25-lines-Sudoku-solver-in-Scala-td1987506.html
+   *
+   * Also don't miss the very nice essay from peter norvig on solving sudokus
+   *
+   * http://norvig.com/net.ladstatt.apps.sudoku.html
+   *
    */
-  def paintSolution(canvas: Mat,
-                    history: SudokuState,
-                    detectedCells: Cells,
-                    solution: Cells): Future[Mat] = {
-    execFuture {
-      if (isValid(solution)) {
-        // only copy cells which are not already known
-        solution.filterKeys(p => detectedCells(p).value == 0) foreach {
-          case (pos, cell) => copyTo(cell.data, canvas, mkRect(pos, cell.data))
-        }
-      } else {
-        detectedCells foreach {
-          case (pos, cell) => {
-            paintRect(canvas, mkRect(pos, cell.data), history.color(pos), 3)
-          }
-        }
+  object BruteForceSolver extends HasDescription with Utils {
+
+    val description = "default"
+
+    /**
+     * give this function a net.ladstatt.apps.sudoku in the form
+     *
+     * 200080300
+     * 060070084
+     * 030500209
+     * 000105408
+     * 000000000
+     * 402706000
+     * 301007040
+     * 720040060
+     * 004010003
+     *
+     * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
+     *
+     * @param stringRep
+     * @return
+     */
+    def solve(stringRep: String)(log: String => Unit) = {
+      val before = System.currentTimeMillis()
+
+      val stringRep2 = """000000000
+                         |040070300
+                         |059060001
+                         |006240000
+                         |000050400
+                         |008790000
+                         |034000008
+                         |000080906
+                         |000400000""".stripMargin
+
+      log(s"$before : scheduling solving ...")
+      log(s"\n$stringRep")
+      log(s"$before : starting solving ...")
+      // The board is represented by an array of strings (arrays of chars),
+      // held in a global variable mx. The program begins by reading 9 lines
+      // of input to fill the board
+      val mx: Array[Array[Char]] = stringRep.stripMargin.split("\n").map(_.trim.toArray)
+
+      var solution = new ListBuffer[String]()
+
+      def print = {
+        mx map (carr => {
+          solution.append(new String(carr))
+        })
       }
-      canvas
+
+      // The test for validity is performed by looping over i=0..8 and
+      // testing the row, column and 3x3 square containing the given
+      // coordinate
+      def invalid(i: Int, x: Int, y: Int, n: Char): Boolean =
+        i < 9 && (mx(y)(i) == n || mx(i)(x) == n ||
+          mx(y / 3 * 3 + i / 3)(x / 3 * 3 + i % 3) == n || invalid(i + 1, x, y, n))
+
+      // Looping over a half-closed range of consecutive integers [l..u)
+      // is factored out into a higher-order function
+      def fold(f: (Int, Int) => Int, accu: Int, l: Int, u: Int): Int =
+        if (l == u) accu else fold(f, f(accu, l), l + 1, u)
+
+      // The search function examines each position on the board in turn,
+      // trying the numbers 1..9 in each unfilled position
+      // The function is itself a higher-order fold, accumulating the value
+      // accu by applying the given function f to it whenever a solution m
+      // is found
+      def search(x: Int, y: Int, f: (Int) => Int, accu: Int): Int = (x, y) match {
+        case (9, yy) => search(0, y + 1, f, accu) // next row
+        case (0, 9) => f(accu) // found a solution
+        case (xx, yy) => if (mx(y)(x) != '0') search(x + 1, y, f, accu)
+        else
+          fold((accu: Int, n: Int) =>
+            if (invalid(0, x, y, (n + 48).toChar)) accu
+            else {
+              mx(y)(x) = (n + 48).toChar
+              val newaccu = search(x + 1, y, f, accu)
+              mx(y)(x) = '0'
+              newaccu
+            }, accu, 1, 10)
+      }
+
+      // The main part of the program uses the search function to accumulate
+      // the total number of solutions
+      search(0, 0, i => {
+        print
+        i + 1
+      }, 0)
+
+      val after = System.currentTimeMillis()
+      log(s"$before finished solving in ${after - before} milliseconds.")
+      solution.toList.mkString("\n")
+      // thats all ;-)
+    }
+
+  }
+
+
+  object MockSolver extends  HasDescription {
+    val description = "mock test solver"
+
+    def solve(s: String)(log: String => Unit): String = {
+      """245981376
+        |169273584
+        |837564219
+        |976125438
+        |513498627
+        |482736951
+        |391657842
+        |728349165
+        |654812793""".stripMargin
+    }
+
+    def solve2(s: String)(log: String => Unit): Future[String] = Future {
+      """000000000
+        |040070300
+        |059060001
+        |006240000
+        |000050400
+        |008790000
+        |034000008
+        |000080906
+        |000400000""".stripMargin
     }
   }
 
-  def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {
-    Core.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
-  }
+  import Parameters._
 
-  /*
-  // mutable as hell and ugly as well
-  def computeSolution(solvingStrategy: String => Future[String])(history: SudokuState): Future[String] = {
-    option(history.getSomeResult)({
-      val solverString = toSolverString(history.mkValueIntermediateMatrix)
-      Future.successful(solverString)
-    },
-    result => {
-      option(history.getSomeSolution)({
-        val f = solvingStrategy(toSolverString(result))
-        for (s <- f if isValidSolution(s)) {
-          history.setSomeSolution(Some(s))
-        }
-        f
-      },
-      s => Future.successful(s))
-    })
-  }
-                    */
+  sealed trait ProcessingStage
 
+  case object InputStage extends ProcessingStage
+
+  case object GrayedStage extends ProcessingStage
+
+  case object BlurredStage extends ProcessingStage
+
+  case object ThresholdedStage extends ProcessingStage
+
+  case object InvertedStage extends ProcessingStage
+
+  case object DilatedStage extends ProcessingStage
+
+  case object ErodedStage extends ProcessingStage
+
+  case object SolutionStage extends ProcessingStage
+
+
+  abstract trait SolverStrategy extends HasDescription {
+
+    def solve(s: String)(log: String => Unit): String
+  }
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
    *
    * @param input
-   * @param detectionMethod
    * @return
    */
-  def calc(history: SudokuState,
-           input: Mat,
-           detectionMethod: DetectionMethod): Future[FrameResult] = {
+  def calc(sudokuState: SudokuState, input: Mat): Future[FrameResult] = {
 
     val (imageIoChain, detectedCorners) =
       Await.result(for {
         imgIo <- imageIOChain(input)
         corners <- detectSudokuCorners(imgIo.dilated) // if (!detectedCorners.empty)
-      } yield (imgIo, corners), Duration(200, TimeUnit.MILLISECONDS))
+      } yield (imgIo, corners), Duration(400, TimeUnit.MILLISECONDS))
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
     if (!detectedCorners.empty) {
       for {colorWarped <- warp(imageIoChain.input, detectedCorners, imageIoChain.corners)
-           detectedCells <- Future.sequence(detectCells(colorWarped, detectionMethod))
-
-           //mutatedHistory <- history.mutateHistory(detectedCells.toMap)
-           solutionAsString <- history.computeSolution(detectedCells.toMap)
-           solutionCells <- history.toSolutionCells(solutionAsString)
-
-           annotatedSolution <- paintSolution(colorWarped, history, detectedCells.toMap, solutionCells) // create the solution mat
+           detectedCells <- Future.sequence(detectCells(colorWarped, TemplateDetectionStrategy.detect))
+           (solutionAsString, solutionCells, annotatedSolution) <- sudokuState.computeSolution(colorWarped, detectedCells.toMap)
            unwarped <- warp(annotatedSolution, mkCorners(annotatedSolution), detectedCorners)
            solution <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
-      } yield FrameSuccess(solution, imageIoChain, solutionAsString, detectedCells.toMap, solutionCells, detectedCorners)
+      } yield FrameSuccess(imageIoChain, solution, detectedCells.toMap, detectedCorners, solutionAsString, solutionCells)
     } else {
       Future.successful(imageIoChain)
     }
@@ -315,16 +405,13 @@ trait SudokuAlgos extends SudokuOpenCVUtils {
   def detectCells(colorWarped: Mat, detectionMethod: DetectionMethod): Seq[Future[(Pos, SCell)]] = {
     val (blockWidth, blockHeight) = calcBlockSize(colorWarped)
     val size = new Size(blockWidth, blockHeight)
-    for {
-      row <- range
-      column <- range
-    } yield
+    for (p <- positions) yield
       for {
-        coloredSubMat <- subMat(colorWarped, mkRect(row, column, size))
+        coloredSubMat <- subMat(colorWarped, mkRect(p, size))
         contour <- extractContour(coloredSubMat)
         (value, quality) <- detectionMethod(contour)
       } yield {
-        (row, column) -> SCell(value, quality, coloredSubMat)
+        p -> SCell(value, quality, coloredSubMat)
       }
   }
 
@@ -341,167 +428,24 @@ trait SudokuAlgos extends SudokuOpenCVUtils {
       } else None
     }   */
 
-  // FIXME duplicated
-  def deIndex(pos: Pos): Int = pos._1 * ssize + pos._2
-
 
 }
 
 
-abstract trait SolverStrategy extends HasDescription {
 
-  def solve(s: String)(log: String => Unit): Future[String]
-}
 
-object MockSolver extends SolverStrategy {
-  val description = "mock test solver"
-
-  def solve(s: String)(log: String => Unit): Future[String] = Future {
-    """245981376
-      |169273584
-      |837564219
-      |976125438
-      |513498627
-      |482736951
-      |391657842
-      |728349165
-      |654812793""".stripMargin
-  }
-
-  def solve2(s: String)(log: String => Unit): Future[String] = Future {
-    """000000000
-      |040070300
-      |059060001
-      |006240000
-      |000050400
-      |008790000
-      |034000008
-      |000080906
-      |000400000""".stripMargin
-  }
-}
-
-/**
- * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
- * I hope the author doesn't mind me reusing the code.
- *
- * http://scala-programming-language.1934581.n4.nabble.com/25-lines-Sudoku-solver-in-Scala-td1987506.html
- *
- * Also don't miss the very nice essay from peter norvig on solving sudokus
- *
- * http://norvig.com/net.ladstatt.apps.sudoku.html
- *
- */
-object BruteForceSolver extends SolverStrategy with Utils {
-
-  val description = "default"
-
-  /**
-   * give this function a net.ladstatt.apps.sudoku in the form
-   *
-   * 200080300
-   * 060070084
-   * 030500209
-   * 000105408
-   * 000000000
-   * 402706000
-   * 301007040
-   * 720040060
-   * 004010003
-   *
-   * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
-   *
-   * @param stringRep
-   * @return
-   */
-  def solve(stringRep: String)(log: String => Unit): Future[String] = {
-    val before = System.currentTimeMillis()
-
-    val stringRep2 = """000000000
-                       |040070300
-                       |059060001
-                       |006240000
-                       |000050400
-                       |008790000
-                       |034000008
-                       |000080906
-                       |000400000""".stripMargin
-
-    log(s"$before : scheduling solving ...")
-    log(s"\n$stringRep")
-    execFuture {
-      log(s"$before : starting solving ...")
-      // The board is represented by an array of strings (arrays of chars),
-      // held in a global variable mx. The program begins by reading 9 lines
-      // of input to fill the board
-      val mx: Array[Array[Char]] = stringRep.stripMargin.split("\n").map(_.trim.toArray)
-
-      var solution = new ListBuffer[String]()
-
-      def print = {
-        mx map (carr => {
-          solution.append(new String(carr))
-        })
-      }
-
-      // The test for validity is performed by looping over i=0..8 and
-      // testing the row, column and 3x3 square containing the given
-      // coordinate
-      def invalid(i: Int, x: Int, y: Int, n: Char): Boolean =
-        i < 9 && (mx(y)(i) == n || mx(i)(x) == n ||
-          mx(y / 3 * 3 + i / 3)(x / 3 * 3 + i % 3) == n || invalid(i + 1, x, y, n))
-
-      // Looping over a half-closed range of consecutive integers [l..u)
-      // is factored out into a higher-order function
-      def fold(f: (Int, Int) => Int, accu: Int, l: Int, u: Int): Int =
-        if (l == u) accu else fold(f, f(accu, l), l + 1, u)
-
-      // The search function examines each position on the board in turn,
-      // trying the numbers 1..9 in each unfilled position
-      // The function is itself a higher-order fold, accumulating the value
-      // accu by applying the given function f to it whenever a solution m
-      // is found
-      def search(x: Int, y: Int, f: (Int) => Int, accu: Int): Int = (x, y) match {
-        case (9, yy) => search(0, y + 1, f, accu) // next row
-        case (0, 9) => f(accu) // found a solution
-        case (xx, yy) => if (mx(y)(x) != '0') search(x + 1, y, f, accu)
-        else
-          fold((accu: Int, n: Int) =>
-            if (invalid(0, x, y, (n + 48).toChar)) accu
-            else {
-              mx(y)(x) = (n + 48).toChar
-              val newaccu = search(x + 1, y, f, accu)
-              mx(y)(x) = '0'
-              newaccu
-            }, accu, 1, 10)
-      }
-
-      // The main part of the program uses the search function to accumulate
-      // the total number of solutions
-      search(0, 0, i => {
-        print
-        i + 1
-      }, 0)
-
-      val after = System.currentTimeMillis()
-      log(s"$before finished solving in ${after - before} milliseconds.")
-      solution.toList.mkString("\n")
-      // thats all ;-)
-    }
-  }
-
-}
 
 trait SudokuOpenCVUtils extends OpenCVUtils {
 
   def mkRect(pos: Pos, c: Mat): Rect = {
+    assert(c != null)
     val (width, height) = (c.size.width, c.size.height)
     val (x, y) = (pos._2 * width, pos._1 * height)
     new Rect(new Point(x, y), c.size)
   }
 
-  def mkRect(row: Int, column: Int, size: Size): Rect = {
-    new Rect(new Point(column * size.width, row * size.height), size)
+  def mkRect(pos: Pos, size: Size): Rect = {
+    new Rect(new Point(pos._2 * size.width, pos._1 * size.height), size)
   }
 
   def preprocess2(input: Mat): Future[Mat] = {
@@ -531,7 +475,7 @@ trait SudokuOpenCVUtils extends OpenCVUtils {
 }
 
 
-object SudokuParameters {
+object Parameters {
 
   val ssize = 9
   val range = 0 until ssize
@@ -547,53 +491,113 @@ object SudokuParameters {
 }
 
 
-case class SudokuState(cap: Int = 8,
-                       minHits: Int = 0) extends Utils with CanLog {
+case class SudokuState(frame: Mat,
+                       cap: Int = 8,
+                       minHits: Int = 0,
+                       // for every position, there is a list which depicts how often a number was found in the
+                       // sudoku, where the index in the list depicts the number (from 0 to 9, with 0 being the "empty" cell)
+                       posFrequencies: Array[Frequency] = Array.fill(Parameters.positions.size)(Array.fill[SCount](Parameters.digitRange.size)(0)),
+                       digitLibrary: Array[(Option[Mat], Double)] = Array.fill(Parameters.digitRange.size)((None, Double.MaxValue))
+                        ) extends SudokuOpenCVUtils with Utils with CanLog {
 
-  import SudokuParameters._
+  import Parameters._
 
-  // for every position, there is a list which depicts how often a number was found in the
-  // sudoku, where the index in the list depicts the number (from 0 to 9, with 0 being the "empty" cell)
-  val posFrequencies: Array[Frequency] = Array.fill[Frequency](SudokuParameters.positions.size)(Array.fill[SCount](SudokuParameters.digitRange.size)(0))
-
-  val digitLibrary: Array[Option[Mat]] = Array.fill[Option[Mat]](SudokuParameters.digitRange.size)(None)
-  val digitHitQuality: Array[Double] = Array.fill[Double](SudokuParameters.digitRange.size)(Double.MaxValue)
-  private var someSolution: Option[String] = None
-  initialize()
-
-  def solve(stringRep : String) = BruteForceSolver.solve(stringRep)(logInfo)
-
+  // TODO REMOVE
   def initialize() = {
     posFrequencies.foreach(freq => digitRange.map(freq(_) = 0))
     for (i <- range) {
-      digitLibrary(i) = None
-      digitHitQuality(i) = Double.MaxValue
+      digitLibrary(i) = (None, Double.MaxValue)
     }
   }
 
-  def getDigitMat(number: Int): Option[Mat] = digitLibrary(number)
 
-  def deIndex(pos: Pos): Int = pos._1 * ssize + pos._2
+  def computeSolution(canvas: Mat, detectedCells: Cells): Future[(String, Cells, Mat)] =
+    Future {
+      updateDigitLibrary(detectedCells)
+      updateHits(detectedCells)
+      val currentSolution =
+        if (detectedNumbers.size > minHits) {
+          option(getSomeSolution)({
+            val s = solve(toSolverString(mkValueMatrix))
+            if (isValidSolution(s)) {
+              setSomeSolution(Some(s))
+            }
+            s
+          },
+          s => s)
+        } else {
+          toSolverString(mkValueIntermediateMatrix)
+        }
+      val solutionCells = toSolutionCells(currentSolution)
+      val annotatedSolution = paintSolution(canvas, detectedCells.toMap, solutionCells)
+      (currentSolution, toSolutionCells(currentSolution), annotatedSolution)
+    }
 
-  def color(pos: Pos): Scalar = {
+
+  /**
+   * paints the solution to the canvas.
+   *
+   * returns the modified canvas with the solution painted upon.
+   */
+  private def paintSolution(canvas: Mat, detectedCells: Cells, solution: Cells): Mat = {
+    if (isValid(solution)) {
+      // only copy cells which are not already known
+      solution.filterKeys(p => detectedCells(p).value == 0) foreach {
+        case (pos, cell) => copyTo(cell.data, canvas, mkRect(pos, cell.data))
+      }
+    } else {
+      detectedCells foreach {
+        case (pos, cell) => {
+          paintRect(canvas, mkRect(pos, cell.data), color(pos), 3)
+        }
+      }
+    }
+    canvas
+  }
+
+  // -------------- private section ------------------------------------------------
+  private var someSolution: Option[String] = None
+
+  // TODO update colors
+  private def color(pos: Pos): Scalar = {
     val vals = posFrequencies(deIndex(pos))
     val n = vals.max.toDouble
     val s = new Scalar(0, n * 256 / cap, 256 - n * 256 / cap)
     s
   }
 
+  def copyTo(data: Mat, canvas: Mat, roi: Rect): Unit = {
+    val cellTarget = new Mat(canvas, roi)
+    data.copyTo(cellTarget)
+  }
+
+  def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {
+    Core.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
+  }
+
+
+  def isValid(solution: Cells): Boolean = {
+    val allVals = for ((k, SCell(value, _, _)) <- solution) yield value
+    allVals.foldLeft(0)((acc, e) => acc + e) == 405
+  }
+
+  private def solve(stringRep: String) = BruteForceSolver.solve(stringRep)(logInfo)
+
+  private def getDigitMat(number: Int): Option[Mat] = digitLibrary(number)._1
+
+  private def deIndex(pos: Pos): Int = pos._1 * ssize + pos._2
+
 
   def updateDigitLibrary(candidates: Cells): Unit = {
-    for ((pos, cell) <- candidates if (cell.value != 0 && (digitLibrary(cell.value).isEmpty ||
-      cell.quality < digitHitQuality(cell.value)))) {
-      digitLibrary(cell.value) = Some(cell.data)
-      digitHitQuality(cell.value) = cell.quality
+    for ((pos, cell) <- candidates if (cell.value != 0 && (digitLibrary(cell.value)._1.isEmpty ||
+      cell.quality < digitLibrary(cell.value)._2))) {
+      digitLibrary(cell.value) = (Some(cell.data), cell.quality)
     }
   }
 
-  def setSomeSolution(s: Option[String]) = someSolution = s
+  private def setSomeSolution(s: Option[String]) = someSolution = s
 
-  def getSomeSolution: Option[String] = someSolution
+  private def getSomeSolution: Option[String] = someSolution
 
   private def sectorWellFormed(row: Int, col: Int, value: Int): Boolean = {
     val rowSector = sectors(row / 3)
@@ -620,7 +624,7 @@ case class SudokuState(cap: Int = 8,
     colVals.isEmpty && rowVals.isEmpty
   }
 
-  def posWellFormed(pos: Pos, value: Int): Boolean = {
+  private def posWellFormed(pos: Pos, value: Int): Boolean = {
     val (row, col) = pos
     rowColWellFormed(row, col, value) && sectorWellFormed(row, col, value)
   }
@@ -641,7 +645,7 @@ case class SudokuState(cap: Int = 8,
       }
     }
 
-    updateDigitLibrary(cells)
+
     val result =
       for ((pos, SCell(value, _, _)) <- cells) yield {
         if ((value == 0) || posWellFormed(pos, value)) {
@@ -667,9 +671,6 @@ case class SudokuState(cap: Int = 8,
     areWeThereyet0.filter(_ != 0)
   }
 
-  def isGoodEnough: Boolean = {
-    detectedNumbers.size > minHits //&& areWeThereyet.foldLeft(true)((acc, count) => count == cap)
-  }
 
   def mkValueMatrix: Map[Pos, SNum] = {
     (for (pos <- positions)
@@ -680,7 +681,7 @@ case class SudokuState(cap: Int = 8,
     }).toMap
   }
 
-  def mkValueIntermediateMatrix: Map[Pos, SNum] = {
+  private def mkValueIntermediateMatrix: Map[Pos, SNum] = {
     (for (pos <- positions) yield {
       pos -> {
         (for ((v, i) <- posFrequencies(deIndex(pos)).zipWithIndex) yield i).headOption.getOrElse(0)
@@ -689,7 +690,7 @@ case class SudokuState(cap: Int = 8,
   }
 
 
-  def mkValueDebugMatrix: Map[Pos, String] = {
+  private def mkValueDebugMatrix: Map[Pos, String] = {
     (for (pos <- positions) yield {
       pos -> {
         (for ((v, i) <- posFrequencies(deIndex(pos)).zipWithIndex if (v == cap)) yield i.toString).headOption.getOrElse(".")
@@ -697,7 +698,7 @@ case class SudokuState(cap: Int = 8,
     }).toMap
   }
 
-  def mkCountMatrix: Map[Pos, String] = {
+  private def mkCountMatrix: Map[Pos, String] = {
     (for (pos <- positions) yield {
       pos -> {
         (for ((v, i) <- posFrequencies(deIndex(pos)).zipWithIndex) yield {
@@ -707,37 +708,8 @@ case class SudokuState(cap: Int = 8,
     }).toMap
   }
 
-  /**
-   * returns the the value which matches the cap for all positions in the sudoku.
-   * @return
-   */
-  def getSomeResult: Option[Map[Pos, SNum]] = {
-    if (isGoodEnough) {
-      Some(mkValueMatrix)
-    } else {
-      None
-    }
-  }
 
-  def computeSolution(cells: Cells): Future[String] = {
-    updateHits(cells)
-    option(getSomeResult)({
-      val solverString = toSolverString(mkValueIntermediateMatrix)
-      Future.successful(solverString)
-    },
-    result => {
-      option(getSomeSolution)({
-        val f = solve(toSolverString(result))
-        for (s <- f if isValidSolution(s)) {
-          setSomeSolution(Some(s))
-        }
-        f
-      },
-      s => Future.successful(s))
-    })
-  }
-
-  def toSolverString(solution: Map[Pos, SNum]): String = {
+  private def toSolverString(solution: Map[Pos, SNum]): String = {
     val res =
       (for (r <- range) yield {
         (for (c <- range) yield solution.getOrElse((r, c), "0")).foldLeft("")((a, b) => a + b) + "\n"
@@ -745,7 +717,7 @@ case class SudokuState(cap: Int = 8,
     res
   }
 
-  def isValidSolution(solvedString: String): Boolean = {
+  private def isValidSolution(solvedString: String): Boolean = {
     if (!solvedString.isEmpty) {
       val normedSolverString = solvedString.replaceAll( """\n""", "").substring(0, 81)
       normedSolverString.foldLeft(0)((sum, a) => sum + a.asDigit) == 405
@@ -760,32 +732,29 @@ case class SudokuState(cap: Int = 8,
    *
    * @return
    */
-  // TODO move to SudokuHistory
-  def toSolutionCells(solvedString: String): Future[Cells] = {
-    execFuture {
-      if (solvedString.isEmpty) {
-        System.err.println("SolvedString was empty - not a valid solution.")
-        Map()
-        //require(!solvedString.isEmpty, s"solution could not be computed for \n$solvedString")
-      } else {
-        val normedSolverString = solvedString.replaceAll( """\n""", "").substring(0, 81)
-        val allCells: Cells =
-          (for (pos <- positions) yield {
-            val value = normedSolverString(deIndex(pos)).asDigit
-            val x: Option[((Int, Int), SCell)] =
-              if (value != 0) {
-                val someM = digitLibrary(value)
-                (if (someM.isEmpty) {
-                  digitLibrary(value) = mkFallback(value, digitLibrary)
-                  digitLibrary(value)
-                } else someM)
-                  .map { case m => pos -> SCell(value, 0, m)}
-              } else None
-            x
-          }).flatten.toSeq.toMap
+  private def toSolutionCells(solvedString: String): Cells = {
+    if (solvedString.isEmpty) {
+      System.err.println("SolvedString was empty - not a valid solution.")
+      Map()
+      //require(!solvedString.isEmpty, s"solution could not be computed for \n$solvedString")
+    } else {
+      val normedSolverString = solvedString.replaceAll( """\n""", "").substring(0, 81)
+      val allCells: Cells =
+        (for (pos <- positions) yield {
+          val value = normedSolverString(deIndex(pos)).asDigit
+          val x: Option[((Int, Int), SCell)] =
+            if (value != 0) {
+              val someM = digitLibrary(value)._1
+              (if (someM.isEmpty) {
+                digitLibrary(value) = (mkFallback(value, digitLibrary), digitLibrary(value)._2)
+                digitLibrary(value)._1
+              } else someM)
+                .map { case m => pos -> SCell(value, 0, m)}
+            } else None
+          x
+        }).flatten.toSeq.toMap
 
-        allCells
-      }
+      allCells
     }
   }
 
@@ -801,41 +770,23 @@ case class SudokuState(cap: Int = 8,
    * @return
    */
   // TODO fallback sollte eigentlich eine mask auf dem inputbild sein (maske is the best match)
-  def mkFallback(number: Int, digitLibrary: Array[Option[Mat]]): Option[Mat] = {
+  private def mkFallback(number: Int, digitLibrary: Array[(Option[Mat], Double)]): Option[Mat] = {
+    /**
+     * returns size and type of Mat's contained int he digitLibrary
+     * @param digitLibrary
+     * @return
+     */
+    def determineMatParams(digitLibrary: Array[(Option[Mat], Double)]): Option[(Size, Int)] = {
+      digitLibrary.map(_._1).flatten.headOption.map { case m => (m.size, m.`type`)}
+    }
+
     for ((size, matType) <- determineMatParams(digitLibrary)) yield {
+      println(s"SIZE: $size")
       val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
       Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
       mat
     }
   }
 
-  /**
-   * returns size and type of Mat's contained int he digitLibrary
-   * @param digitLibrary
-   * @return
-   */
-  def determineMatParams(digitLibrary: Array[Option[Mat]]): Option[(Size, Int)] = {
-    digitLibrary.flatten.headOption.map { case m => (m.size, m.`type`)}
-  }
 
-  /*
-def stats = "\n---------------------------------\n" +
-debug(mkCountMatrix) +
-"\n---------------------------------\n" +
-debug(mkValueDebugMatrix) +
-"\n---------------------------------\n" +
-toString
-
-
-def debug(cells: Map[Pos, String]): String = {
-val res =
-(for (r <- range) yield {
-  (for (c <- range) yield {
-    val res = cells((r, c))
-    res
-  }).foldLeft("")((a, b) => s"$a\t$b") + "\n"
-}).foldLeft("")((a, b) => a + b)
-res
-}
-*/
 }

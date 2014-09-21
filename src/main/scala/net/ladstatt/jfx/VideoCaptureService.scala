@@ -20,8 +20,7 @@ class VideoCaptureService(logfn : String => Unit) extends Service[Try[Mat]] with
     Try {
       val image = new Mat()
       videoCapture.read(image)
-      nullable(image)(throw new RuntimeException("videoCapture.read(...) returned null"), image => image)
+      isNull(image)(throw new RuntimeException("videoCapture.read(...) returned null"), image => image)
     })
 
 }
-

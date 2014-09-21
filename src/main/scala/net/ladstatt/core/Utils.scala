@@ -55,7 +55,7 @@ trait Utils {
     }
   }
 
-  def nullable[A, X](o: X)(isnull: => A, notnull: => X => A): A = {
+  def isNull[A, X](o: X)(isnull: => A, notnull: => X => A): A = {
     if (o == null) {
       isnull
     } else {

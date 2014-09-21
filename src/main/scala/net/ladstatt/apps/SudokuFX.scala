@@ -48,7 +48,9 @@ object SudokuFX {
 }
 
 
-trait SharedState extends OpenCVJfxUtils with SudokuAlgos with CanLog with JfxUtils {
+trait SharedState extends OpenCVJfxUtils  with CanLog with JfxUtils {
+
+  import SudokuAlgos._
 
   @FXML var canvas: AnchorPane = _
 
@@ -84,7 +86,8 @@ trait SharedState extends OpenCVJfxUtils with SudokuAlgos with CanLog with JfxUt
   @FXML var tplView9: ImageView = _
   @FXML var historyToolBar: ToolBar = _
 
-  val sudokuHistory = SudokuState(8, 20)
+  // TODO remove
+  //val sudokuState = SudokuState(8, 20)
 
   lazy val nrViews: Array[ImageView] =
     Array(nrView1, nrView2, nrView3,
@@ -170,8 +173,8 @@ trait SharedState extends OpenCVJfxUtils with SudokuAlgos with CanLog with JfxUt
   def updateBestMatch(sudokuHistory: SudokuState): Unit = {
     // show recognized digits
     execOnUIThread(
-      for (i <- SudokuParameters.range) {
-        sudokuHistory.digitLibrary(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
+      for (i <- Parameters.range) {
+        sudokuHistory.digitLibrary(i + 1)._1.map { case m => nrViews(i).setImage(toImage(m))}
       })
   }
 
@@ -429,25 +432,21 @@ trait AnalyticsMode extends JfxUtils with SharedState {
     frameBuffer(index)
   }
 
-
+  // TODO signature should provide SudokuState
+  // move to SudokuAlgos
   def calcFrame(frameNumber: Int): Unit = {
     val start = System.nanoTime()
 
     val frameAt = getFrameAt(frameNumber)
     println(s"About to show $frameNumber (of ${getCurrentFrameFiles().size})")
-    //
-    for (result <-
-         calc(sudokuHistory,
-           frameAt,
-           TemplateDetectionStrategy.withTemplateMatching
-           // MockSolver.solve(_)(logInfo))) {
-           )) {
+    val sudokuState = SudokuState(frameAt,1, 20)
+    for (result <- SudokuAlgos.calc(sudokuState, frameAt)) {
       result match {
         case success: FrameSuccess => {
-          display(success, sudokuHistory, start)
+          display(success, sudokuState, start)
         }
         case imageIo: ImageIOChain => {
-          display(imageIo, sudokuHistory, start)
+          display(imageIo, sudokuState, start)
         }
         case x => {
           println(x)
@@ -540,8 +539,7 @@ with SharedState {
             file
           }
         })
-      }
-      else {
+      } else {
         logWarn("Camera has been closed. Scheduled persist process aborted.")
         new File(".")
       }
@@ -554,21 +552,19 @@ with SharedState {
                    oldFrame: Mat,
                    frame: Mat): Unit = {
     val start = System.nanoTime()
-    val sudokuHistory = SudokuState(1, 1)
+    val sudokuState = SudokuState(frame, 1, 20)
     val frameNumber = getCurrentFrameNumber()
     updateFrameNumber()
 
     for {f <- persist(frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
-         r <- calc(sudokuHistory,
-           frame,
-           TemplateDetectionStrategy.withTemplateMatching)
-    } r match {
+         result <- SudokuAlgos.calc(sudokuState, frame)
+    } result match {
       case success: FrameSuccess => {
-        display(success, sudokuHistory, start)
+        display(success, sudokuState, start)
         updateHistoryToolbar(frameNumber, Color.GREEN)
       }
       case imageIo: ImageIOChain => {
-        display(imageIo, sudokuHistory, start)
+        display(imageIo, sudokuState, start)
         // updateHistoryToolbar(getCurrentFrameNumber(), Color.RED)
       }
       case x => {
@@ -608,9 +604,8 @@ with SharedState {
   def startCapture(): Unit = {
     resetFrameNumber()
     resetHistoryBar()
-    sudokuHistory.initialize()
     setCurrentFrameGrabberTask(mkCaptureTask)
-    frameTimer.schedule(getCurrentFrameGrabberTask(), 0, 200)
+    frameTimer.schedule(getCurrentFrameGrabberTask(), 0, 500)
     setCameraActive(true)
     bestMatchToolBar.setVisible(false)
     templateToolBar.setVisible(false)
@@ -719,6 +714,9 @@ with Initializable {
   case object AnalyticsMode extends AppMode
 
   override def initialize(location: URL, resources: ResourceBundle): Unit = {
+
+    import SudokuAlgos._
+
     initializeSharedState(location, resources)
     initializeAnalytics(location, resources)
     initializeCapturing(location, resources)
@@ -739,6 +737,7 @@ with Initializable {
     analyticsButton.setUserData(AnalyticsMode)
 
     modeButtons.selectedToggleProperty.addListener(mkChangeListener(onModeChange))
+
     inputButton.setUserData(InputStage)
     grayedButton.setUserData(GrayedStage)
     blurredButton.setUserData(BlurredStage)
@@ -755,7 +754,7 @@ with Initializable {
 
 
   override def start(stage: Stage): Unit = {
-    stage.setTitle("SudokuFX - JavaFX OpenCV Scala Sudoku Grabber and Solver")
+    stage.setTitle("SudokuFX - Show me a Sudoku!")
 
     val scene = new Scene(mk[BorderPane](mkFxmlLoader("/net/ladstatt/apps/sudokufx.fxml", this)))
     setPerformanceTracker(PerformanceTracker.getSceneTracker(scene))
