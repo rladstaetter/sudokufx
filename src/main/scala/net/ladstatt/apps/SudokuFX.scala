@@ -86,9 +86,6 @@ trait SharedState extends OpenCVJfxUtils  with CanLog with JfxUtils {
   @FXML var tplView9: ImageView = _
   @FXML var historyToolBar: ToolBar = _
 
-  // TODO remove
-  //val sudokuState = SudokuState(8, 20)
-
   lazy val nrViews: Array[ImageView] =
     Array(nrView1, nrView2, nrView3,
       nrView4, nrView5, nrView6,
@@ -605,7 +602,7 @@ with SharedState {
     resetFrameNumber()
     resetHistoryBar()
     setCurrentFrameGrabberTask(mkCaptureTask)
-    frameTimer.schedule(getCurrentFrameGrabberTask(), 0, 500)
+    frameTimer.schedule(getCurrentFrameGrabberTask(), 0, 50)
     setCameraActive(true)
     bestMatchToolBar.setVisible(false)
     templateToolBar.setVisible(false)

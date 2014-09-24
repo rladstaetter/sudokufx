@@ -16,8 +16,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration.Duration
-
-
+import scala.util.{Failure, Try, Success}
 
 
 object TemplateDetectionStrategy extends OpenCVUtils {
@@ -116,9 +115,11 @@ object SudokuAlgos extends SudokuOpenCVUtils {
    * http://norvig.com/net.ladstatt.apps.sudoku.html
    *
    */
-  object BruteForceSolver extends HasDescription with Utils {
+  object BruteForceSolver extends HasDescription with Utils with CanLog {
 
     val description = "default"
+
+    def printTime(t: Long) = println(s"solved in $t ms.")
 
     /**
      * give this function a net.ladstatt.apps.sudoku in the form
@@ -135,11 +136,18 @@ object SudokuAlgos extends SudokuOpenCVUtils {
      *
      * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
      *
-     * @param stringRep
-     * @return
      */
-    def solve(stringRep: String)(log: String => Unit) = {
+    def solve(stringRep: String, maxDuration: Long = 100l): Option[String] = time({
       val before = System.currentTimeMillis()
+      var cnt = 0
+      def isCancelled = {
+        cnt = cnt + 1
+        val duration = (System.currentTimeMillis() - before)
+        if (duration > maxDuration) {
+          System.err.println(s"---> CANCEL (timeout: $duration ms, count $cnt.)")
+          true
+        } else false
+      }
 
       val stringRep2 = """000000000
                          |040070300
@@ -151,9 +159,6 @@ object SudokuAlgos extends SudokuOpenCVUtils {
                          |000080906
                          |000400000""".stripMargin
 
-      log(s"$before : scheduling solving ...")
-      log(s"\n$stringRep")
-      log(s"$before : starting solving ...")
       // The board is represented by an array of strings (arrays of chars),
       // held in a global variable mx. The program begins by reading 9 lines
       // of input to fill the board
@@ -185,37 +190,47 @@ object SudokuAlgos extends SudokuOpenCVUtils {
       // accu by applying the given function f to it whenever a solution m
       // is found
       def search(x: Int, y: Int, f: (Int) => Int, accu: Int): Int = (x, y) match {
-        case (9, yy) => search(0, y + 1, f, accu) // next row
-        case (0, 9) => f(accu) // found a solution
-        case (xx, yy) => if (mx(y)(x) != '0') search(x + 1, y, f, accu)
-        else
-          fold((accu: Int, n: Int) =>
-            if (invalid(0, x, y, (n + 48).toChar)) accu
-            else {
-              mx(y)(x) = (n + 48).toChar
-              val newaccu = search(x + 1, y, f, accu)
-              mx(y)(x) = '0'
-              newaccu
-            }, accu, 1, 10)
+        case (9, yy) if (!isCancelled) => search(0, y + 1, f, accu) // next row
+        case (0, 9) if (!isCancelled) => f(accu) // found a solution
+        case (xx, yy) if (!isCancelled) => {
+          if (mx(y)(x) != '0') {
+            search(x + 1, y, f, accu)
+          } else {
+            fold((accu: Int, n: Int) =>
+              if (invalid(0, x, y, (n + 48).toChar)) accu
+              else {
+                mx(y)(x) = (n + 48).toChar
+                val newaccu = search(x + 1, y, f, accu)
+                mx(y)(x) = '0'
+                newaccu
+              }, accu, 1, 10)
+          }
+        }
+        case _ => {
+          throw new RuntimeException("Was cancelled.")
+        }
       }
 
       // The main part of the program uses the search function to accumulate
       // the total number of solutions
-      search(0, 0, i => {
-        print
-        i + 1
-      }, 0)
+      Try {
+        search(0, 0, i => {
+          print
+          i + 1
+        }, 0)
 
-      val after = System.currentTimeMillis()
-      log(s"$before finished solving in ${after - before} milliseconds.")
-      solution.toList.mkString("\n")
-      // thats all ;-)
-    }
+        solution.toList.mkString("\n")
+        // thats all ;-)
+      } match {
+        case Success(s) => Some(s)
+        case Failure(e) => None
+      }
+    }, printTime)
 
   }
 
 
-  object MockSolver extends  HasDescription {
+  object MockSolver extends HasDescription {
     val description = "mock test solver"
 
     def solve(s: String)(log: String => Unit): String = {
@@ -432,9 +447,6 @@ object SudokuAlgos extends SudokuOpenCVUtils {
 }
 
 
-
-
-
 trait SudokuOpenCVUtils extends OpenCVUtils {
 
   def mkRect(pos: Pos, c: Mat): Rect = {
@@ -518,11 +530,16 @@ case class SudokuState(frame: Mat,
       val currentSolution =
         if (detectedNumbers.size > minHits) {
           option(getSomeSolution)({
-            val s = solve(toSolverString(mkValueMatrix))
-            if (isValidSolution(s)) {
-              setSomeSolution(Some(s))
+            val someSolution = solve(toSolverString(mkValueMatrix))
+            someSolution match {
+              case None => ""
+              case Some(s) => {
+                if (isValidSolution(s)) {
+                  setSomeSolution(Some(s))
+                }
+                s
+              }
             }
-            s
           },
           s => s)
         } else {
@@ -581,7 +598,7 @@ case class SudokuState(frame: Mat,
     allVals.foldLeft(0)((acc, e) => acc + e) == 405
   }
 
-  private def solve(stringRep: String) = BruteForceSolver.solve(stringRep)(logInfo)
+  private def solve(stringRep: String) = BruteForceSolver.solve(stringRep)
 
   private def getDigitMat(number: Int): Option[Mat] = digitLibrary(number)._1
 

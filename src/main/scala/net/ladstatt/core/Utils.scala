@@ -21,7 +21,7 @@ trait CanLog extends Utils {
   def logError(msg: String) = System.err.println(msg)
 
   def logWithTimer[A](msg: String, f: => A): A = {
-    time(f, t => logInfo(s"$msg (duration: $t microseconds)"))
+    time(f, t => logInfo(s"$msg (duration: $t ms)"))
   }
 
 
@@ -43,7 +43,7 @@ object SystemEnv {
 trait Utils {
 
   def execFuture[A](f: => A)(implicit ec: ExecutionContext): Future[A] = {
-    val p = Promise[A]
+    val p = Promise[A]()
     p.completeWith(Future(f))
     p.future
   }
@@ -65,13 +65,13 @@ trait Utils {
 
   /**
    * function to measure execution time of first function, optionally executing a display function,
-   * returning the time in microseconds
+   * returning the time in ms
    */
   def time[A](a: => A, display: Long => Unit = s => ()): A = {
     val before = System.nanoTime
     val result = a
-    val micros = (System.nanoTime - before) / 1000
-    display(micros)
+    val millis = (System.nanoTime - before) / 1000000
+    display(millis)
     result
   }
 
@@ -107,10 +107,10 @@ trait Utils {
     // copy the channels
     fastChannelCopy(inputChannel, outputChannel)
     // closing the channels
-    outputChannel.close
-    os.close
-    inputChannel.close
-    is.close
+    outputChannel.close()
+    os.close()
+    inputChannel.close()
+    is.close()
   }
 
   /**
@@ -127,11 +127,11 @@ trait Utils {
   def mkTempDirectory(): File = {
     val temp = mkTempFile // File.createTempFile("temp", System.nanoTime().toString)
 
-    if (!(temp.delete())) {
+    if (!temp.delete()) {
       sys.error("Could not delete temp file: " + temp.getAbsolutePath())
     }
 
-    if (!(temp.mkdir())) {
+    if (!temp.mkdir()) {
       sys.error("Could not create temp directory: " + temp.getAbsolutePath())
     }
     temp

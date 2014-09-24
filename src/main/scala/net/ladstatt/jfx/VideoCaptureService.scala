@@ -12,6 +12,7 @@ import net.ladstatt.core.Utils
  *
  * Restart if you want more than one image.
  */
+/*
 class VideoCaptureService(logfn : String => Unit) extends Service[Try[Mat]] with JfxUtils with Utils {
 
   private val videoCapture: VideoCapture = time(new VideoCapture(0), t => logfn(s"Camera initialisation: $t ms"))
@@ -24,3 +25,4 @@ class VideoCaptureService(logfn : String => Unit) extends Service[Try[Mat]] with
     })
 
 }
+ */

@@ -48,7 +48,7 @@ trait FrameGrabberTask {
 /**
  * defines a task which is run periodically
  */
-abstract trait TimedFrameGrabberTask extends TimerTask
+trait TimedFrameGrabberTask extends TimerTask
 with FrameGrabberTask
 with Utils {
 
@@ -58,7 +58,7 @@ with Utils {
     true
   }
 
-  def aquireMat: Mat
+  def aquireMat(): Mat
 
   override def run(): Unit = {
     frameProperty.set(aquireMat)
@@ -120,9 +120,13 @@ true
 case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
                                        mainLoop: ChangeListener[Mat]) extends TimedFrameGrabberTask {
 
+//  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_WIDTH,800)
+//  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_HEIGHT,600)
+
   override def cancel(): Boolean = {
     super.cancel
-    videoCapture.release
+    // kills jvm and is the reason why the camera always runs
+    //    videoCapture.release
     true
   }
 

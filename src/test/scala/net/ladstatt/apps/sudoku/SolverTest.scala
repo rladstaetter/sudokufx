@@ -17,8 +17,8 @@ class SolverTest extends Utils {
   @Test
   def testSolving(): Unit = {
     Try {
-      val solvedSudokus = for (sudokuAsString <- easySudokus.split("========")) yield solve(sudokuAsString.trim)(s => {})
-      for (fs <- solvedSudokus) {
+      val solvedSudokus = for (sudokuAsString <- easySudokus.split("========")) yield solve(sudokuAsString.trim)
+      for (fs <- solvedSudokus.flatten) {
         println("Solved:")
         println(fs)
         assertTrue(405 == fs.replaceAll( """\W""", "").map(_.asDigit).sum) // 405 is the sum of all squares
