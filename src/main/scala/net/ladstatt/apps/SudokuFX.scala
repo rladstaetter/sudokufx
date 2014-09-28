@@ -437,7 +437,7 @@ trait AnalyticsMode extends JfxUtils with SharedState {
     val frameAt = getFrameAt(frameNumber)
     println(s"About to show $frameNumber (of ${getCurrentFrameFiles().size})")
     val sudokuState = SudokuState(frameAt,1, 20)
-    for (result <- SudokuAlgos.calc(sudokuState, frameAt)) {
+    for (result <- sudokuState.calc) {
       result match {
         case success: FrameSuccess => {
           display(success, sudokuState, start)
@@ -554,7 +554,7 @@ with SharedState {
     updateFrameNumber()
 
     for {f <- persist(frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
-         result <- SudokuAlgos.calc(sudokuState, frame)
+         result <- sudokuState.calc
     } result match {
       case success: FrameSuccess => {
         display(success, sudokuState, start)

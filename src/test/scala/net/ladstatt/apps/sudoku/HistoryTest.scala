@@ -32,7 +32,7 @@ class HistoryTest extends OpenCvUnitTest {
 
   @Test def aTestWalkthrough(): Unit = {
     val cap = 1
-    val h = SudokuState(null,cap, 20)
+    val h = SudokuState(new Mat,cap, 20)
 
     Await.result(
       h.computeSolution(new Mat, (for (p <- positions) yield p -> SCell(getAt(p), 0.1, new Mat)).toMap)

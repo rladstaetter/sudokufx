@@ -8,6 +8,7 @@ import scala.concurrent.Future
  */
 package object sudoku {
 
+  // TODO replace with int ;-)
   type Pos = (Int, Int) // row, col
   type SNum = Int
   type SCount = Int

@@ -27,16 +27,15 @@ trait OpenCvUnitTest extends SudokuOpenCVUtils {
 /**
  * Created by lad on 05.05.14.
  */
-class SudokuTest extends  OpenCvUnitTest {
+class SudokuTest extends OpenCvUnitTest {
 
 
   @Test def testSimple(): Unit = {
     val input: Mat = Highgui.imread("src/test/resources/frame69.png")
-    val detectionMethod = TemplateDetectionStrategy
-    val solvingStrategy = SudokuAlgos.BruteForceSolver
 
     Try {
-      Await.result(SudokuAlgos.calc(SudokuState(input,1, 17), input), Duration.Inf)
+      val sudokuState = SudokuState(input, 1, 17)
+      Await.result(sudokuState.calc, Duration.Inf)
     } match {
       case Success(FrameSuccess(_, _, solutionString, _, _, _)) => {
         assertEquals( """617948532
