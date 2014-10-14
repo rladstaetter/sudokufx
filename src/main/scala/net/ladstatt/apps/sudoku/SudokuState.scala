@@ -1,6 +1,7 @@
 package net.ladstatt.apps.sudoku
 
 import java.util.concurrent.TimeUnit
+import javafx.scene.control.Cell
 
 import net.ladstatt.core.CanLog
 import org.opencv.core._
@@ -86,7 +87,8 @@ case class SudokuState(nr: Int,
     if (!detectedCorners.empty) {
       for {colorWarped <- warp(frame, detectedCorners, corners)
            detectedCells <- Future.sequence(detectCells(colorWarped, TemplateDetectionStrategy.detect))
-           (digitSolution, solutionCells, annotatedSolution) <- computeSolution(colorWarped, detectedCells.toArray)
+           (digitSolution, solutionCells) <- computeSolution(colorWarped, detectedCells.toArray)
+           annotatedSolution <- paintSolution(colorWarped, detectedCells, solutionCells)
            unwarped <- warp(annotatedSolution, mkCorners(annotatedSolution), detectedCorners)
            solution <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
       } yield copy(someResult = Some(FrameSuccess(solution, detectedCells.toArray, digitSolution, solutionCells)))
@@ -132,7 +134,7 @@ case class SudokuState(nr: Int,
 
   }
 
-  def computeSolution(canvas: Mat, detectedCells: Cells): Future[(SudokuDigitSolution, Cells, Mat)] =
+  def computeSolution(canvas: Mat, detectedCells: Cells): Future[(SudokuDigitSolution, Cells)] =
     Future {
       updateDigitLibrary(detectedCells)
       countHits(detectedCells)
@@ -154,8 +156,7 @@ case class SudokuState(nr: Int,
         } else mkValueIntermediateMatrix
 
       val solutionCells = toSolutionCells(currentSolution)
-      val annotatedSolution = paintSolution(canvas, detectedCells, solutionCells)
-      (currentSolution, solutionCells, annotatedSolution)
+      (currentSolution, solutionCells)
     }
 
 
@@ -164,22 +165,28 @@ case class SudokuState(nr: Int,
    *
    * returns the modified canvas with the solution painted upon.
    */
-  private def paintSolution(canvas: Mat, detectedCells: Cells, solution: Cells): Mat = {
-    if (isValid(solution)) {
-      // only copy cells which are not already known
-      for ((cell, i) <- solution.zipWithIndex if (detectedCells(i).value == 0)) {
-        copyTo(cell.data, canvas, mkRect(i, cell.data.size))
+  private def paintSolution(canvas: Mat, detectedCells: Seq[SCell], solution: Cells): Future[Mat] =
+    Future {
+      if (isValid(solution)) {
+
+        // only copy cells which are not already known
+        for ((cell, i) <- solution.zipWithIndex if (detectedCells(i).value == 0)) {
+          copyTo(cell.data, canvas, mkRect(i, cell.data.size))
+        }
+      } else {
+        detectedCells.zipWithIndex.map { case (cell, i) => {
+          println(cell.quality)
+          paintRect(canvas, mkRect(i, cell.data.size), color(i), 3)
+        }
+        }
       }
-    } else {
-      detectedCells.zipWithIndex.map { case (cell, pos) => paintRect(canvas, mkRect(pos, cell.data.size), color(pos), 3)}
+      canvas
     }
-    canvas
-  }
 
 
   // TODO update colors
-  private def color(pos: Pos): Scalar = {
-    val vals = hitCounts(pos)
+  private def color(i: Int): Scalar = {
+    val vals = hitCounts(i)
     val n = vals.max.toDouble
     val s = new Scalar(0, n * 256 / cap, 256 - n * 256 / cap)
     s
@@ -192,9 +199,20 @@ case class SudokuState(nr: Int,
 
   private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
 
-  def updateDigitLibrary(detectedCells: Cells): Unit = {
-    for (cell <- detectedCells if (cell.value != 0 && (digitData(cell.value).isEmpty ||
+  def updateDigitData(detectedCells: Cells): Unit = {
+    for (cell <- detectedCells.filter(_.value != 0) if ((digitData(cell.value).isEmpty ||
       cell.quality < digitQuality(cell.value)))) {
+      digitData(cell.value) = Some(cell.data)
+      digitQuality(cell.value) = cell.quality
+    }
+  }
+
+  val qualityFilter: PartialFunction[SCell, Boolean] = {
+    case c => (c.value != 0) && (c.quality < digitQuality(c.value))
+  }
+
+  def updateDigitLibrary(detectedCells: Cells): Unit = {
+    detectedCells.filter(qualityFilter) foreach { cell =>
       digitData(cell.value) = Some(cell.data)
       digitQuality(cell.value) = cell.quality
     }
