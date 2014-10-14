@@ -192,8 +192,6 @@ case class SudokuState(nr: Int,
 
   private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
 
-  private def getDigitMat(number: Int): Option[Mat] = digitData(number)
-
   def updateDigitLibrary(detectedCells: Cells): Unit = {
     for (cell <- detectedCells if (cell.value != 0 && (digitData(cell.value).isEmpty ||
       cell.quality < digitQuality(cell.value)))) {
@@ -331,9 +329,8 @@ case class SudokuState(nr: Int,
    */
   private def toSolutionCells(solution: SudokuDigitSolution): Cells = {
     if (solution.isEmpty) {
-      System.err.println("SolvedString was empty - not a valid solution.")
+      logWarn("Invalid solution found.")
       Array()
-      //require(!solvedString.isEmpty, s"solution could not be computed for \n$solvedString")
     } else {
       val allCells: Cells =
         (for (pos <- positions) yield {
