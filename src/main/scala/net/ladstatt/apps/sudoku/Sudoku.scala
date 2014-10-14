@@ -1,25 +1,17 @@
 package net.ladstatt.apps.sudoku
 
 
-import java.io.File
-import java.util.concurrent.TimeUnit
-
-import net.ladstatt.apps.sudoku.SudokuAlgos.BruteForceSolver
-import net.ladstatt.core.{CanLog, HasDescription, Utils}
-import net.ladstatt.opencv.OpenCVUtils
+import net.ladstatt.core.{HasDescription, Utils}
+import net.ladstatt.opencv.OpenCV
 import org.opencv.core._
-import org.opencv.imgproc.Imgproc
 
-import scala.collection.JavaConversions._
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
-import scala.concurrent.duration.Duration
-import scala.util.{Failure, Try, Success}
+import scala.util.{Failure, Success, Try}
 
 
-object TemplateDetectionStrategy extends OpenCVUtils {
+object TemplateDetectionStrategy {
 
   val description = "template detection"
   val (templateWidth, templateHeight) = (25.0, 50.0)
@@ -27,9 +19,7 @@ object TemplateDetectionStrategy extends OpenCVUtils {
 
   val templateLibrary: Map[Int, Mat] = {
     (1 to 9).map {
-      case i => i -> toMat(Templates.templatesAsByteArray(i),
-        templateSize.width.toInt,
-        templateSize.height.toInt)
+      case i => i -> OpenCV.toMat(Templates.templatesAsByteArray(i), templateSize)
     }.toMap
   }
 
@@ -48,8 +38,8 @@ object TemplateDetectionStrategy extends OpenCVUtils {
       case Some(candidate) =>
         tmp.tryCompleteWith({
           //  for (f <- persist(candidate, new File(UUID.randomUUID().toString + ".png"))) yield f
-          val resizedCandidateF = resize(candidate, templateSize) // since templates are 25 x 50
-          val matchHaystack = matchTemplate(resizedCandidateF, _: Future[(Int, Mat)])
+          val resizedCandidateF = OpenCV.resize(candidate, templateSize) // since templates are 25 x 50
+          val matchHaystack = OpenCV.matchTemplate(resizedCandidateF, _: Future[(Int, Mat)])
 
           for {s <- Future.sequence(for {templateEntry <- templateLibrary} yield
             for {y <- matchHaystack(Future.successful(templateEntry))} yield y)} yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
@@ -66,17 +56,18 @@ object TemplateDetectionStrategy extends OpenCVUtils {
 }
 
 
-
-//case class FrameHistory(index: Int, file: File, result: FrameResult)
-
-// TODO remove: replace with Array in SudokuHistory
+// TODO remove: replace with Arrays in SudokuState
+// digitSolutionData : Array[Mat]
+// digitSolutionQuality : Array[Double]
 case class SCell(value: Int, quality: Double, data: Mat) {
   assert(0 <= value && value <= 9)
   assert(quality >= 0)
 
 }
 
-object SudokuAlgos extends SudokuOpenCVUtils {
+object SudokuAlgos {
+
+  import net.ladstatt.opencv.OpenCV._
 
   /**
    * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
@@ -89,7 +80,7 @@ object SudokuAlgos extends SudokuOpenCVUtils {
    * http://norvig.com/net.ladstatt.apps.sudoku.html
    *
    */
-  object BruteForceSolver extends HasDescription with Utils with CanLog {
+  object BruteForceSolver extends HasDescription with Utils {
 
     val description = "default"
 
@@ -111,9 +102,10 @@ object SudokuAlgos extends SudokuOpenCVUtils {
      * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
      *
      */
-    def solve(stringRep: String, maxDuration: Long = 100l): Option[String] = time({
+    def solve(mx: SudokuDigitSolution, maxDuration: Long = 100l): Option[SudokuDigitSolution] = time({
       val before = System.currentTimeMillis()
       var cnt = 0
+
       def isCancelled = {
         cnt = cnt + 1
         val duration = (System.currentTimeMillis() - before)
@@ -123,27 +115,19 @@ object SudokuAlgos extends SudokuOpenCVUtils {
         } else false
       }
 
-      val stringRep2 = """000000000
-                         |040070300
-                         |059060001
-                         |006240000
-                         |000050400
-                         |008790000
-                         |034000008
-                         |000080906
-                         |000400000""".stripMargin
+      def copy(s: SudokuDigitSolution): SudokuDigitSolution = {
+        for (l <- s) yield l.clone()
+      }
 
       // The board is represented by an array of strings (arrays of chars),
       // held in a global variable mx. The program begins by reading 9 lines
       // of input to fill the board
-      val mx: Array[Array[Char]] = stringRep.stripMargin.split("\n").map(_.trim.toArray)
+      val solution: Array[Array[Char]] = Array.fill(Parameters.ssize)(Array.fill(Parameters.ssize)('A'))
 
-      var solution = new ListBuffer[String]()
-
-      def print = {
-        mx map (carr => {
-          solution.append(new String(carr))
-        })
+      def populateSolution() = {
+        for (li <- 0 until mx.size) {
+          solution(li) = mx(li).clone()
+        }
       }
 
       // The test for validity is performed by looping over i=0..8 and
@@ -163,7 +147,7 @@ object SudokuAlgos extends SudokuOpenCVUtils {
       // The function is itself a higher-order fold, accumulating the value
       // accu by applying the given function f to it whenever a solution m
       // is found
-      def search(x: Int, y: Int, f: (Int) => Int, accu: Int): Int = (x, y) match {
+      def search(x: Int, y: Int, f: Int => Int, accu: Int): Int = (x, y) match {
         case (9, yy) if (!isCancelled) => search(0, y + 1, f, accu) // next row
         case (0, 9) if (!isCancelled) => f(accu) // found a solution
         case (xx, yy) if (!isCancelled) => {
@@ -171,7 +155,9 @@ object SudokuAlgos extends SudokuOpenCVUtils {
             search(x + 1, y, f, accu)
           } else {
             fold((accu: Int, n: Int) =>
-              if (invalid(0, x, y, (n + 48).toChar)) accu
+              if (invalid(0, x, y, (n + 48).toChar)) {
+                accu
+              }
               else {
                 mx(y)(x) = (n + 48).toChar
                 val newaccu = search(x + 1, y, f, accu)
@@ -189,20 +175,22 @@ object SudokuAlgos extends SudokuOpenCVUtils {
       // the total number of solutions
       Try {
         search(0, 0, i => {
-          print
+          //println(i)
+          populateSolution()
+          //???
           i + 1
         }, 0)
-
-        solution.toList.mkString("\n")
-        // thats all ;-)
+        solution
       } match {
         case Success(s) => Some(s)
-        case Failure(e) => None
+        case Failure(e) => {
+          println(e.getMessage)
+          None
+        }
       }
     }, printTime)
 
   }
-
 
   object MockSolver extends HasDescription {
     val description = "mock test solver"
@@ -232,7 +220,7 @@ object SudokuAlgos extends SudokuOpenCVUtils {
     }
   }
 
-  import Parameters._
+  import net.ladstatt.apps.sudoku.Parameters._
 
   sealed trait ProcessingStage
 
@@ -252,17 +240,10 @@ object SudokuAlgos extends SudokuOpenCVUtils {
 
   case object SolutionStage extends ProcessingStage
 
-
   abstract trait SolverStrategy extends HasDescription {
 
     def solve(s: String)(log: String => Unit): String
   }
-
-
-
-
-
-
 
   def calcBlockSize(input: Mat): (Double, Double) = {
     val (matWidth, matHeight) = (input.size().width, input.size.height)
@@ -292,7 +273,7 @@ object SudokuAlgos extends SudokuOpenCVUtils {
     for {
       cell <- toGray(coloredCell)
       (cellData, center, minArea, maxArea) <- specialize(cell)
-      a <- preprocess2(cellData)
+      a <- preprocess2(cellData) // TODO what is going on here?
       b <- preprocess2(cellData)
     } yield
       findCellContour(a, b, center, minArea, maxArea)
@@ -304,48 +285,19 @@ object SudokuAlgos extends SudokuOpenCVUtils {
       mat.submat(rect)
     }
 
-  def detectCells(colorWarped: Mat, detectionMethod: DetectionMethod): Seq[Future[(Pos, SCell)]] = {
+  def detectCells(colorWarped: Mat, detectionMethod: DetectionMethod): Seq[Future[SCell]] = {
     val (blockWidth, blockHeight) = calcBlockSize(colorWarped)
     val size = new Size(blockWidth, blockHeight)
     for (p <- positions) yield
-      for {
+      (for {
         coloredSubMat <- subMat(colorWarped, mkRect(p, size))
         contour <- extractContour(coloredSubMat)
         (value, quality) <- detectionMethod(contour)
       } yield {
-        p -> SCell(value, quality, coloredSubMat)
-      }
+        SCell(value, quality, coloredSubMat)
+      })
   }
 
-
-  /*
-      val someOtherMatrix = digitLibrary.find(m => m.isDefined)
-      if (someOtherMatrix.isDefined) {
-        val otherMatrix = someOtherMatrix.get
-        val (size, matType) = (otherMatrix.size, otherMatrix.`type`())
-        val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
-        Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
-        digitLibrary(number) = mat
-        Some(mat)
-      } else None
-    }   */
-
-
-}
-
-
-trait SudokuOpenCVUtils extends OpenCVUtils {
-
-  def mkRect(pos: Pos, c: Mat): Rect = {
-    assert(c != null)
-    val (width, height) = (c.size.width, c.size.height)
-    val (x, y) = (pos._2 * width, pos._1 * height)
-    new Rect(new Point(x, y), c.size)
-  }
-
-  def mkRect(pos: Pos, size: Size): Rect = {
-    new Rect(new Point(pos._2 * size.width, pos._1 * size.height), size)
-  }
 
   def preprocess2(input: Mat): Future[Mat] = {
     for {
@@ -357,6 +309,7 @@ trait SudokuOpenCVUtils extends OpenCVUtils {
   }
 
   def imageIOChain(input: Mat): Future[ImageIOChain] = {
+
     for {
       working <- copySrcToDestWithMask(input, new Mat, input)
       grayed <- toGray(working)
@@ -365,10 +318,9 @@ trait SudokuOpenCVUtils extends OpenCVUtils {
       inverted <- bitwiseNot(thresholdApplied)
       dilated <- dilate(inverted)
       eroded <- erode(inverted)
-      //  dilated <- dilate(thresholdApplied)
-      //  inverted <- bitwiseNot(dilated)
-      corners <- Future.successful(mkCorners(input))
-    } yield ImageIOChain(input, working, grayed, blurred, thresholdApplied, inverted, dilated, eroded, corners)
+    //  dilated <- dilate(thresholdApplied)
+    //  inverted <- bitwiseNot(dilated)
+    } yield ImageIOChain(working, grayed, blurred, thresholdApplied, inverted, dilated, eroded)
   }
 
 }
@@ -378,8 +330,9 @@ object Parameters {
 
   val ssize = 9
   val range = 0 until ssize
-  val positions: IndexedSeq[Pos] = for {r <- range
-                                        c <- range} yield (r, c)
+  //val positions: IndexedSeq[Pos] = for {r <- range
+  //                                      c <- range} yield (r, c)
+  val positions = 0 until 81
   val digitRange = 0 to ssize
   val colorRange = 0 to 256 by 16
   private val leftRange: Seq[Int] = Seq(0, 1, 2)
@@ -387,6 +340,9 @@ object Parameters {
   private val rightRange: Seq[Int] = Seq(6, 7, 8)
   val sectors: Seq[Seq[Int]] = Seq(leftRange, middleRange, rightRange)
 
+  def row(i: Pos): Int = i / 9
+
+  def col(i: Pos): Int = i % 9
 }
 
 

@@ -1,32 +1,76 @@
 package net.ladstatt.opencv
 
-import org.opencv.core._
 import java.io.File
+
+import net.ladstatt.apps.sudoku._
+import net.ladstatt.core.{CanLog, SystemEnv}
+import org.opencv.core._
+import org.opencv.highgui.Highgui
 import org.opencv.imgproc.Imgproc
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
-import org.opencv.highgui.Highgui
-import net.ladstatt.core.{CanLog, SystemEnv, Utils}
-import scala.concurrent.{Promise, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Try
-import java.awt.image.{DataBuffer, BufferedImage}
+import scala.concurrent.Future
 
-case class OpenCVException(mat: Mat, message: String) extends RuntimeException(message)
+/**
+ * various opencv related stuff
+ */
+object OpenCV extends CanLog {
 
-case class CRange(hue: (Double, Double),
-                  saturation: (Double, Double),
-                  value: (Double, Double)) {
-  def lb = new Scalar(Array(hue._1, saturation._1, value._1))
+  import Parameters._
 
-  def ub = new Scalar(Array(hue._2, saturation._2, value._2))
-}
+  case class OpenCVException(mat: Mat, message: String) extends RuntimeException(message)
 
-trait OpenCVUtils extends Utils with CanLog {
+  case class CRange(hue: (Double, Double),
+                    saturation: (Double, Double),
+                    value: (Double, Double)) {
+    def lb = new Scalar(Array(hue._1, saturation._1, value._1))
+
+    def ub = new Scalar(Array(hue._2, saturation._2, value._2))
+  }
+
+  def copyTo(data: Mat, canvas: Mat, roi: Rect): Unit = {
+    val cellTarget = new Mat(canvas, roi)
+    data.copyTo(cellTarget)
+  }
+
+  def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {
+    Core.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
+  }
+
+  def extractCurveWithMaxArea(input: Mat, curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
+    val curvesWithAreas =
+      (for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)).toSeq
+    curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
+  }
+
+  def isSomewhatSquare(corners: Seq[Point]): Boolean = {
+
+    import scala.math.{abs, atan2}
+
+    def calcAngle(a: Point, b: Point) = {
+      atan2(b.y - a.y, b.x - a.x) * 180 / scala.math.Pi
+    }
+
+    def hasAlignedAngles: Boolean =
+      (abs(calcAngle(corners(0), corners(1)) - calcAngle(corners(3), corners(2))) < 10 &&
+        abs(calcAngle(corners(0), corners(3)) - calcAngle(corners(1), corners(2))) < 10)
+
+    hasAlignedAngles
+  }
+
+  def mkRect(pos: Pos, size: Size): Rect = {
+    new Rect(new Point(col(pos) * size.width, row(pos) * size.height), size)
+  }
 
   def mkCorners(mat: Mat): MatOfPoint2f = {
     val (width, height) = (mat.size.width, mat.size.height)
     new MatOfPoint2f(new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height))
+  }
+
+  def toMat(buffer: Array[Int], size: Size): Mat = {
+    toMat(buffer, size.width.toInt, size.height.toInt)
   }
 
   def toMat(buffer: Array[Int], width: Int, height: Int): Mat = {
@@ -39,11 +83,6 @@ trait OpenCVUtils extends Utils with CanLog {
     }
     m
   }
-
-  def spersist(mat: Mat, file: File): Future[File] =
-    execFuture {
-      file
-    }
 
   def persist(mat: Mat, file: File): Future[File] =
     execFuture {
@@ -257,7 +296,8 @@ trait OpenCVUtils extends Utils with CanLog {
   def dilate(input: Mat): Future[Mat] =
     execFuture {
       val output = new Mat
-      Imgproc.dilate(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)))
+      val anchor = new Point(-1, -1)
+      Imgproc.dilate(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)),anchor,2)
       //Imgproc.erode(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)))
       output
     }
@@ -286,7 +326,7 @@ trait OpenCVUtils extends Utils with CanLog {
 
   def runtimeNativeLibName =
     if (SystemEnv.runOnMac)
-      "lib/mac/libopencv_java246.dylib"
+      "lib/libopencv_java246.dylib"
     else if (SystemEnv.isX64) {
       "lib/win/x64/opencv_java246.dll"
     } else {
@@ -299,13 +339,6 @@ trait OpenCVUtils extends Utils with CanLog {
     System.load(nativeLib.getAbsolutePath())
   }
 
-  /*
-  def mkMat(number: Int, file: File, cvType: Int): Future[(Int, Mat)] =
-  execFuture {
-    (number, Highgui.imread(file.getAbsolutePath(), cvType))
-  }
-
-  */
   def filter2D(kernel: Mat)(input: Mat): Mat = {
     val out = new Mat
     Imgproc.filter2D(input, out, -1, kernel)

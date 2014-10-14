@@ -4,39 +4,36 @@ package net.ladstatt.apps
  * Copyright (c) 2013-2014, Robert Ladstätter @rladstaetter
  **/
 
-import javafx.beans.property._
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene._
 import _root_.javafx.scene.control._
-import javafx.animation.FadeTransition
-import javafx.scene.effect.{BlendMode, DropShadow}
-import javafx.scene.layout.{Region, AnchorPane, BorderPane}
 import _root_.javafx.scene.paint.Color
 import _root_.javafx.stage.Stage
-import java.io.{FilenameFilter, File}
+import java.io.{File, FilenameFilter}
 import java.net.URL
 import java.util.ResourceBundle
-import javafx.application.{Application, Platform}
-import javafx.beans.value.{ObservableValue, ChangeListener}
+import javafx.animation.FadeTransition
+import javafx.application.Application
+import javafx.beans.property._
+import javafx.beans.value.ObservableValue
+import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image.{Image, ImageView}
-import javafx.scene.shape.{Rectangle, Circle, Polyline}
+import javafx.scene.layout.{AnchorPane, BorderPane}
+import javafx.scene.shape.{Circle, Polyline, Rectangle}
 
 import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
-import net.ladstatt.core.{CanLog, HasDescription, Utils}
+import net.ladstatt.core.CanLog
 import net.ladstatt.jfx.{OpenCVTimedFrameGrabberTask, _}
-import net.ladstatt.opencv.{OpenCVException, OpenCVUtils}
-import org.controlsfx.dialog.{Dialogs, Dialog}
+import net.ladstatt.opencv.OpenCV._
+import org.controlsfx.dialog.Dialogs
 import org.opencv.core._
 import org.opencv.highgui.{Highgui, VideoCapture}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Random, Failure, Success, Try}
-import scala.util.control.NonFatal
+import scala.concurrent.Future
 
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
@@ -48,9 +45,9 @@ object SudokuFX {
 }
 
 
-trait SharedState extends OpenCVJfxUtils  with CanLog with JfxUtils {
+trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
 
-  import SudokuAlgos._
+  import net.ladstatt.apps.sudoku.SudokuAlgos._
 
   @FXML var canvas: AnchorPane = _
 
@@ -171,7 +168,7 @@ trait SharedState extends OpenCVJfxUtils  with CanLog with JfxUtils {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        sudokuHistory.digitLibrary(i + 1)._1.map { case m => nrViews(i).setImage(toImage(m))}
+        sudokuHistory.digitData(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
       })
   }
 
@@ -247,32 +244,18 @@ trait SharedState extends OpenCVJfxUtils  with CanLog with JfxUtils {
     videoView.setImage(toImage(mat))
   }
 
-  def updateDisplay(stage: ProcessingStage, frameSuccess: FrameSuccess): Unit = {
-    solutionButton.setDisable(false)
+  def updateDisplay(stage: ProcessingStage, sudokuState: SudokuState): Unit = {
+    //  solutionButton.setDisable(sudokuState.someResult.isEmpty)
     stage match {
-      case InputStage => updateVideoView(frameSuccess.imageIoChain.input)
-      case GrayedStage => updateVideoView(frameSuccess.imageIoChain.grayed)
-      case BlurredStage => updateVideoView(frameSuccess.imageIoChain.blurred)
-      case ThresholdedStage => updateVideoView(frameSuccess.imageIoChain.thresholded)
-      case InvertedStage => updateVideoView(frameSuccess.imageIoChain.inverted)
-      case DilatedStage => updateVideoView(frameSuccess.imageIoChain.dilated)
-      case ErodedStage => updateVideoView(frameSuccess.imageIoChain.eroded)
-      case SolutionStage => updateVideoView(frameSuccess.solution)
-      case _ => ???
-    }
-  }
-
-  def updateDisplay(stage: ProcessingStage, imageIo: ImageIOChain): Unit = {
-    solutionButton.setDisable(true)
-    stage match {
-      case InputStage => updateVideoView(imageIo.input)
-      case GrayedStage => updateVideoView(imageIo.grayed)
-      case BlurredStage => updateVideoView(imageIo.blurred)
-      case ThresholdedStage => updateVideoView(imageIo.thresholded)
-      case InvertedStage => updateVideoView(imageIo.inverted)
-      case DilatedStage => updateVideoView(imageIo.dilated)
-      case ErodedStage => updateVideoView(imageIo.eroded)
-      case SolutionStage => updateVideoView(imageIo.input)
+      case InputStage => updateVideoView(sudokuState.frame)
+      case GrayedStage => updateVideoView(sudokuState.imageIoChain.grayed)
+      case BlurredStage => updateVideoView(sudokuState.imageIoChain.blurred)
+      case ThresholdedStage => updateVideoView(sudokuState.imageIoChain.thresholded)
+      case InvertedStage => updateVideoView(sudokuState.imageIoChain.inverted)
+      case DilatedStage => updateVideoView(sudokuState.imageIoChain.dilated)
+      case ErodedStage => updateVideoView(sudokuState.imageIoChain.eroded)
+      case SolutionStage if (sudokuState.someResult.isDefined) => for (r <- sudokuState.someResult) updateVideoView(r.solution)
+      case SolutionStage if (sudokuState.someResult.isEmpty) => updateVideoView(sudokuState.frame)
       case _ => ???
     }
   }
@@ -378,22 +361,18 @@ trait SharedState extends OpenCVJfxUtils  with CanLog with JfxUtils {
     borderFadeTransition.play
   }
 
-  def display(success: FrameSuccess, sudokuHistory: SudokuState, start: Long) = execOnUIThread {
-    updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], success)
-    updateBestMatch(sudokuHistory)
-    updateBorder(success.corners)
-    updateCellBounds(success.corners, analysisCellBounds)
-    updateCellCorners(success.corners, analysisCellCorners)
+  def display(sudokuState: SudokuState, start: Long) = execOnUIThread {
+    updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], sudokuState)
+    updateBestMatch(sudokuState)
     updateStatus(mkFps(start), Color.GREEN)
     setAnalysisMouseTransparent(false)
+    for (success <- sudokuState.someResult) {
+      updateBorder(sudokuState.detectedCorners)
+      updateCellBounds(sudokuState.detectedCorners, analysisCellBounds)
+      updateCellCorners(sudokuState.detectedCorners, analysisCellCorners)
+    }
   }
 
-  def display(ioChain: ImageIOChain, sudokuHistory: SudokuState, start: Long) = execOnUIThread {
-    updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], ioChain)
-    updateBestMatch(sudokuHistory)
-    updateStatus(mkFps(start), Color.ORANGE)
-    setAnalysisMouseTransparent(true)
-  }
 
   def mkFps(start: Long) = {
     def mkDuration = {
@@ -419,7 +398,6 @@ trait AnalyticsMode extends JfxUtils with SharedState {
     currentFrameFiles.addAll(files)
   }
 
-
   def getCurrentFrameFiles() = currentFrameFiles.get()
 
   def getFrameAt(index: Int): Mat = {
@@ -430,29 +408,16 @@ trait AnalyticsMode extends JfxUtils with SharedState {
   }
 
   // TODO signature should provide SudokuState
-  // move to SudokuAlgos
+  // TODO move to SudokuAlgos
   def calcFrame(frameNumber: Int): Unit = {
     val start = System.nanoTime()
 
     val frameAt = getFrameAt(frameNumber)
     println(s"About to show $frameNumber (of ${getCurrentFrameFiles().size})")
-    val sudokuState = SudokuState(frameAt,1, 20)
-    for (result <- sudokuState.calc) {
-      result match {
-        case success: FrameSuccess => {
-          display(success, sudokuState, start)
-        }
-        case imageIo: ImageIOChain => {
-          display(imageIo, sudokuState, start)
-        }
-        case x => {
-          println(x)
-          ???
-        }
-      }
-    }
+    val sudokuState = SudokuState(frameNumber,frameAt, 1, 20)
+    for (result <- sudokuState.calc) display(result, start)
   }
-
+             // TODO replace Number with SudokuState
   def processFrameWithNumber(observableValue: ObservableValue[_ <: Number],
                              oldVal: Number,
                              newVal: Number): Unit =
@@ -506,14 +471,13 @@ trait AnalyticsMode extends JfxUtils with SharedState {
 }
 
 trait CapturingMode extends JfxUtils
-with OpenCVUtils
 with OpenCVJfxUtils
 with SharedState {
 
   @FXML var modeButtons: ToggleGroup = _
 
 
-  loadNativeLib("/Users/lad/Documents/net.ladstatt/opencv/src/main/lib/mac/libopencv_java246.dylib")
+  loadNativeLib()
 
   //  val currentFrameAsMatProperty = new SimpleObjectProperty[Mat]()
   val currentFrameNumberProperty = new SimpleIntegerProperty(0)
@@ -526,7 +490,7 @@ with SharedState {
     }
 
 
-  override def persist(mat: Mat, file: File): Future[File] =
+   def persist(mat: Mat, file: File): Future[File] =
     execFuture {
       if (getCameraActive()) {
         logWithTimer(s"Wrote ${file.getAbsolutePath}", {
@@ -545,39 +509,26 @@ with SharedState {
   /**
    * main event loop in capturing mode
    */
-  def processFrame(observableValue: ObservableValue[_ <: Mat],
-                   oldFrame: Mat,
-                   frame: Mat): Unit = {
+  def processFrame(observableValue: ObservableValue[_ <: SudokuState],
+                   oldFrame: SudokuState,
+                   sudokuState: SudokuState): Unit = {
     val start = System.nanoTime()
-    val sudokuState = SudokuState(frame, 1, 20)
     val frameNumber = getCurrentFrameNumber()
     updateFrameNumber()
 
-    for {f <- persist(frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
-         result <- sudokuState.calc
-    } result match {
-      case success: FrameSuccess => {
-        display(success, sudokuState, start)
-        updateHistoryToolbar(frameNumber, Color.GREEN)
-      }
-      case imageIo: ImageIOChain => {
-        display(imageIo, sudokuState, start)
-        // updateHistoryToolbar(getCurrentFrameNumber(), Color.RED)
-      }
-      case x => {
-        println(x)
-        ???
-      }
-    }
+    for {
+      f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
+      result <- sudokuState.calc
+    } display(result, start)
   }
 
   def mkCaptureTask = new OpenCVTimedFrameGrabberTask(new VideoCapture(0), mkChangeListener(processFrame))
 
-  val currentFrameGrabberTaskProperty = new SimpleObjectProperty[TimedFrameGrabberTask]()
+  val currentFrameGrabberTaskProperty = new SimpleObjectProperty[OpenCVTimedFrameGrabberTask]()
 
   def getCurrentFrameGrabberTask() = currentFrameGrabberTaskProperty.get
 
-  def setCurrentFrameGrabberTask(task: TimedFrameGrabberTask) = {
+  def setCurrentFrameGrabberTask(task: OpenCVTimedFrameGrabberTask) = {
     if (getCurrentFrameGrabberTask() != null) {
       getCurrentFrameGrabberTask.cancel
     }
@@ -712,7 +663,7 @@ with Initializable {
 
   override def initialize(location: URL, resources: ResourceBundle): Unit = {
 
-    import SudokuAlgos._
+    import net.ladstatt.apps.sudoku.SudokuAlgos._
 
     initializeSharedState(location, resources)
     initializeAnalytics(location, resources)

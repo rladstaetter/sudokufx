@@ -14,18 +14,31 @@ class SolverTest extends Utils {
   import SudokuAlgos.BruteForceSolver._
   import scala.language.postfixOps
 
+  val solved = """483921657
+                 |967345821
+                 |251876493
+                 |548132976
+                 |729564138
+                 |136798245
+                 |372689514
+                 |814253769
+                 |695417382""".stripMargin.replaceAll("\n", "")
+
+  @Test def testSum() = {
+    assertEquals(405, solved.toArray.map(_.asDigit).sum.toLong)
+  }
+
   @Test
   def testSolving(): Unit = {
     Try {
-      val solvedSudokus = for (sudokuAsString <- easySudokus.split("========")) yield solve(sudokuAsString.trim)
+      val solvedSudokus = for (sudokuAsString <- easySudokus.split("========")) yield solve(mkDigitSolution(sudokuAsString.replaceAll("\n", "")))
       for (fs <- solvedSudokus.flatten) {
-        println("Solved:")
-        println(fs)
-        assertTrue(405 == fs.replaceAll( """\W""", "").map(_.asDigit).sum) // 405 is the sum of all squares
+
+        assertEquals(405, fs.flatten.map(_.asDigit).sum.toLong)
       }
     } match {
       case Success(_) =>
-      case _ => fail()
+      case Failure(e) => fail(e.getMessage)
     }
 
   }

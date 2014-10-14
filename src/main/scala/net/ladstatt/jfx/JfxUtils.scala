@@ -8,6 +8,7 @@ import javafx.util.{StringConverter, Callback}
 import javafx.event.{EventHandler, Event}
 import javafx.concurrent.Task
 import javafx.fxml.{JavaFXBuilderFactory, FXMLLoader}
+import net.ladstatt.apps.sudoku.SudokuState
 import org.opencv.core.{Point, Mat}
 import javafx.scene.image.Image
 import java.awt.image.{ImageProducer, BufferedImage}
@@ -34,103 +35,37 @@ class StringConverter4HasDescription[T <: HasDescription] extends StringConverte
 }
 
 
-trait FrameGrabberTask {
-  def mainLoop: ChangeListener[Mat]
+trait SudokuTask {
 
-  lazy val frameProperty = {
-    val sop = new SimpleObjectProperty[Mat]
+}
+
+
+case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
+                                       mainLoop: ChangeListener[SudokuState]) extends TimerTask
+with Utils {
+
+  lazy val sudokuProperty = {
+    val sop = new SimpleObjectProperty[SudokuState]
     sop.addListener(mainLoop)
     sop
   }
 
-}
-
-/**
- * defines a task which is run periodically
- */
-trait TimedFrameGrabberTask extends TimerTask
-with FrameGrabberTask
-with Utils {
-
-  override def cancel = {
-    super.cancel
-    frameProperty.removeListener(mainLoop)
-    true
-  }
-
-  def aquireMat(): Mat
-
-  override def run(): Unit = {
-    frameProperty.set(aquireMat)
-  }
-
-
-}
-
-/*
-case class FileGrabberTimedTask(dir: File, val mainLoop: ChangeListener[Try[Mat]]) extends TimedFrameGrabberTask {
-val files =
-dir.listFiles(new FilenameFilter {
-override def accept(dir: File, name: String): Boolean = {
-name.endsWith(".png") || name.endsWith(".gif") || name.endsWith(".jpg") || name.endsWith(".jpeg")
-}
-})
-
-var cnt = 1
-
-override def aquireMat: Try[Mat] = Try {
-if (files.size == 0) throw new RuntimeException(s"Could not find any sudoku image in ${dir.getAbsolutePath}")
-val image = Highgui.imread(files(cnt).getAbsolutePath)
-cnt = cnt + 1
-if (cnt == files.size) cnt = 1
-image
-}
-
-}
-*/
-/*
-case class MatSeqGrabberTimed(mats : Seq[Mat], val mainLoop: ChangeListener[Try[Mat]]) extends TimedFrameGrabberTask {
-
-
-var pos = 0
-
-override def aquireMat: Try[Mat] = Try {
-  val mat = mats(pos)
-  if (pos < mats.size - 1)
-    pos = pos + 1
-  else
-    pos = 0
-  mat
-}
-
-}
-       */
-/*
-case class HistoryFrameGrabberTask(val mainLoop: ChangeListener[Mat]) extends TimedFrameGrabberTask {
-override def aquireMat: Try[Mat] = ???
-
-override def run(): Unit = ()
-
-override def cancel: Boolean = {
-frameProperty.unbind
-true
-}
-}
-*/
-case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
-                                       mainLoop: ChangeListener[Mat]) extends TimedFrameGrabberTask {
-
-//  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_WIDTH,800)
-//  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_HEIGHT,600)
-
   override def cancel(): Boolean = {
     super.cancel
-    // kills jvm and is the reason why the camera always runs
-    //    videoCapture.release
+    sudokuProperty.removeListener(mainLoop)
     true
   }
 
-  override def aquireMat = {
+  override def run(): Unit = {
+    sudokuProperty.set(new SudokuState(0, aquireMat, 1, 20))
+  }
+
+
+  //  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_WIDTH,800)
+  //  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_HEIGHT,600)
+
+
+  def aquireMat = {
     val image = new Mat()
     if (videoCapture.isOpened) {
       videoCapture.read(image)
@@ -144,7 +79,7 @@ case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
 
 class FrameTimer extends Timer {
 
-  def schedule(task: TimedFrameGrabberTask, delay: Long = 0, period: Long = 1) = {
+  def schedule(task: OpenCVTimedFrameGrabberTask, delay: Long = 0, period: Long = 1) = {
     super.schedule(task, delay, period)
   }
 }
@@ -178,7 +113,7 @@ trait OpenCVJfxUtils extends Utils {
       }
     }
 
-    // todo improve swapping of data !
+    // TODO improve swapping of data !
     matrix.channels() match {
       case 3 => {
         var i = 0
