@@ -361,10 +361,10 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     borderFadeTransition.play
   }
 
-  def display(sudokuState: SudokuState, start: Long) = execOnUIThread {
+  def display(sudokuState: SudokuState) = execOnUIThread {
     updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], sudokuState)
     updateBestMatch(sudokuState)
-    updateStatus(mkFps(start), Color.GREEN)
+    updateStatus(mkFps(sudokuState.start), Color.GREEN)
     setAnalysisMouseTransparent(false)
     for (success <- sudokuState.someResult) {
       updateBorder(sudokuState.detectedCorners)
@@ -410,12 +410,10 @@ trait AnalyticsMode extends JfxUtils with SharedState {
   // TODO signature should provide SudokuState
   // TODO move to SudokuAlgos
   def calcFrame(frameNumber: Int): Unit = {
-    val start = System.nanoTime()
-
     val frameAt = getFrameAt(frameNumber)
     println(s"About to show $frameNumber (of ${getCurrentFrameFiles().size})")
     val sudokuState = SudokuState(frameNumber, frameAt, 1, 20)
-    for (result <- sudokuState.calc) display(result, start)
+    for (result <- sudokuState.calc) display(result)
   }
 
   // TODO replace Number with SudokuState
@@ -480,9 +478,6 @@ with SharedState {
 
   loadNativeLib()
 
-  //  val currentFrameAsMatProperty = new SimpleObjectProperty[Mat]()
-  val currentFrameNumberProperty = new SimpleIntegerProperty(0)
-
   def updateHistoryToolbar(frameNumber: Int, color: Color): Unit =
     execOnUIThread {
       println(s"adding $frameNumber with $color")
@@ -513,14 +508,11 @@ with SharedState {
   def processFrame(observableValue: ObservableValue[_ <: SudokuState],
                    oldState: SudokuState,
                    sudokuState: SudokuState): Unit = {
-    val start = System.nanoTime()
-    val frameNumber = getCurrentFrameNumber()
-    updateFrameNumber()
 
     for {
      // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
       result <- sudokuState.calc
-    } display(result, start)
+    } display(result)
   }
 
   def mkCaptureTask = new OpenCVTimedFrameGrabberTask(new VideoCapture(0), mkChangeListener(processFrame))
@@ -551,7 +543,6 @@ with SharedState {
   }
 
   def startCapture(): Unit = {
-    resetFrameNumber()
     resetHistoryBar()
     setCurrentFrameGrabberTask(mkCaptureTask)
     frameTimer.schedule(getCurrentFrameGrabberTask(), 0, 50)
@@ -577,17 +568,8 @@ with SharedState {
 
   }
 
-  def getCurrentFrameNumber() = currentFrameNumberProperty.get()
 
-  def setCurrentFrameNumber(number: Int) = currentFrameNumberProperty.set(number)
 
-  def updateFrameNumber() = {
-    setCurrentFrameNumber(getCurrentFrameNumber() + 1)
-  }
-
-  def resetFrameNumber() = {
-    setCurrentFrameNumber(0)
-  }
 
   def resetHistoryBar() = {
     historyToolBar.getItems.clear()

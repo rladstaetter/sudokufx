@@ -17,7 +17,7 @@ import javafx.scene.shape.Polyline
 import javafx.scene.paint.Color
 import javafx.scene.effect.DropShadow
 import scala.collection.JavaConversions._
-import javafx.beans.property.{SimpleBooleanProperty, SimpleObjectProperty}
+import javafx.beans.property.{SimpleIntegerProperty, SimpleBooleanProperty, SimpleObjectProperty}
 import java.util.{TimerTask, Timer}
 import javafx.application.Platform
 import scala.util.{Random, Try}
@@ -44,6 +44,12 @@ case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
                                        mainLoop: ChangeListener[SudokuState]) extends TimerTask
 with Utils {
 
+  val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
+
+  def setFrameNumber(i: Int) = frameNumberProperty.set(i)
+
+  def getFrameNumber() = frameNumberProperty.get()
+
   lazy val sudokuProperty = {
     val sop = new SimpleObjectProperty[SudokuState]
     sop.addListener(mainLoop)
@@ -57,7 +63,8 @@ with Utils {
   }
 
   override def run(): Unit = {
-    sudokuProperty.set(new SudokuState(0, aquireMat, 1, 20))
+    sudokuProperty.set(new SudokuState(getFrameNumber(), aquireMat, 1, 20))
+    setFrameNumber(getFrameNumber() + 1)
   }
 
 

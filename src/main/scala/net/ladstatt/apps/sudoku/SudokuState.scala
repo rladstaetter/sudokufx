@@ -43,7 +43,7 @@ case class SudokuState(nr: Int,
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
                        someResult: Option[FrameSuccess] = None) extends CanLog {
-
+  val start = System.nanoTime()
 
   val corners = mkCorners(frame)
 
