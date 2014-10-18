@@ -39,7 +39,7 @@ object OpenCV extends CanLog {
     Core.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
   }
 
-  def extractCurveWithMaxArea(input: Mat, curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
+  def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
     val curvesWithAreas =
       (for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)).toSeq
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
@@ -297,7 +297,7 @@ object OpenCV extends CanLog {
     execFuture {
       val output = new Mat
       val anchor = new Point(-1, -1)
-      Imgproc.dilate(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)),anchor,2)
+      Imgproc.dilate(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)), anchor, 2)
       //Imgproc.erode(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)))
       output
     }

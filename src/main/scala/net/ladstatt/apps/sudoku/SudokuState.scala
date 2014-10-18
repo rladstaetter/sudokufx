@@ -30,8 +30,8 @@ case class ImageIOChain(working: Mat,
 
 case class FrameSuccess(solution: Mat,
                         detectedCells: Cells,
-                        digitSolution: SudokuDigitSolution,
-                        solutionCells: Cells)
+                        digitSolution: Option[SudokuDigitSolution],
+                        solutionCells: Option[Cells])
 
 case class SudokuState(nr: Int,
                        frame: Mat,
@@ -45,8 +45,6 @@ case class SudokuState(nr: Int,
                        someResult: Option[FrameSuccess] = None) extends CanLog {
 
 
-  private var someSolution: Option[SudokuDigitSolution] = None
-
   val corners = mkCorners(frame)
 
   val imageIoChain: ImageIOChain =
@@ -59,18 +57,14 @@ case class SudokuState(nr: Int,
       corners <- detectSudokuCorners(imageIoChain.dilated) // if (!detectedCorners.empty)
     } yield corners, Duration(1400, TimeUnit.MILLISECONDS))
 
+  lazy val futureWarped = warp(frame, detectedCorners, corners)
 
   // TODO REMOVE
-  private def initialize(): Unit = {
-    //posFrequencies.foreach(freq => digitRange.map(freq(_) = 0))
+  private def reset(): Unit = {
     hitCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
     digitData.transform(_ => None)
     digitQuality.transform(_ => Double.MaxValue)
     ()
-    /*
-    for (i <- range) {
-      digitLibrary(i) = (None, Double.MaxValue)
-    } */
   }
 
 
@@ -85,13 +79,16 @@ case class SudokuState(nr: Int,
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
     if (!detectedCorners.empty) {
-      for {colorWarped <- warp(frame, detectedCorners, corners)
+      for {colorWarped <- futureWarped
            detectedCells <- Future.sequence(detectCells(colorWarped, TemplateDetectionStrategy.detect))
-           (digitSolution, solutionCells) <- computeSolution(colorWarped, detectedCells.toArray)
-           annotatedSolution <- paintSolution(colorWarped, detectedCells, solutionCells)
+           withUpdatedLibrary <- Future.successful(updateDigitLibrary(detectedCells))
+           withUpdatedFrequency <- Future.successful(countHits(detectedCells))
+           someDigitSolution <- computeSolution(colorWarped, detectedCells.toArray)
+           someSolutionCells <- Future.successful(for (solution <- someDigitSolution) yield toSolutionCells(solution))
+           annotatedSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
            unwarped <- warp(annotatedSolution, mkCorners(annotatedSolution), detectedCorners)
            solution <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
-      } yield copy(someResult = Some(FrameSuccess(solution, detectedCells.toArray, digitSolution, solutionCells)))
+      } yield copy(someResult = Some(FrameSuccess(solution, detectedCells.toArray, someDigitSolution, someSolutionCells)))
     } else {
       Future.successful(copy())
     }
@@ -103,7 +100,7 @@ case class SudokuState(nr: Int,
     execFuture {
       val epsilon = 0.02
 
-      extractCurveWithMaxArea(preprocessed, coreFindContours(preprocessed)) match {
+      extractCurveWithMaxArea(coreFindContours(preprocessed)) match {
         case None => {
           logWarn("Could not detect any curve ... ")
           new MatOfPoint2f()
@@ -134,29 +131,11 @@ case class SudokuState(nr: Int,
 
   }
 
-  def computeSolution(canvas: Mat, detectedCells: Cells): Future[(SudokuDigitSolution, Cells)] =
+  def computeSolution(canvas: Mat, detectedCells: Cells): Future[Option[SudokuDigitSolution]] =
     Future {
-      updateDigitLibrary(detectedCells)
-      countHits(detectedCells)
-      val currentSolution: SudokuDigitSolution =
-        if (detectedNumbers.size > minHits) {
-          option(getSomeSolution)({
-            val someSolution = solve(mkValueMatrix)
-            someSolution match {
-              case None => Array()
-              case Some(s) => {
-                if (isValidSolution(s)) {
-                  setSomeSolution(Some(s))
-                }
-                s
-              }
-            }
-          },
-          s => s)
-        } else mkValueIntermediateMatrix
-
-      val solutionCells = toSolutionCells(currentSolution)
-      (currentSolution, solutionCells)
+      if (detectedNumbers.size > minHits) {
+        solve(mkValueMatrix)
+      } else Some(mkValueIntermediateMatrix)
     }
 
 
@@ -165,19 +144,19 @@ case class SudokuState(nr: Int,
    *
    * returns the modified canvas with the solution painted upon.
    */
-  private def paintSolution(canvas: Mat, detectedCells: Seq[SCell], solution: Cells): Future[Mat] =
+  private def paintSolution(canvas: Mat, detectedCells: Seq[SCell], someSolution: Option[Cells]): Future[Mat] =
     Future {
-      if (isValid(solution)) {
-
-        // only copy cells which are not already known
-        for ((cell, i) <- solution.zipWithIndex if (detectedCells(i).value == 0)) {
-          copyTo(cell.data, canvas, mkRect(i, cell.data.size))
-        }
-      } else {
-        detectedCells.zipWithIndex.map { case (cell, i) => {
-          println(cell.quality)
-          paintRect(canvas, mkRect(i, cell.data.size), color(i), 3)
-        }
+      for (solution <- someSolution) {
+        if (isValid(solution)) {
+          // only copy cells which are not already known
+          for ((cell, i) <- solution.zipWithIndex if (detectedCells(i).value == 0)) {
+            copyTo(cell.data, canvas, mkRect(i, cell.data.size))
+          }
+        } else {
+          detectedCells.zipWithIndex.map { case (cell, i) => {
+            paintRect(canvas, mkRect(i, cell.data.size), color(i), 3)
+          }
+          }
         }
       }
       canvas
@@ -211,17 +190,12 @@ case class SudokuState(nr: Int,
     case c => (c.value != 0) && (c.quality < digitQuality(c.value))
   }
 
-  def updateDigitLibrary(detectedCells: Cells): Unit = {
+  def updateDigitLibrary(detectedCells: Iterable[SCell]): Unit = {
     detectedCells.filter(qualityFilter) foreach { cell =>
       digitData(cell.value) = Some(cell.data)
       digitQuality(cell.value) = cell.quality
     }
   }
-
-  private def setSomeSolution(s: Option[SudokuDigitSolution]) = someSolution = s
-
-  private def getSomeSolution: Option[SudokuDigitSolution] = someSolution
-
 
   private def sectorWellFormed(index: Pos, value: Int): Boolean = {
     val rowSector = sectors(row(index) / 3)
@@ -256,7 +230,7 @@ case class SudokuState(nr: Int,
    *
    * @param cells
    */
-  private def countHits(cells: Cells): Unit = {
+  private def countHits(cells: Iterable[SCell]): Unit = {
 
     def updateFrequency(i: Pos, value: Int): Unit = {
       require(0 <= value && (value <= 9), s"$value was not in interval 0 <= x <= 9 !")
@@ -277,7 +251,7 @@ case class SudokuState(nr: Int,
           false
         }
       }
-    if (!result.forall(p => p)) initialize()
+    if (!result.forall(p => p)) reset()
   }
 
   // search on all positions for potential hits (don't count the "empty"/"zero" fields

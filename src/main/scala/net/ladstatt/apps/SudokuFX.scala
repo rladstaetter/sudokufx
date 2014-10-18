@@ -414,10 +414,11 @@ trait AnalyticsMode extends JfxUtils with SharedState {
 
     val frameAt = getFrameAt(frameNumber)
     println(s"About to show $frameNumber (of ${getCurrentFrameFiles().size})")
-    val sudokuState = SudokuState(frameNumber,frameAt, 1, 20)
+    val sudokuState = SudokuState(frameNumber, frameAt, 1, 20)
     for (result <- sudokuState.calc) display(result, start)
   }
-             // TODO replace Number with SudokuState
+
+  // TODO replace Number with SudokuState
   def processFrameWithNumber(observableValue: ObservableValue[_ <: Number],
                              oldVal: Number,
                              newVal: Number): Unit =
@@ -490,7 +491,7 @@ with SharedState {
     }
 
 
-   def persist(mat: Mat, file: File): Future[File] =
+  def persist(mat: Mat, file: File): Future[File] =
     execFuture {
       if (getCameraActive()) {
         logWithTimer(s"Wrote ${file.getAbsolutePath}", {
@@ -510,14 +511,14 @@ with SharedState {
    * main event loop in capturing mode
    */
   def processFrame(observableValue: ObservableValue[_ <: SudokuState],
-                   oldFrame: SudokuState,
+                   oldState: SudokuState,
                    sudokuState: SudokuState): Unit = {
     val start = System.nanoTime()
     val frameNumber = getCurrentFrameNumber()
     updateFrameNumber()
 
     for {
-      f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
+     // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
       result <- sudokuState.calc
     } display(result, start)
   }

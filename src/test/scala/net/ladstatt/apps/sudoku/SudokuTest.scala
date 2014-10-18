@@ -1,6 +1,6 @@
 package net.ladstatt.apps.sudoku
 
-import net.ladstatt.core.SystemEnv
+import net.ladstatt.core.{Utils, SystemEnv}
 import net.ladstatt.opencv.OpenCV
 import org.junit.Assert._
 import org.junit.Test
@@ -23,7 +23,7 @@ trait OpenCvUnitTest {
 /**
  * Created by lad on 05.05.14.
  */
-class SudokuTest extends OpenCvUnitTest {
+class SudokuTest extends OpenCvUnitTest with Utils{
 
 
   @Test def testSimple(): Unit = {
@@ -41,7 +41,7 @@ class SudokuTest extends OpenCvUnitTest {
                         |938257416
                         |275683194
                         |461592387
-                        |893174265""".stripMargin, s.someResult.get.digitSolution)
+                        |893174265""".stripMargin, mkStringSolution(s.someResult.get.digitSolution.get))
       }
       case Failure(e) => {
         e.printStackTrace()
