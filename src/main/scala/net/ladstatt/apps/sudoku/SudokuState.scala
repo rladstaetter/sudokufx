@@ -37,12 +37,14 @@ case class SudokuState(nr: Int,
                        frame: Mat,
                        cap: Int = 8,
                        minHits: Int = 20,
-                       // for every position, there is a list which depicts how often a number was found in the
-                       // sudoku, where the index in the list is the number (from 0 to 9, with 0 being the "empty" cell)
+                       // for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
+                       // was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
+                       // the "empty" cell)
                        hitCounts: Array[HitCount] = Array.fill(positions.size)(Array.fill[SCount](digitRange.size)(0)),
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
                        someResult: Option[FrameSuccess] = None) extends CanLog {
+
   val start = System.nanoTime()
 
   val corners = mkCorners(frame)
@@ -80,9 +82,10 @@ case class SudokuState(nr: Int,
     if (!detectedCorners.empty) {
       for {colorWarped <- futureWarped
            detectedCells <- Future.sequence(detectCells(colorWarped, TemplateDetectionStrategy.detect))
-           withUpdatedLibrary <- Future.successful(updateDigitLibrary(detectedCells))
+           withUpdatedDigitData <- updateLibrary(detectedCells, updateDataAction)
+           withUpdatedDigitQuality <- updateLibrary(detectedCells, updateQualityAction)
            withUpdatedFrequency <- Future.successful(countHits(detectedCells))
-           someDigitSolution <- computeSolution(colorWarped, detectedCells.toArray)
+           someDigitSolution <- computeSolution()
            someSolutionCells <- Future.successful(for (solution <- someDigitSolution) yield toSolutionCells(solution))
            annotatedSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
            unwarped <- warp(annotatedSolution, mkCorners(annotatedSolution), detectedCorners)
@@ -130,11 +133,9 @@ case class SudokuState(nr: Int,
 
   }
 
-  def computeSolution(canvas: Mat, detectedCells: Cells): Future[Option[SudokuDigitSolution]] =
+  def computeSolution(): Future[Option[SudokuDigitSolution]] =
     Future {
-      if (detectedNumbers.size > minHits) {
-        solve(mkValueMatrix)
-      } else Some(mkValueIntermediateMatrix)
+      if (detectedNumbers.size > minHits) solve(mkSudokuMatrix) else Some(mkIntermediateSudokuMatrix)
     }
 
 
@@ -177,24 +178,38 @@ case class SudokuState(nr: Int,
 
   private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
 
-  def updateDigitData(detectedCells: Cells): Unit = {
-    for (cell <- detectedCells.filter(_.value != 0) if ((digitData(cell.value).isEmpty ||
-      cell.quality < digitQuality(cell.value)))) {
-      digitData(cell.value) = Some(cell.data)
-      digitQuality(cell.value) = cell.quality
-    }
-  }
-
   val qualityFilter: PartialFunction[SCell, Boolean] = {
-    case c => (c.value != 0) && (c.quality < digitQuality(c.value))
+    case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
+  }
+  /*
+def updateDigitData(detectedCells: Iterable[SCell]): Unit = {
+detectedCells.filter(qualityFilter) foreach { cell =>
+  digitData(cell.value) = Some(cell.data)
+}
+}
+
+def updateDigitQuality(detectedCells: Iterable[SCell]): Unit = {
+detectedCells.filter(qualityFilter) foreach { cell =>
+  //  digitData(cell.value) = Some(cell.data)
+  digitQuality(cell.value) = cell.quality
+}
+}
+*/
+
+  def updateDataAction: PartialFunction[SCell, Unit] = {
+    case c => digitData(c.value) = Some(c.data)
   }
 
-  def updateDigitLibrary(detectedCells: Iterable[SCell]): Unit = {
-    detectedCells.filter(qualityFilter) foreach { cell =>
-      digitData(cell.value) = Some(cell.data)
-      digitQuality(cell.value) = cell.quality
+  def updateQualityAction: PartialFunction[SCell, Unit] = {
+    case c => digitQuality(c.value) = c.quality
+  }
+
+  def updateLibrary(detectedCells: Iterable[SCell], execAction: PartialFunction[SCell, Unit]): Future[Unit] = execFuture {
+    detectedCells.filter(qualityFilter) foreach {
+      execAction
     }
   }
+
 
   private def sectorWellFormed(index: Pos, value: Int): Boolean = {
     val rowSector = sectors(row(index) / 3)
@@ -229,7 +244,7 @@ case class SudokuState(nr: Int,
    *
    * @param cells
    */
-   def countHits(cells: Iterable[SCell]): Unit = {
+  def countHits(cells: Iterable[SCell]): Unit = {
 
     def updateFrequency(i: Pos, value: Int): Unit = {
       require(0 <= value && (value <= 9), s"$value was not in interval 0 <= x <= 9 !")
@@ -268,47 +283,19 @@ case class SudokuState(nr: Int,
 
   def withCap(v: Int) = v == cap
 
-  // TODO return Array[SNum]
-  def mkValueMatrix: SudokuDigitSolution = mkVM(withCap(_))
+  def mkSudokuMatrix: SudokuDigitSolution = mkVM(withCap(_))
 
-  // TODO return Array[SNum]
-  private def mkValueIntermediateMatrix: SudokuDigitSolution = mkVM(_ => true)
+  def mkIntermediateSudokuMatrix: SudokuDigitSolution = mkVM(_ => true)
 
-  /*{
-    (for (pos <- positions) yield {
-      pos -> {
-        (for ((v, i) <- hitCounts(pos).zipWithIndex) yield i).headOption.getOrElse(0)
-      }
-    }).toMap
-  }                                            */
-  /*
-  {
-    val h =
-      for (i <- positions) yield {
-        ((for ((v, i) <- hitCounts(i).zipWithIndex if (v == cap)) yield i).headOption.getOrElse(0) + 48).toChar
-      }
-    (for (line <- h.sliding(9, 9)) yield line.toArray).toArray
-  }
-    */
+  // returns the sudoku matrix by analyzing the hitcounts array
   def mkVM(p: Int => Boolean): SudokuDigitSolution = {
     val h =
       for (i <- positions) yield {
-        ((for ((v, i) <- hitCounts(i).zipWithIndex if (v == cap)) yield i).headOption.getOrElse(0) + 48).toChar
+        ((for ((v, i) <- hitCounts(i).zipWithIndex if p(v)) yield i).headOption.getOrElse(0) + 48).toChar
       }
     (for (line <- h.sliding(9, 9)) yield line.toArray).toArray
   }
 
-
-  // TODO replace with Array[Int]
-  private def isValidSolution(solution: SudokuDigitSolution): Boolean = {
-    solution.flatten.map(_.asDigit).sum == 405
-    /*
-    if (!solution.isEmpty) {
-      val normedSolverString = solution.replaceAll( """\n""", "").substring(0, 81)
-      normedSolverString.foldLeft(0)((sum, a) => sum + a.asDigit) == 405
-    } else false
-    */
-  }
 
   /**
    * Performance:

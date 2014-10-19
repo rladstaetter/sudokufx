@@ -38,7 +38,7 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     val h = SudokuState(0, mockMat, cap, 20)
     val sCells = (for (p <- positions) yield SCell(getAt(p).asDigit, 0.1, new Mat))
     h.countHits(sCells)
-    val someSolution = Await.result(h.computeSolution(mockMat, sCells.toArray), Duration.Inf)
+    val someSolution = Await.result(h.computeSolution(), Duration.Inf)
     //assertTrue(h.detectedNumbers.size > h.minHits)
     assertTrue(someSolution.isDefined)
     for (s <- someSolution) {
@@ -53,7 +53,7 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     val h = SudokuState(0, mockMat, 1, 1)
     val invalidList =
       Array(SCell(1, 0.1, new Mat), SCell(1, 0.1, new Mat))
-    val r = Await.result(h.computeSolution(new Mat, invalidList), Duration.Inf)
+    val r = Await.result(h.computeSolution(), Duration.Inf)
     assertTrue(0 == h.hitCounts(0)(0))
   }
 
@@ -62,9 +62,9 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     val validArray =
       Array(SCell(1, 0.5, new Mat), SCell(2, 0.8, new Mat)
       )
-    state.updateDigitLibrary(validArray)
+    state.updateLibrary(validArray,state.updateQualityAction)
 
-    state.updateDigitLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)))
+    state.updateLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)), state.updateQualityAction)
     assertEquals(0.5, state.digitQuality(1), 0.0)
     assertEquals(0.7, state.digitQuality(2), 0.0)
 
