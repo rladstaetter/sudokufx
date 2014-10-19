@@ -232,7 +232,7 @@ case class SudokuState(nr: Int,
       }
     }
 
-    cells.zipWithIndex.map { case (c,i) if ((c.value == 0) || posWellFormed(i, c.value)) => updateHitCounts(i, c.value)}
+    cells.zipWithIndex.map { case (c, i) if ((c.value == 0) || posWellFormed(i, c.value)) => updateHitCounts(i, c.value)}
     ()
 
   }
@@ -249,15 +249,12 @@ case class SudokuState(nr: Int,
 
   // search on all positions for potential hits (don't count the "empty"/"zero" fields
   def detectedNumbers: Iterable[SCount] = {
-    val areWeThereyet0 =
-      for {
-        frequency <- hitCounts
-      } yield {
-        val filtered = frequency.drop(1).filter(_ >= cap)
-        if (filtered.isEmpty) 0 else filtered.max
-      }
-
-    areWeThereyet0.filter(_ != 0)
+    (for {
+      frequency <- hitCounts
+    } yield {
+      val filtered = frequency.drop(1).filter(_ >= cap)
+      if (filtered.isEmpty) None else Some(filtered.max)
+    }).flatten
   }
 
   def withCap(v: Int) = v == cap
@@ -289,9 +286,10 @@ case class SudokuState(nr: Int,
       logWarn("Invalid solution found.")
       Array()
     } else {
+      val digitSolution = solution.flatten
       val allCells: Cells =
         (for (pos <- positions) yield {
-          val value = solution.flatten.apply(pos).asDigit
+          val value = digitSolution(pos).asDigit
 
           val x: Option[SCell] =
             if (value != 0) {
