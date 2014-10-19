@@ -1,6 +1,7 @@
 package net.ladstatt.apps
 
 import org.opencv.core.Mat
+
 import scala.concurrent.Future
 
 /**

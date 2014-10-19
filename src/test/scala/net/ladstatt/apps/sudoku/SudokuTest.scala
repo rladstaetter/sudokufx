@@ -1,6 +1,6 @@
 package net.ladstatt.apps.sudoku
 
-import net.ladstatt.core.{Utils, SystemEnv}
+import net.ladstatt.core.Utils
 import net.ladstatt.opencv.OpenCV
 import org.junit.Assert._
 import org.junit.Test
@@ -23,7 +23,7 @@ trait OpenCvUnitTest {
 /**
  * Created by lad on 05.05.14.
  */
-class SudokuTest extends OpenCvUnitTest with Utils{
+class SudokuTest extends OpenCvUnitTest with Utils {
 
 
   @Test def testSimple(): Unit = {

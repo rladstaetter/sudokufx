@@ -1,7 +1,7 @@
 package net.ladstatt.apps.sudoku
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.concurrent.{WorkerStateEvent, Task, Service}
+import javafx.concurrent.{Service, Task, WorkerStateEvent}
 
 import net.ladstatt.JavaFXUnitTest
 import net.ladstatt.apps.sudoku.SudokuAlgos.BruteForceSolver
@@ -9,8 +9,6 @@ import net.ladstatt.core.Utils
 import net.ladstatt.jfx.JfxUtils
 import org.junit.Test
 import org.opencv.core.Mat
-
-import scala.util.{Failure, Success, Try}
 
 /**
  * Created by lad on 21.09.14.
@@ -41,7 +39,6 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
         |002609500
         |800203009
         |005010300""".stripMargin.replaceAll("\n", "")
-
 
 
     def sudoku: SudokuDigitSolution = mkDigitSolution(sudokuAsString)

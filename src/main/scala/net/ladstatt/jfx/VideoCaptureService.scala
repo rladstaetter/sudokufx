@@ -1,10 +1,12 @@
 package net.ladstatt.jfx
 
 import javafx.concurrent.Service
+
+import net.ladstatt.core.Utils
 import org.opencv.core.Mat
 import org.opencv.highgui.VideoCapture
+
 import scala.util.Try
-import net.ladstatt.core.Utils
 
 
 /**
@@ -13,7 +15,7 @@ import net.ladstatt.core.Utils
  * Restart if you want more than one image.
  */
 
-class VideoCaptureService(logfn : String => Unit) extends Service[Try[Mat]] with JfxUtils with Utils {
+class VideoCaptureService(logfn: String => Unit) extends Service[Try[Mat]] with JfxUtils with Utils {
 
   private val videoCapture: VideoCapture = time(new VideoCapture(0), t => logfn(s"Camera initialisation: $t ms"))
 

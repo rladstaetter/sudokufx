@@ -1,4 +1,5 @@
 package net.ladstatt.apps.sudoku
+
 /*
 /**
  * stores template matching information

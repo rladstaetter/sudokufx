@@ -5,7 +5,6 @@ import net.ladstatt.core.{HasDescription, Utils}
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core._
 
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.util.{Failure, Success, Try}

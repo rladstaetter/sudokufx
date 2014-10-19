@@ -1,31 +1,28 @@
 package net.ladstatt.jfx
 
+import java.awt.image.BufferedImage
+import java.io.File
+import java.util.{Timer, TimerTask}
+import javafx.application.Platform
+import javafx.beans.property.{SimpleIntegerProperty, SimpleObjectProperty}
+import javafx.beans.value.{ChangeListener, ObservableValue}
+import javafx.collections.{FXCollections, ListChangeListener, ObservableList}
+import javafx.concurrent.Task
+import javafx.embed.swing.SwingFXUtils
+import javafx.event.{Event, EventHandler}
+import javafx.fxml.{FXMLLoader, JavaFXBuilderFactory}
 import javafx.geometry.Orientation
 import javafx.scene.control._
-import javafx.beans.value.{ChangeListener, ObservableValue}
-import javafx.collections.{FXCollections, ObservableList, ListChangeListener}
-import javafx.util.{StringConverter, Callback}
-import javafx.event.{EventHandler, Event}
-import javafx.concurrent.Task
-import javafx.fxml.{JavaFXBuilderFactory, FXMLLoader}
-import net.ladstatt.apps.sudoku.SudokuState
-import org.opencv.core.{Point, Mat}
 import javafx.scene.image.Image
-import java.awt.image.{ImageProducer, BufferedImage}
-import javafx.embed.swing.SwingFXUtils
-import javafx.scene.shape.Polyline
-import javafx.scene.paint.Color
-import javafx.scene.effect.DropShadow
-import scala.collection.JavaConversions._
-import javafx.beans.property.{SimpleIntegerProperty, SimpleBooleanProperty, SimpleObjectProperty}
-import java.util.{TimerTask, Timer}
-import javafx.application.Platform
-import scala.util.{Random, Try}
-import org.opencv.highgui.{Highgui, VideoCapture}
+import javafx.util.{Callback, StringConverter}
+
+import net.ladstatt.apps.sudoku.SudokuState
 import net.ladstatt.core.{HasDescription, Utils}
-import java.io.{InputStream, FilenameFilter, File}
-import scala.concurrent.{ExecutionContext, Future, Await, Promise}
-import scala.concurrent.duration.Duration
+import org.opencv.core.{Mat, Point}
+import org.opencv.highgui.{Highgui, VideoCapture}
+
+import scala.collection.JavaConversions._
+import scala.concurrent.{ExecutionContext, Future}
 
 
 class StringConverter4HasDescription[T <: HasDescription] extends StringConverter[T] {

@@ -4,15 +4,14 @@ import net.ladstatt.core.Utils
 import org.junit.Assert._
 import org.junit.Test
 
-import scala.concurrent._
-import scala.concurrent.duration._
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 
 class SolverTest extends Utils {
 
-  import SudokuAlgos.BruteForceSolver._
-  import scala.language.postfixOps
+  import net.ladstatt.apps.sudoku.SudokuAlgos.BruteForceSolver._
+
+import scala.language.postfixOps
 
   val solved = """483921657
                  |967345821

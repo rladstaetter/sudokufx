@@ -2,20 +2,19 @@ package net.ladstatt.apps.sudoku
 
 import net.ladstatt.core.Utils
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
-import org.opencv.core.{CvType, Mat}
+import org.junit.Test
+import org.opencv.core.Mat
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Try}
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Created by lad on 27.04.14.
  */
 class HistoryTest extends OpenCvUnitTest with Utils {
 
-  import Parameters._
+  import net.ladstatt.apps.sudoku.Parameters._
 
   val sudokuAsString =
     """245981376
@@ -62,7 +61,7 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     val validArray =
       Array(SCell(1, 0.5, new Mat), SCell(2, 0.8, new Mat)
       )
-    state.updateLibrary(validArray,state.updateQualityAction)
+    state.updateLibrary(validArray, state.updateQualityAction)
 
     state.updateLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)), state.updateQualityAction)
     assertEquals(0.5, state.digitQuality(1), 0.0)

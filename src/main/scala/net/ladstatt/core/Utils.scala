@@ -1,14 +1,13 @@
 package net.ladstatt.core
 
-import net.ladstatt.apps.sudoku._
-
-import scala._
-import java.nio.channels.{Channels, WritableByteChannel, ReadableByteChannel}
+import java.io.{File, InputStream, OutputStream}
 import java.nio.ByteBuffer
-import java.io.{File, OutputStream, InputStream}
+import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
 import java.util.UUID
 
-import scala.concurrent.{ExecutionContext, Promise, Future}
+import net.ladstatt.apps.sudoku._
+
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 trait HasDescription {
   def description: String

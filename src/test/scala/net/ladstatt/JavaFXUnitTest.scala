@@ -1,17 +1,16 @@
 package net.ladstatt
 
-import org.junit.Rule
 import java.util.concurrent.CountDownLatch
-
+import javafx.application.Platform
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.embed.swing.JFXPanel
 import javax.swing.SwingUtilities
 
-import javafx.application.Platform
-import javafx.embed.swing.JFXPanel
-
+import org.junit.Rule
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
-import javafx.beans.property.SimpleBooleanProperty
+
 import scala.util.control.NonFatal
 
 
@@ -97,6 +96,7 @@ class JavaFXThreadingRule extends TestRule {
   }
 
 }
+
 /**
  * Created by lad on 21.09.14.
  */

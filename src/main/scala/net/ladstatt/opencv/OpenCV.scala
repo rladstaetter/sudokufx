@@ -18,7 +18,7 @@ import scala.concurrent.Future
  */
 object OpenCV extends CanLog {
 
-  import Parameters._
+  import net.ladstatt.apps.sudoku.Parameters._
 
   case class OpenCVException(mat: Mat, message: String) extends RuntimeException(message)
 

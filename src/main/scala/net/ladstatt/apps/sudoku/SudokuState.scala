@@ -1,19 +1,18 @@
 package net.ladstatt.apps.sudoku
 
 import java.util.concurrent.TimeUnit
-import javafx.scene.control.Cell
 
+import net.ladstatt.apps.sudoku.Parameters._
+import net.ladstatt.apps.sudoku.SudokuAlgos._
 import net.ladstatt.core.CanLog
+import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, Promise}
-import net.ladstatt.apps.sudoku.Parameters._
-import net.ladstatt.apps.sudoku.SudokuAlgos._
-import net.ladstatt.opencv.OpenCV._
+import scala.concurrent.{Await, Future}
 
 /**
  * the result for one frame. a frame is a image from the image stream
