@@ -285,6 +285,7 @@ object SudokuAlgos {
       mat.submat(rect)
     }
 
+
   def detectCells(colorWarped: Mat, detectionMethod: DetectionMethod): Seq[Future[SCell]] = {
     val size = calcBlockSize(colorWarped)
     for (p <- positions) yield

@@ -82,9 +82,9 @@ case class SudokuState(nr: Int,
     if (!detectedCorners.empty) {
       for {colorWarped <- futureWarped
            detectedCells <- Future.sequence(detectCells(colorWarped, TemplateDetectionStrategy.detect))
-           withUpdatedDigitData <- updateLibrary(detectedCells, updateDataAction)
-           withUpdatedDigitQuality <- updateLibrary(detectedCells, updateQualityAction)
-           withUpdatedFrequency <- Future.successful(countHits(detectedCells))
+           _ <- updateLibrary(detectedCells, updateDataAction)
+           _ <- updateLibrary(detectedCells, updateQualityAction)
+           _ <- countHits(detectedCells)
            someDigitSolution <- computeSolution()
            someSolutionCells <- Future.successful(for (solution <- someDigitSolution) yield toSolutionCells(solution))
            annotatedSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
@@ -204,7 +204,7 @@ detectedCells.filter(qualityFilter) foreach { cell =>
     case c => digitQuality(c.value) = c.quality
   }
 
-  def updateLibrary(detectedCells: Iterable[SCell], execAction: PartialFunction[SCell, Unit]): Future[Unit] = execFuture {
+  def updateLibrary(detectedCells: Traversable[SCell], execAction: PartialFunction[SCell, Unit]): Future[Unit] = execFuture {
     detectedCells.filter(qualityFilter) foreach {
       execAction
     }
@@ -244,7 +244,7 @@ detectedCells.filter(qualityFilter) foreach { cell =>
    *
    * @param cells
    */
-  def countHits(cells: Iterable[SCell]): Unit = {
+  def countHits(cells: Traversable[SCell]): Future[Unit] = Future {
 
     def updateFrequency(i: Pos, value: Int): Unit = {
       require(0 <= value && (value <= 9), s"$value was not in interval 0 <= x <= 9 !")
@@ -257,7 +257,7 @@ detectedCells.filter(qualityFilter) foreach { cell =>
 
     // TODO replace with fold
     val result =
-      for ((SCell(value, _, _), i) <- cells.zipWithIndex) yield {
+      for ((SCell(value, _, _), i) <- cells.toSeq.zipWithIndex) yield {
         if ((value == 0) || posWellFormed(i, value)) {
           updateFrequency(i, value)
           true
