@@ -282,29 +282,24 @@ case class SudokuState(nr: Int,
    * @return
    */
   private def toSolutionCells(solution: SudokuDigitSolution): Cells = {
-    if (solution.isEmpty) {
-      logWarn("Invalid solution found.")
-      Array()
-    } else {
-      val digitSolution = solution.flatten
-      val allCells: Cells =
-        (for (pos <- positions) yield {
-          val value = digitSolution(pos).asDigit
+    val digitSolution = solution.flatten
+    val allCells: Cells =
+      (for (pos <- positions) yield {
+        val value = digitSolution(pos).asDigit
 
-          val x: Option[SCell] =
-            if (value != 0) {
-              val someM = digitData(value)
-              (if (someM.isEmpty) {
-                digitData(value) = mkFallback(value, digitData)
-                digitData(value)
-              } else someM)
-                .map(SCell(value, 0, _))
-            } else None
-          x
-        }).flatten.toArray
+        val x: Option[SCell] =
+          if (value != 0) {
+            val someM = digitData(value)
+            (if (someM.isEmpty) {
+              digitData(value) = mkFallback(value, digitData)
+              digitData(value)
+            } else someM)
+              .map(SCell(value, 0, _))
+          } else None
+        x
+      }).flatten.toArray
 
-      allCells
-    }
+    allCells
   }
 
 
