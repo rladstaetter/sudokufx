@@ -245,10 +245,10 @@ object SudokuAlgos {
     def solve(s: String)(log: String => Unit): String
   }
 
-  def calcBlockSize(input: Mat): (Double, Double) = {
+  def calcBlockSize(input: Mat): Size = {
     val (matWidth, matHeight) = (input.size().width, input.size.height)
     val (blockWidth, blockHeight) = ((matWidth / 9), (matHeight / 9))
-    (blockWidth, blockHeight)
+    new Size(blockWidth, blockHeight)
   }
 
 
@@ -286,8 +286,7 @@ object SudokuAlgos {
     }
 
   def detectCells(colorWarped: Mat, detectionMethod: DetectionMethod): Seq[Future[SCell]] = {
-    val (blockWidth, blockHeight) = calcBlockSize(colorWarped)
-    val size = new Size(blockWidth, blockHeight)
+    val size = calcBlockSize(colorWarped)
     for (p <- positions) yield
       (for {
         coloredSubMat <- subMat(colorWarped, mkRect(p, size))
