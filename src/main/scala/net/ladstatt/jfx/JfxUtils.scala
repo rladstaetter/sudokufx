@@ -117,7 +117,6 @@ trait OpenCVJfxUtils extends Utils {
       }
     }
 
-    // TODO improve swapping of data !
     matrix.channels() match {
       case 3 => {
         var i = 0

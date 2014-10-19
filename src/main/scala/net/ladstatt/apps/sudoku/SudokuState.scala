@@ -32,6 +32,17 @@ case class FrameSuccess(solution: Mat,
                         digitSolution: Option[SudokuDigitSolution],
                         solutionCells: Option[Cells])
 
+/**
+ *
+ * @param nr number of the frame
+ * @param frame the frame information itself
+ * @param cap how often should a digit be detected before it is considered "stable enough"
+ * @param minHits how many digits have to be detected before a solution attempt is executed
+ * @param hitCounts the individual detection numbers
+ * @param digitQuality indicates the best hit for each number
+ * @param digitData saves the picture information for the best hit
+ * @param someResult either None or the solution for this frame
+ */
 case class SudokuState(nr: Int,
                        frame: Mat,
                        cap: Int = 8,
@@ -312,7 +323,6 @@ case class SudokuState(nr: Int,
    * @param number
    * @return
    */
-  // TODO fallback sollte eigentlich eine mask auf dem inputbild sein (maske is the best match)
   private def mkFallback(number: Int, digitData: Array[Option[Mat]]): Option[Mat] = {
     /**
      * returns size and type of Mat's contained int he digitLibrary
