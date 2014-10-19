@@ -60,7 +60,7 @@ object TemplateDetectionStrategy {
 // digitSolutionData : Array[Mat]
 // digitSolutionQuality : Array[Double]
 case class SCell(value: Int, quality: Double, data: Mat) {
-  assert(0 <= value && value <= 9)
+  assert(0 <= value && value <= 9, s"value: $value")
   assert(quality >= 0)
 
 }

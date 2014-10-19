@@ -59,7 +59,6 @@ case class SudokuState(nr: Int,
 
   lazy val futureWarped = warp(frame, detectedCorners, corners)
 
-  // TODO REMOVE
   private def reset(): Unit = {
     hitCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
     digitData.transform(_ => None)
@@ -230,7 +229,7 @@ case class SudokuState(nr: Int,
    *
    * @param cells
    */
-  private def countHits(cells: Iterable[SCell]): Unit = {
+   def countHits(cells: Iterable[SCell]): Unit = {
 
     def updateFrequency(i: Pos, value: Int): Unit = {
       require(0 <= value && (value <= 9), s"$value was not in interval 0 <= x <= 9 !")

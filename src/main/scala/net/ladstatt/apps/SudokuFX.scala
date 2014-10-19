@@ -508,14 +508,15 @@ with SharedState {
   def processFrame(observableValue: ObservableValue[_ <: SudokuState],
                    oldState: SudokuState,
                    sudokuState: SudokuState): Unit = {
-
     for {
-     // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
+    // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
       result <- sudokuState.calc
     } display(result)
   }
 
-  def mkCaptureTask = new OpenCVTimedFrameGrabberTask(new VideoCapture(0), mkChangeListener(processFrame))
+  val frameChangeListener = mkChangeListener(processFrame)
+
+  def mkCaptureTask = new OpenCVTimedFrameGrabberTask(new VideoCapture(0), frameChangeListener)
 
   val currentFrameGrabberTaskProperty = new SimpleObjectProperty[OpenCVTimedFrameGrabberTask]()
 
@@ -528,8 +529,8 @@ with SharedState {
     currentFrameGrabberTaskProperty.set(task)
   }
 
-  // TODO replace whole timer stuff with akka actors
   val frameTimer = new FrameTimer
+
   val cameraActiveProperty = new SimpleBooleanProperty(false)
 
   def setCameraActive(isActive: Boolean): Unit = cameraActiveProperty.set(isActive)
@@ -567,8 +568,6 @@ with SharedState {
     require(solutionButton != null)
 
   }
-
-
 
 
   def resetHistoryBar() = {

@@ -29,22 +29,22 @@ class HistoryTest extends OpenCvUnitTest with Utils {
       |654812793""".stripMargin.replaceAll("\n", "")
 
   val sudoku = mkDigitSolution(sudokuAsString)
+
   // TODO remove
   def getAt(pos: Pos): Char = sudoku.flatten.apply(pos)
 
   @Test def aTestWalkthrough(): Unit = {
     val cap = 1
     val h = SudokuState(0, mockMat, cap, 20)
-
-    Await.result(
-      h.computeSolution(mockMat, (for (p <- positions) yield SCell(getAt(p).toInt, 0.1, new Mat)).toArray)
-      , Duration.Inf)
-    assertTrue(h.detectedNumbers.size > h.minHits)
-
-    val result = h.mkValueMatrix
-
-    for (p <- positions) {
-      assertTrue(getAt(p) == result.flatten.apply(p))
+    val sCells = (for (p <- positions) yield SCell(getAt(p).asDigit, 0.1, new Mat))
+    h.countHits(sCells)
+    val someSolution = Await.result(h.computeSolution(mockMat, sCells.toArray), Duration.Inf)
+    //assertTrue(h.detectedNumbers.size > h.minHits)
+    assertTrue(someSolution.isDefined)
+    for (s <- someSolution) {
+      for (p <- positions) {
+        assertEquals(mkStringSolution(sudoku), mkStringSolution(s))
+      }
     }
   }
 
@@ -65,15 +65,15 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     state.updateDigitLibrary(validArray)
 
     state.updateDigitLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)))
-      assertEquals(0.5, state.digitQuality(1), 0.0)
-      assertEquals(0.7, state.digitQuality(2), 0.0)
+    assertEquals(0.5, state.digitQuality(1), 0.0)
+    assertEquals(0.7, state.digitQuality(2), 0.0)
 
   }
 
   @Test def detectEmptyCells() = {
-    val h = SudokuState(0, null, 1, 1)
-    val partialSolution: Cells = Array( SCell(0, 0, new Mat))
-    Await.result(h.computeSolution(mockMat, partialSolution), Duration.Inf)
+    val h = SudokuState(0, mockMat, 1, 1)
+    val partialSolution: Cells = Array(SCell(0, 0, new Mat))
+    h.countHits(partialSolution)
     assertTrue(1 == h.hitCounts(0)(0))
   }
 
