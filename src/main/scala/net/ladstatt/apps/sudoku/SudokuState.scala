@@ -60,13 +60,6 @@ case class SudokuState(nr: Int,
 
   lazy val futureWarped = warp(frame, detectedCorners, corners)
 
-  private def reset(): Unit = {
-    hitCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
-    digitData.transform(_ => None)
-    digitQuality.transform(_ => Double.MaxValue)
-    ()
-  }
-
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
@@ -84,6 +77,7 @@ case class SudokuState(nr: Int,
            _ <- updateLibrary(detectedCells, updateDataAction)
            _ <- updateLibrary(detectedCells, updateQualityAction)
            _ <- countHits(detectedCells)
+           _ <- resetIfInvalidCellsDetected(detectedCells)
            someDigitSolution <- computeSolution()
            someSolutionCells <- Future.successful(for (solution <- someDigitSolution) yield toSolutionCells(solution))
            annotatedSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
@@ -180,20 +174,6 @@ case class SudokuState(nr: Int,
   val qualityFilter: PartialFunction[SCell, Boolean] = {
     case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
   }
-  /*
-def updateDigitData(detectedCells: Iterable[SCell]): Unit = {
-detectedCells.filter(qualityFilter) foreach { cell =>
-  digitData(cell.value) = Some(cell.data)
-}
-}
-
-def updateDigitQuality(detectedCells: Iterable[SCell]): Unit = {
-detectedCells.filter(qualityFilter) foreach { cell =>
-  //  digitData(cell.value) = Some(cell.data)
-  digitQuality(cell.value) = cell.quality
-}
-}
-*/
 
   def updateDataAction: PartialFunction[SCell, Unit] = {
     case c => digitData(c.value) = Some(c.data)
@@ -243,29 +223,29 @@ detectedCells.filter(qualityFilter) foreach { cell =>
    *
    * @param cells
    */
-  def countHits(cells: Traversable[SCell]): Future[Unit] = Future {
+  def countHits(cells: Seq[SCell]): Future[Unit] = Future {
 
-    def updateFrequency(i: Pos, value: Int): Unit = {
-      require(0 <= value && (value <= 9), s"$value was not in interval 0 <= x <= 9 !")
-      val frequencyAtPos = hitCounts(i)
-      if (frequencyAtPos.max < cap) {
-        frequencyAtPos(value) = (1 + frequencyAtPos(value))
-        ()
+    def updateHitCounts(i: Pos, value: Int): Unit = {
+      val hitCountAtPos = hitCounts(i)
+      if (hitCountAtPos.max < cap) {
+        hitCountAtPos(value) = (1 + hitCountAtPos(value))
       }
     }
 
-    // TODO replace with fold
-    val result =
-      for ((SCell(value, _, _), i) <- cells.toSeq.zipWithIndex) yield {
-        if ((value == 0) || posWellFormed(i, value)) {
-          updateFrequency(i, value)
-          true
-        } else {
-          false
-        }
-      }
-    if (!result.forall(p => p)) reset()
+    cells.zipWithIndex.map { case (c,i) if ((c.value == 0) || posWellFormed(i, c.value)) => updateHitCounts(i, c.value)}
+    ()
+
   }
+
+  def resetIfInvalidCellsDetected(cells: Seq[SCell]): Future[Unit] = Future {
+    if (cells.filter(c => c.value != 0).zipWithIndex.forall { case (c, i) => posWellFormed(i, c.value)}) {
+      hitCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
+      digitData.transform(_ => None)
+      digitQuality.transform(_ => Double.MaxValue)
+      ()
+    }
+  }
+
 
   // search on all positions for potential hits (don't count the "empty"/"zero" fields
   def detectedNumbers: Iterable[SCount] = {
