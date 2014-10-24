@@ -85,8 +85,7 @@ case class SudokuState(nr: Int,
     if (!detectedCorners.empty) {
       for {colorWarped <- futureWarped
            detectedCells <- Future.sequence(detectCells(colorWarped))
-           _ <- updateLibrary(detectedCells, updateDataAction)
-           _ <- updateLibrary(detectedCells, updateQualityAction)
+           s0 <- updateLibrary(detectedCells)
            _ <- countHits(detectedCells)
            _ <- resetIfInvalidCellsDetected(detectedCells)
            someDigitSolution <- computeSolution()
@@ -186,18 +185,13 @@ case class SudokuState(nr: Int,
     case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
   }
 
-  def updateDataAction: PartialFunction[SCell, Unit] = {
-    case c => digitData(c.value) = Some(c.data)
-  }
-
-  def updateQualityAction: PartialFunction[SCell, Unit] = {
-    case c => digitQuality(c.value) = c.quality
-  }
-
-  def updateLibrary(detectedCells: Traversable[SCell], execAction: PartialFunction[SCell, Unit]): Future[Unit] = execFuture {
-    detectedCells.filter(qualityFilter) foreach {
-      execAction
-    }
+  def updateLibrary(detectedCells: Traversable[SCell]): Future[SudokuState] = execFuture {
+    val hits = detectedCells.filter(qualityFilter)
+    hits.foreach(c => {
+      digitData(c.value) = Some(c.data)
+      digitQuality(c.value) = c.quality
+    })
+    this
   }
 
 

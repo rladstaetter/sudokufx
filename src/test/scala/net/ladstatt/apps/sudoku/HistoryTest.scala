@@ -60,9 +60,9 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     val validArray =
       Array(SCell(1, 0.5, new Mat), SCell(2, 0.8, new Mat)
       )
-    state.updateLibrary(validArray, state.updateQualityAction)
+    state.updateLibrary(validArray)
 
-    state.updateLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)), state.updateQualityAction)
+    state.updateLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)))
     assertEquals(0.5, state.digitQuality(1), 0.0)
     assertEquals(0.7, state.digitQuality(2), 0.0)
 
