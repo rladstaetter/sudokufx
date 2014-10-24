@@ -289,13 +289,13 @@ object SudokuAlgos {
    import TemplateDetectionStrategy.detect
     val size = calcBlockSize(colorWarped)
     for (p <- positions) yield
-      (for {
+      for {
         coloredSubMat <- subMat(colorWarped, mkRect(p, size))
         contour <- extractContour(coloredSubMat)
         (value, quality) <- detect(contour)
       } yield {
         SCell(value, quality, coloredSubMat)
-      })
+      }
   }
 
 
