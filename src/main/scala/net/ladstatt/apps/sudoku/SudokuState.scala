@@ -84,7 +84,7 @@ case class SudokuState(nr: Int,
     // pipeline
     if (!detectedCorners.empty) {
       for {colorWarped <- futureWarped
-           detectedCells <- Future.sequence(detectCells(colorWarped, TemplateDetectionStrategy.detect))
+           detectedCells <- Future.sequence(detectCells(colorWarped))
            _ <- updateLibrary(detectedCells, updateDataAction)
            _ <- updateLibrary(detectedCells, updateQualityAction)
            _ <- countHits(detectedCells)

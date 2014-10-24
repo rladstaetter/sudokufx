@@ -285,13 +285,14 @@ object SudokuAlgos {
     }
 
 
-  def detectCells(colorWarped: Mat, detectionMethod: DetectionMethod): Seq[Future[SCell]] = {
+  def detectCells(colorWarped: Mat): Seq[Future[SCell]] = {
+   import TemplateDetectionStrategy.detect
     val size = calcBlockSize(colorWarped)
     for (p <- positions) yield
       (for {
         coloredSubMat <- subMat(colorWarped, mkRect(p, size))
         contour <- extractContour(coloredSubMat)
-        (value, quality) <- detectionMethod(contour)
+        (value, quality) <- detect(contour)
       } yield {
         SCell(value, quality, coloredSubMat)
       })
