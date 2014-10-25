@@ -9,7 +9,7 @@ import org.opencv.highgui.Highgui
 import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ListBuffer, ArrayBuffer}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -60,13 +60,16 @@ object OpenCV extends CanLog {
     hasAlignedAngles
   }
 
-  def mkRect(pos: Pos, size: Size): Rect = {
-    new Rect(new Point(col(pos) * size.width, row(pos) * size.height), size)
+  def mkRect(i: Pos, size: Size): Rect = {
+    new Rect(col(i) * size.width.toInt, row(i) * size.height.toInt, size.width.toInt,size.height.toInt)
   }
 
-  def mkCorners(mat: Mat): MatOfPoint2f = {
-    val (width, height) = (mat.size.width, mat.size.height)
-    new MatOfPoint2f(new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height))
+  def mkCorners(size: Size): MatOfPoint2f = {
+    val (width, height) = (size.width, size.height)
+    new MatOfPoint2f(new Point(0, 0),
+      new Point(width, 0),
+      new Point(width, height),
+      new Point(0, height))
   }
 
   def toMat(buffer: Array[Int], size: Size): Mat = {

@@ -53,11 +53,12 @@ case class SudokuState(nr: Int,
                        hitCounts: Array[HitCount] = Array.fill(positions.size)(Array.fill[SCount](digitRange.size)(0)),
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                       someResult: Option[FrameSuccess] = None) extends CanLog {
+                       someResult: Option[FrameSuccess] = None,
+                       blockSizes: Array[Size] = Array.fill(cellCount)(new Size)) extends CanLog {
 
   val start = System.nanoTime()
 
-  val corners = mkCorners(frame)
+  val corners = mkCorners(frame.size)
 
   val imageIoChain: ImageIOChain =
     Await.result(for {
@@ -91,7 +92,7 @@ case class SudokuState(nr: Int,
            someDigitSolution <- computeSolution()
            someSolutionCells <- Future.successful(for (solution <- someDigitSolution) yield toSolutionCells(solution))
            annotatedSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
-           unwarped <- warp(annotatedSolution, mkCorners(annotatedSolution), detectedCorners)
+           unwarped <- warp(annotatedSolution, corners, detectedCorners)
            solution <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
       } yield copy(someResult = Some(FrameSuccess(solution, detectedCells.toArray, someDigitSolution, someSolutionCells)))
     } else {
@@ -111,7 +112,7 @@ case class SudokuState(nr: Int,
           new MatOfPoint2f()
         }
         case Some((maxArea, c)) => {
-          val expectedMaxArea = Imgproc.contourArea(mkCorners(preprocessed)) / 30
+          val expectedMaxArea = Imgproc.contourArea(corners) / 30
           val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*), epsilon)
           if (maxArea > expectedMaxArea) {
             if (has4Sides(approxCurve)) {
