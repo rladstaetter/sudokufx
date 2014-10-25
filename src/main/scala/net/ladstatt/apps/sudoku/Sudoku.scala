@@ -244,12 +244,7 @@ object SudokuAlgos {
     def solve(s: String)(log: String => Unit): String
   }
 
-  def calcBlockSize(input: Mat): Size = {
-    val (matWidth, matHeight) = (input.size().width, input.size.height)
-    val (blockWidth, blockHeight) = ((matWidth / 9), (matHeight / 9))
-    new Size(blockWidth, blockHeight)
-  }
-
+  def cellSize(size: Size): Size = new Size(size.width / ssize, size.height / ssize)
 
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   def specialize(cellRawData: Mat): Future[(Mat, Point, Double, Double)] =
@@ -286,10 +281,11 @@ object SudokuAlgos {
 
 
   def detectCells(colorWarped: Mat): Seq[Future[SCell]] = {
-   import TemplateDetectionStrategy.detect
-    val size = calcBlockSize(colorWarped)
+    import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detect
+    val size = cellSize(colorWarped.size)
     for (p <- positions) yield
       for {
+      //  coloredSubMat <- Future.successful(colorWarped.submat(col(p) * size.width.toInt, row(p) * size.height.toInt, size.width.toInt, size.height.toInt))
         coloredSubMat <- subMat(colorWarped, mkRect(p, size))
         contour <- extractContour(coloredSubMat)
         (value, quality) <- detect(contour)
@@ -329,11 +325,13 @@ object SudokuAlgos {
 object Parameters {
 
   val ssize = 9
+  val cellCount = ssize * ssize
+
   val range = 0 until ssize
-  //val positions: IndexedSeq[Pos] = for {r <- range
-  //                                      c <- range} yield (r, c)
-  val positions = 0 until 81
   val digitRange = 0 to ssize
+
+  val positions = 0 until cellCount
+
   val colorRange = 0 to 256 by 16
   private val leftRange: Seq[Int] = Seq(0, 1, 2)
   private val middleRange: Seq[Int] = Seq(3, 4, 5)
