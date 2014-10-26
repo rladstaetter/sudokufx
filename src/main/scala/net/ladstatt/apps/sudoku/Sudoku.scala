@@ -12,41 +12,35 @@ import scala.util.{Failure, Success, Try}
 
 object TemplateDetectionStrategy {
 
-  val description = "template detection"
-  val (templateWidth, templateHeight) = (25.0, 50.0)
-  val templateSize = new Size(templateWidth, templateHeight)
 
   val templateLibrary: Map[Int, Mat] = {
     (1 to 9).map {
-      case i => i -> OpenCV.toMat(Templates.templatesAsByteArray(i), templateSize)
+      case i => i -> OpenCV.toMat(Templates.templatesAsByteArray(i), Parameters.templateSize)
     }.toMap
   }
-
+  /*
+val writeToDisk : Unit = {
+for ((i,m) <- templateLibrary) {
+OpenCV.persist(m, new File(s"src/main/resources/net/ladstatt/apps/sudokufx/t_$i.png"))
+}
+}    */
 
   /**
    * given a template library, match the given contour to find the best match. this function takes around 1 ms
    *
    * @return
    */
-  // TODO change return type to Future[(SNum,SQuality)] -> Number
-  def detect(someCandidate: Option[Mat]): Future[(SNum, SHitQuality)] = {
-    val tmp = Promise[(SNum, SHitQuality)]()
+  def detectNumber(candidate: Mat): Future[(SNum, SHitQuality)] = {
+    val resizedCandidate = OpenCV.resize(candidate, Parameters.templateSize) // since templates are 25 x 50
+    val matchHaystack = OpenCV.matchTemplate(resizedCandidate, _: Mat, _: Int)
 
-    someCandidate match {
-      case None => tmp.success((0, 0))
-      case Some(candidate) =>
-        tmp.tryCompleteWith({
-          //  for (f <- persist(candidate, new File(UUID.randomUUID().toString + ".png"))) yield f
-          val resizedCandidateF = OpenCV.resize(candidate, templateSize) // since templates are 25 x 50
-          val matchHaystack = OpenCV.matchTemplate(resizedCandidateF, _: Future[(Int, Mat)])
+    val result =
+      for {s <- Future.sequence(for {(number, needle) <- templateLibrary} yield
+        for {(number, quality) <- matchHaystack(needle, number)} yield (number, quality))
+      } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
 
-          for {s <- Future.sequence(for {templateEntry <- templateLibrary} yield
-            for {y <- matchHaystack(Future.successful(templateEntry))} yield y)} yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
-
-        })
-    }
-
-    tmp.future
+    //  OpenCV.persist(candidate,new File(s"${result._1}"))
+    result
   }
 
 
@@ -274,24 +268,19 @@ object SudokuAlgos {
   }
 
 
-  def subMat(mat: Mat, rect: Rect): Future[Mat] =
-    execFuture {
-      mat.submat(rect)
+  def detectCell(cell: Mat): Future[SCell] = {
+    import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
+    for {
+      contour <- extractContour(cell)
+      (value, quality) <- contour.map(detectNumber(_)).getOrElse(Future.successful((0, 0.0)))
+    } yield {
+      SCell(value, quality, cell)
     }
+  }
 
-
-  def detectCells(colorWarped: Mat): Seq[Future[SCell]] = {
-    import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detect
-    val size = cellSize(colorWarped.size)
-    for (p <- positions) yield
-      for {
-      //  coloredSubMat <- Future.successful(colorWarped.submat(col(p) * size.width.toInt, row(p) * size.height.toInt, size.width.toInt, size.height.toInt))
-        coloredSubMat <- subMat(colorWarped, mkRect(p, size))
-        contour <- extractContour(coloredSubMat)
-        (value, quality) <- detect(contour)
-      } yield {
-        SCell(value, quality, coloredSubMat)
-      }
+  def detectCells(searchArea: Mat, rects: Seq[Rect]): Seq[Future[SCell]] = {
+    rects.map(r => detectCell(searchArea.submat(r)))
+    //for (r <- rects) yield detectCell(searchArea.submat(r))
   }
 
 
@@ -338,9 +327,15 @@ object Parameters {
   private val rightRange: Seq[Int] = Seq(6, 7, 8)
   val sectors: Seq[Seq[Int]] = Seq(leftRange, middleRange, rightRange)
 
-  def row(i: Pos): Int = i / 9
+  val (templateWidth, templateHeight) = (25.0, 50.0)
+  val templateSize = new Size(templateWidth, templateHeight)
+  lazy val sudokuSize = new Size(templateWidth * ssize, templateHeight * ssize)
 
-  def col(i: Pos): Int = i % 9
+  lazy val templateCorners = OpenCV.mkCorners(sudokuSize)
+
+  def row(i: SIndex): Int = i / 9
+
+  def col(i: SIndex): Int = i % 9
 }
 
 

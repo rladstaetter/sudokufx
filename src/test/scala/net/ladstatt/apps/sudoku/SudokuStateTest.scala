@@ -12,18 +12,19 @@ final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks 
 
   // case class SudokuState(nr : Int, frame : Mat, cap : Int, minHits : Int)
 
-  val stateGen: Gen[SudokuState] =
+  // val frameGen : Gen[Mat] =
+  val stateGen: Gen[Sudoku] =
     for {nr <- Gen.choose(0, 10000)
-         f <- Gen.const(frame)
+         f <- Gen.const(frame69)
          cap <- Gen.choose(8, 15)
-         minHits <- Gen.choose(20, 30)} yield SudokuState(nr, f, cap, minHits)
+         minHits <- Gen.choose(20, 30)} yield Sudoku(nr, f, cap, minHits)
+
+  def printState(s: Sudoku): Unit =
+    println(s.sudokuCorners.toList)
 
   test("t2") {
 
-    forAll(stateGen) { (s: SudokuState) => {
-      println(s.detectedCorners.toList)
-    }
-    }
+    forAll(stateGen)(printState)
 
     //  forAll { (sudokuState <- pos: Int, col: Int) =>
     //    (pos > 0 && pos < 81) && (col >= 0 && col < 9) ==> assert((a + b).startsWith(a))

@@ -9,7 +9,7 @@ import org.opencv.highgui.Highgui
 import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.{ListBuffer, ArrayBuffer}
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -60,8 +60,8 @@ object OpenCV extends CanLog {
     hasAlignedAngles
   }
 
-  def mkRect(i: Pos, size: Size): Rect = {
-    new Rect(col(i) * size.width.toInt, row(i) * size.height.toInt, size.width.toInt,size.height.toInt)
+  def mkRect(i: SIndex, size: Size): Rect = {
+    new Rect(col(i) * size.width.toInt, row(i) * size.height.toInt, size.width.toInt, size.height.toInt)
   }
 
   def mkCorners(size: Size): MatOfPoint2f = {
@@ -136,9 +136,8 @@ object OpenCV extends CanLog {
     }
 
 
-  def norm(matf: Future[Mat]): Future[Mat] = {
+  def norm(mat: Mat): Future[Mat] = {
     for {
-      mat <- matf
       b <- blur(mat)
       dilated <- dilate(b)
       thresholded <- adaptiveThreshold(dilated, 255, 9)
@@ -150,35 +149,36 @@ object OpenCV extends CanLog {
    *
    * @return
    */
-  def matchTemplate(haystackF: Future[Mat],
-                    templateEntry: Future[(Int, Mat)]): Future[(Int, Double)] = {
+  def matchTemplate(candidate: Mat, withNeedle: Mat, number: Int): Future[(Int, Double)] = {
 
-    val normedHayStackF = norm(haystackF)
+    val normedCandidateF = norm(candidate)
+    val normedNeedleF = norm(withNeedle)
 
     val result =
       for {
-        (number, needle) <- templateEntry
-        haystack <- haystackF
-        normedHayStack <- normedHayStackF
-        normedNeedle <- norm(Future.successful[Mat](needle))
+        c <- normedCandidateF
+        needle <- normedNeedleF
       }
       yield {
-        val width = haystack.cols - needle.cols + 1
-        val height = haystack.rows - needle.rows + 1
+        val width = candidate.cols - withNeedle.cols + 1
+        val height = candidate.rows - withNeedle.rows + 1
         val resultImage = new Mat(width, height, CvType.CV_32FC1)
-        Imgproc.matchTemplate(normedHayStack, normedNeedle, resultImage, Imgproc.TM_SQDIFF)
+        Imgproc.matchTemplate(c, needle, resultImage, Imgproc.TM_SQDIFF)
         val minMaxResult = Core.minMaxLoc(resultImage)
+//        OpenCV.persist(c, new File(s"target/${number}_${minMaxResult.minVal}_candidate_.png"))
+//        OpenCV.persist(needle, new File(s"target/${number}_${minMaxResult.minVal}_needle_.png"))
         (number, minMaxResult.minVal)
       }
     result
   }
 
-  def resize(source: Mat, size: Size): Future[Mat] =
-    execFuture {
-      val dest = new Mat()
-      Imgproc.resize(source, dest, size)
-      dest
-    }
+  def resize(s: Mat, size: Size): Mat = {
+    val dest = new Mat()
+    Imgproc.resize(s, dest, size)
+    dest
+  }
+
+  def resizeFuture(source: Mat, size: Size): Future[Mat] = execFuture(resize(source, size))
 
   def restrain(input: Mat, range: CRange): Mat = {
     val dest = new Mat
@@ -203,14 +203,13 @@ object OpenCV extends CanLog {
   /**
    * warps image to make feature extraction's life easier (time intensive call)
    */
-  def warp(input: Mat, srcCorners: MatOfPoint2f, destCorners: MatOfPoint2f): Future[Mat] =
-    execFuture {
-      val transformationMatrix = Imgproc.getPerspectiveTransform(srcCorners, destCorners)
+  def warp(input: Mat, srcCorners: MatOfPoint2f, destCorners: MatOfPoint2f): Mat = {
+    val transformationMatrix = Imgproc.getPerspectiveTransform(srcCorners, destCorners)
 
-      val dest = new Mat()
-      Imgproc.warpPerspective(input, dest, transformationMatrix, input.size())
-      dest
-    }
+    val dest = new Mat()
+    Imgproc.warpPerspective(input, dest, transformationMatrix, input.size())
+    dest
+  }
 
   // input mat will be altered by the findContours(...) function
   def coreFindContours(input: Mat): Seq[MatOfPoint] = {

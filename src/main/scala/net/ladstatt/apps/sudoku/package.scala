@@ -9,7 +9,7 @@ import scala.concurrent.Future
  */
 package object sudoku {
 
-  type Pos = Int
+  type SIndex = Int
   type SNum = Int
   type SCount = Int
   type SHitQuality = Double

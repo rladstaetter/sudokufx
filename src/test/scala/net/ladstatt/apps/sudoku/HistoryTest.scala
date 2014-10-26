@@ -30,11 +30,11 @@ class HistoryTest extends OpenCvUnitTest with Utils {
   val sudoku = mkDigitSolution(sudokuAsString)
 
   // TODO remove
-  def getAt(pos: Pos): Char = sudoku.flatten.apply(pos)
+  def getAt(pos: SIndex): Char = sudoku.flatten.apply(pos)
 
   @Test def aTestWalkthrough(): Unit = {
     val cap = 1
-    val h = SudokuState(0, mockMat, cap, 20)
+    val h = Sudoku(0, emptyFrame, cap, 20)
     val sCells = (for (p <- positions) yield SCell(getAt(p).asDigit, 0.1, new Mat))
     h.countHits(sCells)
     val someSolution = Await.result(h.computeSolution(), Duration.Inf)
@@ -49,14 +49,14 @@ class HistoryTest extends OpenCvUnitTest with Utils {
 
 
   @Test def detectInvalidSector(): Unit = {
-    val h = SudokuState(0, mockMat, 1, 1)
+    val h = Sudoku(0, emptyFrame, 1, 1)
     val invalidList = Array(SCell(1, 0.1, new Mat), SCell(1, 0.1, new Mat))
     val r = Await.result(h.computeSolution(), Duration.Inf)
     assertTrue(0 == h.hitCounts(0)(0))
   }
 
   @Test def libraryTest(): Unit = {
-    val state = SudokuState(0, mockMat, 1, 1)
+    val state = Sudoku(0, emptyFrame, 1, 1)
     val validArray =
       Array(SCell(1, 0.5, new Mat), SCell(2, 0.8, new Mat)
       )
@@ -69,7 +69,7 @@ class HistoryTest extends OpenCvUnitTest with Utils {
   }
 
   @Test def detectEmptyCells() = {
-    val h = SudokuState(0, mockMat, 1, 1)
+    val h = Sudoku(0, emptyFrame, 1, 1)
     val partialSolution: Cells = Array(SCell(0, 0, new Mat))
     h.countHits(partialSolution)
     assertTrue(1 == h.hitCounts(0)(0))

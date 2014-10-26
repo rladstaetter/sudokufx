@@ -164,7 +164,7 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     statusLabel.setText(message)
   }
 
-  def updateBestMatch(sudokuHistory: SudokuState): Unit = {
+  def updateBestMatch(sudokuHistory: Sudoku): Unit = {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
@@ -244,7 +244,7 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     videoView.setImage(toImage(mat))
   }
 
-  def updateDisplay(stage: ProcessingStage, sudokuState: SudokuState): Unit = {
+  def updateDisplay(stage: ProcessingStage, sudokuState: Sudoku): Unit = {
     //  solutionButton.setDisable(sudokuState.someResult.isEmpty)
     stage match {
       case InputStage => updateVideoView(sudokuState.frame)
@@ -361,15 +361,15 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     borderFadeTransition.play
   }
 
-  def display(sudokuState: SudokuState) = execOnUIThread {
+  def display(sudokuState: Sudoku) = execOnUIThread {
     updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], sudokuState)
     updateBestMatch(sudokuState)
     updateStatus(mkFps(sudokuState.start), Color.GREEN)
     setAnalysisMouseTransparent(false)
     for (success <- sudokuState.someResult) {
-      updateBorder(sudokuState.detectedCorners)
-      updateCellBounds(sudokuState.detectedCorners, analysisCellBounds)
-      updateCellCorners(sudokuState.detectedCorners, analysisCellCorners)
+      updateBorder(sudokuState.sudokuCorners)
+      updateCellBounds(sudokuState.sudokuCorners, analysisCellBounds)
+      updateCellCorners(sudokuState.sudokuCorners, analysisCellCorners)
     }
   }
 
@@ -412,7 +412,7 @@ trait AnalyticsMode extends JfxUtils with SharedState {
   def calcFrame(frameNumber: Int): Unit = {
     val frameAt = getFrameAt(frameNumber)
     println(s"About to show $frameNumber (of ${getCurrentFrameFiles().size})")
-    val sudokuState = SudokuState(frameNumber, frameAt, 1, 20)
+    val sudokuState = Sudoku(frameNumber, frameAt, 1, 20)
     for (result <- sudokuState.calc) display(result)
   }
 
@@ -505,9 +505,9 @@ with SharedState {
   /**
    * main event loop in capturing mode
    */
-  def processFrame(observableValue: ObservableValue[_ <: SudokuState],
-                   oldState: SudokuState,
-                   sudokuState: SudokuState): Unit = {
+  def processFrame(observableValue: ObservableValue[_ <: Sudoku],
+                   oldState: Sudoku,
+                   sudokuState: Sudoku): Unit = {
     for {
     // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
       result <- sudokuState.calc

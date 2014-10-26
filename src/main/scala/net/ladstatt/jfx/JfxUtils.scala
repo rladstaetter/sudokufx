@@ -16,7 +16,7 @@ import javafx.scene.control._
 import javafx.scene.image.Image
 import javafx.util.{Callback, StringConverter}
 
-import net.ladstatt.apps.sudoku.SudokuState
+import net.ladstatt.apps.sudoku.Sudoku
 import net.ladstatt.core.{HasDescription, Utils}
 import org.opencv.core.{Mat, Point}
 import org.opencv.highgui.{Highgui, VideoCapture}
@@ -38,7 +38,7 @@ trait SudokuTask {
 
 
 case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
-                                       mainLoop: ChangeListener[SudokuState]) extends TimerTask
+                                       mainLoop: ChangeListener[Sudoku]) extends TimerTask
 with Utils {
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
@@ -48,7 +48,7 @@ with Utils {
   def getFrameNumber() = frameNumberProperty.get()
 
   lazy val sudokuProperty = {
-    val sop = new SimpleObjectProperty[SudokuState]
+    val sop = new SimpleObjectProperty[Sudoku]
     sop.addListener(mainLoop)
     sop
   }
@@ -60,7 +60,7 @@ with Utils {
   }
 
   override def run(): Unit = {
-    sudokuProperty.set(new SudokuState(getFrameNumber(), aquireMat, 1, 20))
+    sudokuProperty.set(new Sudoku(getFrameNumber(), aquireMat, 1, 20))
     setFrameNumber(getFrameNumber() + 1)
   }
 
