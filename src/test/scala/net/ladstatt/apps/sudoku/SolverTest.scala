@@ -30,10 +30,12 @@ import scala.language.postfixOps
   @Test
   def testSolving(): Unit = {
     Try {
-      val solvedSudokus = for (sudokuAsString <- easySudokus.split("========")) yield solve(mkDigitSolution(sudokuAsString.replaceAll("\n", "")))
-      for (fs <- solvedSudokus.flatten) {
+      val solvedSudokus: Array[Option[SudokuDigitSolution]] =
+        for (sudokuAsString <- easySudokus.split("========"))
+        yield solve(sudokuAsString.replaceAll("\n", "").toCharArray)
 
-        assertEquals(405, fs.flatten.map(_.asDigit).sum.toLong)
+      for (fs <- solvedSudokus.flatten) {
+        assertEquals(405, fs.map(_.asDigit).sum.toLong)
       }
     } match {
       case Success(_) =>

@@ -2,8 +2,7 @@ package net.ladstatt.apps.sudoku
 
 import net.ladstatt.core.Utils
 import org.junit.Assert._
-import org.junit.Test
-import org.opencv.core.Mat
+import org.junit.{Ignore, Test}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -13,8 +12,6 @@ import scala.util.{Failure, Try}
  * Created by lad on 27.04.14.
  */
 class HistoryTest extends OpenCvUnitTest with Utils {
-
-  import net.ladstatt.apps.sudoku.Parameters._
 
   val sudokuAsString =
     """245981376
@@ -27,52 +24,122 @@ class HistoryTest extends OpenCvUnitTest with Utils {
       |728349165
       |654812793""".stripMargin.replaceAll("\n", "")
 
-  val sudoku = mkDigitSolution(sudokuAsString)
+  val expectedDigitSolution: SudokuDigitSolution = sudokuAsString.toCharArray
 
-  // TODO remove
-  def getAt(pos: SIndex): Char = sudoku.flatten.apply(pos)
+  val sudokuflat: Array[Char] = expectedDigitSolution
 
+  val emptySudoku = SCandidate(0, emptyFrame, 1, 1)
+
+  val emptySudokuResult = time(Await.result(emptySudoku.calc(), Duration.Inf), t => println(s"emptyFrame: $t ms"))
+
+  val sudoku69 = SCandidate(0, frame69, 1, 20)
+
+  @Ignore
   @Test def aTestWalkthrough(): Unit = {
-    val cap = 1
-    val h = Sudoku(0, emptyFrame, cap, 20)
-    val sCells = (for (p <- positions) yield SCell(getAt(p).asDigit, 0.1, new Mat))
-    h.countHits(sCells)
-    val someSolution = Await.result(h.computeSolution(), Duration.Inf)
-    //assertTrue(h.detectedNumbers.size > h.minHits)
-    assertTrue(someSolution.isDefined)
-    for (s <- someSolution) {
-      for (p <- positions) {
-        assertEquals(mkStringSolution(sudoku), mkStringSolution(s))
+    Await.result(sudoku69.calc(), Duration.Inf) match {
+      case s: SSuccess => {
+        //assertTrue(h.detectedNumbers.size > h.minHits)
+        assertEquals(sudokuAsString, s.solutionAsString)
       }
+      case SFailure(_) => fail()
     }
   }
 
 
   @Test def detectInvalidSector(): Unit = {
-    val h = Sudoku(0, emptyFrame, 1, 1)
-    val invalidList = Array(SCell(1, 0.1, new Mat), SCell(1, 0.1, new Mat))
-    val r = Await.result(h.computeSolution(), Duration.Inf)
-    assertTrue(0 == h.hitCounts(0)(0))
-  }
-
-  @Test def libraryTest(): Unit = {
-    val state = Sudoku(0, emptyFrame, 1, 1)
-    val validArray =
-      Array(SCell(1, 0.5, new Mat), SCell(2, 0.8, new Mat)
-      )
-    state.updateLibrary(validArray)
-
-    state.updateLibrary(Array(SCell(1, 0.5, new Mat), SCell(2, 0.7, new Mat)))
-    assertEquals(0.5, state.digitQuality(1), 0.0)
-    assertEquals(0.7, state.digitQuality(2), 0.0)
-
+    val r = Await.result(emptySudoku.computeSolution(), Duration.Inf)
+    assertTrue(0 == emptySudoku.hitCounts(0)(0))
   }
 
   @Test def detectEmptyCells() = {
-    val h = Sudoku(0, emptyFrame, 1, 1)
-    val partialSolution: Cells = Array(SCell(0, 0, new Mat))
-    h.countHits(partialSolution)
-    assertTrue(1 == h.hitCounts(0)(0))
+    assertEquals( """Hitcounts :
+                    |-----------
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |0,0,0,0,0,0,0,0,0,0
+                    |
+                    |""".stripMargin, emptySudokuResult match {
+      case SFailure(candidate) => candidate.statsAsString()
+      case SSuccess(candidate, _, _) => candidate.statsAsString()
+    })
   }
 
   @Test

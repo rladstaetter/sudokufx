@@ -24,6 +24,7 @@ package object sudoku {
   // (meaning the matrix represents the whole canvas and the app is working with submatrixes
   // and only saving the rect which is the region of interest, thus not creating intermediate mats
   type Cells = Array[SCell]
-  // represents the computed solution, should be an array[Int] with 81 entries
-  type SudokuDigitSolution = Array[Array[Char]]
+
+  // represents the computed solution
+  type SudokuDigitSolution = Array[Char]
 }

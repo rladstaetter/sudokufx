@@ -41,7 +41,7 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
         |005010300""".stripMargin.replaceAll("\n", "")
 
 
-    def sudoku: SudokuDigitSolution = mkDigitSolution(sudokuAsString)
+    def sudoku: SudokuDigitSolution = sudokuAsString.toCharArray
 
     val unsolvedProperty = new SimpleObjectProperty[Mat](this, "frame")
 
@@ -83,16 +83,16 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
 
   @Test def testSimple() = {
     solverService.start()
-    for (i <- (1 to 100))
+    for (i <- (1 to 10))
       time({
         Thread.sleep(50)
         solverService.cancel()
         println("cancelled task.")
         solverService.restart()
-        Thread.sleep(100)
+        Thread.sleep(10)
       }, t => println(s"Finished turn in $t ms."))
 
-    Thread.sleep(10000)
+    Thread.sleep(1000)
   }
 }
 

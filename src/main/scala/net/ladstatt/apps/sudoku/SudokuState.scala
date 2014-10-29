@@ -1,7 +1,5 @@
 package net.ladstatt.apps.sudoku
 
-import java.io.File
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import net.ladstatt.apps.sudoku.Parameters._
@@ -13,28 +11,21 @@ import org.opencv.core._
 import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
-import scala.collection.immutable.IndexedSeq
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-/**
- * the result for one frame. a frame is a image from the image stream
- */
+sealed trait SudokuResult
 
-case class ImageIOChain(working: Mat,
-                        grayed: Mat,
-                        blurred: Mat,
-                        thresholded: Mat,
-                        inverted: Mat,
-                        dilated: Mat,
-                        eroded: Mat)
+case class SSuccess(candidate: SCandidate,
+                    solution: SudokuDigitSolution,
+                    solutionMat: Mat) extends SudokuResult {
 
+  def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
 
-case class FrameSuccess(solution: Mat,
-                        detectedCells: Cells,
-                        digitSolution: Option[SudokuDigitSolution],
-                        solutionCells: Option[Cells])
+}
+
+case class SFailure(candidate: SCandidate) extends SudokuResult
 
 /**
  *
@@ -45,20 +36,32 @@ case class FrameSuccess(solution: Mat,
  * @param hitCounts the individual detection numbers
  * @param digitQuality indicates the best hit for each number
  * @param digitData saves the picture information for the best hit
- * @param someResult either None or the solution for this frame
  */
-case class Sudoku(nr: Int,
-                  frame: Mat,
-                  cap: Int = 8,
-                  minHits: Int = 20,
-                  // for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
-                  // was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
-                  // the "empty" cell)
-                  hitCounts: Array[HitCount] = Array.fill(positions.size)(Array.fill[SCount](digitRange.size)(0)),
-                  digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
-                  digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                  someResult: Option[FrameSuccess] = None,
-                  blockSizes: Array[Size] = Array.fill(cellCount)(new Size)) extends CanLog {
+case class SCandidate(nr: Int,
+                      frame: Mat,
+                      cap: Int = 8,
+                      minHits: Int = 20,
+                      // for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
+                      // was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
+                      // the "empty" cell)
+                      hitCounts: Array[HitCount] = Array.fill(positions.size)(Array.fill[SCount](digitRange.size)(0)),
+                      digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
+                      digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
+                      //someResult: Option[FrameSuccess] = None,
+                      blockSizes: Array[Size] = Array.fill(cellCount)(new Size),
+                      someSolutionMat: Option[Mat] = None) extends CanLog {
+
+  def isSolved = someSolutionMat.isDefined
+
+
+  def statsAsString(): String = {
+    s"""Hitcounts :
+      |-----------
+      |${hitCounts.map(_.mkString(",")).mkString("\n")}
+      |
+      |""".stripMargin
+  }
+
 
   val start = System.nanoTime()
 
@@ -84,35 +87,54 @@ case class Sudoku(nr: Int,
   lazy val warpedToFitRects = positions.map(mkRect(_, warpedToFitSize))
 
   lazy val cellMats: IndexedSeq[Mat] = rects.map(colorWarped.submat(_))
+  lazy val cellNumbers: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_))
+
+  // search on all positions for potential hits (don't count the "empty"/"zero" fields
+  // TODO remove, see cellNumbers
+  def detectedNumbers: Iterable[SCount] = {
+    (for {
+      frequency <- hitCounts
+    } yield {
+      val filtered = frequency.drop(1).filter(_ >= cap)
+      if (filtered.isEmpty) None else Some(filtered.max)
+    }).flatten
+  }
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
    *
    * @return
    */
-  def calc(): Future[Sudoku] = {
+  def calc(): Future[SudokuResult] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
     if (!foundCorners) {
-      for {detectedCells <- Future.sequence(cellMats.map(detectCell(_)))
+      for {detectedCells <- Future.sequence(cellNumbers)
            //for {detectedCells <- Future.sequence(detectCells(warpedToFit, warpedToFitRects))
            s0 <- updateLibrary(detectedCells)
            _ <- countHits(detectedCells)
            cms <- Future.successful(cellMats)
-           _ <- Future.successful(cms.map(persist(_, new File(s"target/cm${UUID.randomUUID}.png"))))
+           //_ <- Future.successful(cms.map(persist(_, new File(s"target/cm${UUID.randomUUID}.png"))))
            //   _ <- persist(colorWarped, new File(s"colorwarped$nr.png"))
            //   _ <- persist(warpedToFit, new File(s"warpedToFit$nr.png"))
            _ <- resetIfInvalidCellsDetected(detectedCells)
            someDigitSolution <- computeSolution()
-           someSolutionCells <- Future.successful(for (solution <- someDigitSolution) yield toSolutionCells(solution))
+           someSolutionCells <- Future.successful(someDigitSolution.map(s => toSolutionCells(s))) //for (solution <- someDigitSolution) yield toSolutionCells(solution))
            annotatedSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
            unwarped <- Future.successful(warp(annotatedSolution, frameCorners, sudokuCorners))
-           solution <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
-      } yield copy(someResult = Some(FrameSuccess(solution, detectedCells.toArray, someDigitSolution, someSolutionCells)))
+           solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
+      } yield {
+        if (someDigitSolution.isDefined) {
+          SSuccess(copy(), someDigitSolution.get, solutionMat)
+        }  else {
+          SFailure(copy())
+        }
+      }
+      //  someResult = Some(FrameSuccess(detectedCells.toArray, someDigitSolution, someSolutionCells))))
     } else {
-      Future.successful(copy())
+      Future.successful(SFailure(copy()))
     }
 
   }
@@ -206,7 +228,7 @@ case class Sudoku(nr: Int,
     case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
   }
 
-  def updateLibrary(detectedCells: Traversable[SCell]): Future[Sudoku] = execFuture {
+  def updateLibrary(detectedCells: Traversable[SCell]): Future[SCandidate] = execFuture {
     val hits = detectedCells.filter(qualityFilter)
     hits.foreach(c => {
       digitData(c.value) = Some(c.data)
@@ -244,11 +266,7 @@ case class Sudoku(nr: Int,
     rowColWellFormed(i, value) && sectorWellFormed(i, value)
   }
 
-  /**
-   * updates the hit database.
-   *
-   * @param cells
-   */
+  // TODO remove
   def countHits(cells: Seq[SCell]): Future[Unit] = Future {
 
     def updateHitCounts(i: SIndex, value: Int): Unit = {
@@ -273,16 +291,6 @@ case class Sudoku(nr: Int,
   }
 
 
-  // search on all positions for potential hits (don't count the "empty"/"zero" fields
-  def detectedNumbers: Iterable[SCount] = {
-    (for {
-      frequency <- hitCounts
-    } yield {
-      val filtered = frequency.drop(1).filter(_ >= cap)
-      if (filtered.isEmpty) None else Some(filtered.max)
-    }).flatten
-  }
-
   def withCap(v: Int) = v == cap
 
   def mkSudokuMatrix: SudokuDigitSolution = mkVM(withCap(_))
@@ -295,7 +303,8 @@ case class Sudoku(nr: Int,
       for (i <- positions) yield {
         ((for ((v, i) <- hitCounts(i).zipWithIndex if p(v)) yield i).headOption.getOrElse(0) + 48).toChar
       }
-    (for (line <- h.sliding(9, 9)) yield line.toArray).toArray
+    //(for (line <- h.sliding(9, 9)) yield line.toArray).toArray
+    h.toArray
   }
 
 
@@ -307,8 +316,7 @@ case class Sudoku(nr: Int,
    *
    * @return
    */
-  private def toSolutionCells(solution: SudokuDigitSolution): Cells = {
-    val digitSolution = solution.flatten
+  private def toSolutionCells(digitSolution: SudokuDigitSolution): Cells = {
     val allCells: Cells =
       (for (pos <- positions) yield {
         val value = digitSolution(pos).asDigit
@@ -356,3 +364,6 @@ case class Sudoku(nr: Int,
 
 
 }
+
+
+

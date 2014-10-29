@@ -42,12 +42,11 @@ object SystemEnv {
 }
 
 trait Utils {
-
+     /*
   def mkDigitSolution(asString: String): SudokuDigitSolution = {
-    (for (line <- asString.sliding(9, 9)) yield line.toCharArray).toArray
-  }
+    asString.toCharArray
+  }*/
 
-  def mkStringSolution(solution: SudokuDigitSolution): String = solution.map(new String(_)).mkString("\n")
 
   def execFuture[A](f: => A)(implicit ec: ExecutionContext): Future[A] = {
     val p = Promise[A]()
