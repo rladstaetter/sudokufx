@@ -521,10 +521,10 @@ with SharedState {
    */
   def processFrame(observableValue: ObservableValue[_ <: SCandidate],
                    oldState: SCandidate,
-                   sudokuState: SCandidate): Unit = {
+                   sudokuCandidate: SCandidate): Unit = {
     for {
     // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
-      result <- sudokuState.calc
+      result <- sudokuCandidate.calc
     } display(result)
   }
 

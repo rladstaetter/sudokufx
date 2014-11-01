@@ -42,11 +42,11 @@ object SystemEnv {
 }
 
 trait Utils {
-     /*
-  def mkDigitSolution(asString: String): SudokuDigitSolution = {
-    asString.toCharArray
-  }*/
 
+  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
+    val p = new java.io.PrintWriter(f)
+    try { op(p) } finally { p.close() }
+  }
 
   def execFuture[A](f: => A)(implicit ec: ExecutionContext): Future[A] = {
     val p = Promise[A]()

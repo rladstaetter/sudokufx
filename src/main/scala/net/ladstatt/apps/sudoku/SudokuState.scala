@@ -53,8 +53,10 @@ case class SCandidate(nr: Int,
 
   def isSolved = someSolutionMat.isDefined
 
+  def statsAsString() : String =
+   s"""$hitCountsAsString"""
 
-  def statsAsString(): String = {
+  def hitCountsAsString(): String = {
     s"""Hitcounts :
       |-----------
       |${hitCounts.map(_.mkString(",")).mkString("\n")}

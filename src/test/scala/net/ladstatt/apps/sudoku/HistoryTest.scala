@@ -13,38 +13,6 @@ import scala.util.{Failure, Try}
  */
 class HistoryTest extends OpenCvUnitTest with Utils {
 
-  val sudokuAsString =
-    """245981376
-      |169273584
-      |837564219
-      |976125438
-      |513498627
-      |482736951
-      |391657842
-      |728349165
-      |654812793""".stripMargin.replaceAll("\n", "")
-
-  val expectedDigitSolution: SudokuDigitSolution = sudokuAsString.toCharArray
-
-  val sudokuflat: Array[Char] = expectedDigitSolution
-
-  val emptySudoku = SCandidate(0, emptyFrame, 1, 1)
-
-  val emptySudokuResult = time(Await.result(emptySudoku.calc(), Duration.Inf), t => println(s"emptyFrame: $t ms"))
-
-  val sudoku69 = SCandidate(0, frame69, 1, 20)
-
-  @Ignore
-  @Test def aTestWalkthrough(): Unit = {
-    Await.result(sudoku69.calc(), Duration.Inf) match {
-      case s: SSuccess => {
-        //assertTrue(h.detectedNumbers.size > h.minHits)
-        assertEquals(sudokuAsString, s.solutionAsString)
-      }
-      case SFailure(_) => fail()
-    }
-  }
-
 
   @Test def detectInvalidSector(): Unit = {
     val r = Await.result(emptySudoku.computeSolution(), Duration.Inf)
