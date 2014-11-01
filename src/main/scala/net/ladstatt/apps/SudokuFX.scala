@@ -244,20 +244,32 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     videoView.setImage(toImage(mat))
   }
 
-  def updateDisplay(stage: ProcessingStage, sudokuState: SCandidate): Unit = {
-    //  solutionButton.setDisable(sudokuState.someResult.isEmpty)
-    stage match {
-      case InputStage => updateVideoView(sudokuState.frame)
-      case GrayedStage => updateVideoView(sudokuState.imageIoChain.grayed)
-      case BlurredStage => updateVideoView(sudokuState.imageIoChain.blurred)
-      case ThresholdedStage => updateVideoView(sudokuState.imageIoChain.thresholded)
-      case InvertedStage => updateVideoView(sudokuState.imageIoChain.inverted)
-      case DilatedStage => updateVideoView(sudokuState.imageIoChain.dilated)
-      case ErodedStage => updateVideoView(sudokuState.imageIoChain.eroded)
-      case SolutionStage if (sudokuState.isSolved) => for (r <- sudokuState.someSolutionMat) updateVideoView(r)
-      case SolutionStage if (!sudokuState.isSolved) => updateVideoView(sudokuState.frame)
-      case _ => ???
+  def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
+
+    def updateVideo(stage: ProcessingStage, candidate: SCandidate, solutionMat: Mat): Unit = {
+      stage match {
+        case InputStage => updateVideoView(candidate.frame)
+        case GrayedStage => updateVideoView(candidate.imageIoChain.grayed)
+        case BlurredStage => updateVideoView(candidate.imageIoChain.blurred)
+        case ThresholdedStage => updateVideoView(candidate.imageIoChain.thresholded)
+        case InvertedStage => updateVideoView(candidate.imageIoChain.inverted)
+        case DilatedStage => updateVideoView(candidate.imageIoChain.dilated)
+        case ErodedStage => updateVideoView(candidate.imageIoChain.eroded)
+        case SolutionStage => updateVideoView(solutionMat)
+        case _ => ???
+      }
     }
+
+    sudokuResult match {
+      case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells) => {
+        updateVideo(stage, candidate, solutionMat)
+      }
+      case SFailure(candidate) => {
+        updateVideo(stage, candidate, candidate.frame)
+      }
+    }
+
+
   }
 
   def mkRange(a: Double, b: Double, nrCells: Int = 9): Seq[Double] = {
@@ -351,8 +363,6 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
         mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play
       }
     }
-
-
   }
 
   def updateBorder(corners: MatOfPoint2f): Unit = {
@@ -361,30 +371,24 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     borderFadeTransition.play
   }
 
-  def display(result: SudokuResult): Unit = {
+  def display(result: SudokuResult) = execOnUIThread {
     result match {
-      case success: SSuccess =>  display(success)
-      case failure: SFailure =>  {
-        display(failure.candidate)
+      case success: SSuccess => {
+        updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
+        setAnalysisMouseTransparent(false)
+        updateBestMatch(success.candidate)
+        updateStatus(mkFps(success.candidate.start), Color.GREEN)
+        updateBorder(success.candidate.sudokuCorners)
+        updateCellBounds(success.candidate.sudokuCorners, analysisCellBounds)
+        updateCellCorners(success.candidate.sudokuCorners, analysisCellCorners)
+      }
+      case SFailure(candidate) => {
+        updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
+        setAnalysisMouseTransparent(false)
+        updateBestMatch(candidate)
+        updateStatus(mkFps(candidate.start), Color.GREEN)
       }
     }
-  }
-
-  def display(candidate: SCandidate) = execOnUIThread {
-    updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], candidate)
-    setAnalysisMouseTransparent(false)
-    updateBestMatch(candidate)
-    updateStatus(mkFps(candidate.start), Color.GREEN)
-  }
-
-  def display(success: SSuccess) = execOnUIThread {
-    updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], success.candidate)
-    setAnalysisMouseTransparent(false)
-    updateBestMatch(success.candidate)
-    updateStatus(mkFps(success.candidate.start), Color.GREEN)
-    updateBorder(success.candidate.sudokuCorners)
-    updateCellBounds(success.candidate.sudokuCorners, analysisCellBounds)
-    updateCellCorners(success.candidate.sudokuCorners, analysisCellCorners)
   }
 
 

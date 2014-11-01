@@ -15,17 +15,24 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-sealed trait SudokuResult
-
-case class SSuccess(candidate: SCandidate,
-                    solution: SudokuDigitSolution,
-                    solutionMat: Mat) extends SudokuResult {
-
-  def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
-
+sealed trait SudokuResult {
+  def isSolved: Boolean
 }
 
-case class SFailure(candidate: SCandidate) extends SudokuResult
+case class SSuccess(candidate: SCandidate,
+                    detectedCells: Cells,
+                    solution: SudokuDigitSolution,
+                    solutionMat: Mat,
+                    solutionCells: Cells) extends SudokuResult {
+
+  val isSolved = true
+
+  def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
+}
+
+case class SFailure(candidate: SCandidate) extends SudokuResult  {
+  val isSolved = false
+}
 
 /**
  *
@@ -47,14 +54,13 @@ case class SCandidate(nr: Int,
                       hitCounts: Array[HitCount] = Array.fill(positions.size)(Array.fill[SCount](digitRange.size)(0)),
                       digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                      //someResult: Option[FrameSuccess] = None,
-                      blockSizes: Array[Size] = Array.fill(cellCount)(new Size),
-                      someSolutionMat: Option[Mat] = None) extends CanLog {
+                      blockSizes: Array[Size] = Array.fill(cellCount)(new Size)
+                      // someSolutionMat: Option[Mat] = None // TODO REMOVE
+                       ) extends CanLog {
 
-  def isSolved = someSolutionMat.isDefined
 
-  def statsAsString() : String =
-   s"""$hitCountsAsString"""
+  def statsAsString(): String =
+    s"""$hitCountsAsString"""
 
   def hitCountsAsString(): String = {
     s"""Hitcounts :
@@ -129,8 +135,8 @@ case class SCandidate(nr: Int,
            solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
       } yield {
         if (someDigitSolution.isDefined) {
-          SSuccess(copy(), someDigitSolution.get, solutionMat)
-        }  else {
+          SSuccess(copy(), detectedCells.toArray, someDigitSolution.get, solutionMat, someSolutionCells.get)
+        } else {
           SFailure(copy())
         }
       }

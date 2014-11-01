@@ -1,7 +1,5 @@
 package net.ladstatt.apps.sudoku
 
-import java.io.File
-
 import net.ladstatt.core.Utils
 import org.junit.Assert._
 import org.junit.Test
