@@ -3,9 +3,9 @@ package net.ladstatt.apps.sudoku
 /**
  * Created by lad on 04.10.14.
  */
+/*
 object Ts {
 
-  import net.ladstatt.apps.sudoku.Templates._
 
   def supermax(i: Int) = if (i > 0) 255 else 0
 
@@ -29,3 +29,4 @@ object Ts {
   }
 
 }
+*/

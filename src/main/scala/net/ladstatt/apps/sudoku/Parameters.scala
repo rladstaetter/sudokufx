@@ -1,7 +1,9 @@
 package net.ladstatt.apps.sudoku
 
 import net.ladstatt.opencv.OpenCV
-import org.opencv.core.Size
+import org.opencv.core.{Mat, Size}
+
+import scala.io.Source
 
 /**
  * Created by lad on 26.10.14.
@@ -27,6 +29,17 @@ object Parameters {
   lazy val sudokuSize = new Size(templateWidth * ssize, templateHeight * ssize)
 
   lazy val templateCorners = OpenCV.mkCorners(sudokuSize)
+
+
+  lazy val templateLibrary: Map[Int, Mat] = {
+    val templatesAsByteArray: Seq[Array[Int]] =
+      (Source.fromInputStream(getClass.getResourceAsStream("/net/ladstatt/apps/sudokufx/templates.csv")).getLines.map(l => l.split(",").map(e => if (e == "0") 0 else 255))).toSeq
+
+    (1 to 9).map {
+      case i => i -> OpenCV.toMat(templatesAsByteArray(i - 1), Parameters.templateSize)
+    }.toMap
+  }
+
 
   def row(i: SIndex): Int = i / 9
 

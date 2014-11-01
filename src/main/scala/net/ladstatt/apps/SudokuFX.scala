@@ -105,7 +105,7 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
     }))
   }
 
-  lazy val imageTemplates: Map[Int, Image] = TemplateDetectionStrategy.templateLibrary.map { case (i, m) => i -> toImage(m)}
+  lazy val imageTemplates: Map[Int, Image] = Parameters.templateLibrary.map { case (i, m) => i -> toImage(m)}
 
   def initializeSharedState(location: URL, resources: ResourceBundle): Unit = {
     require(historyToolBar != null)
