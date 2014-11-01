@@ -25,6 +25,9 @@ trait OpenCvUnitTest {
       |275683194
       |461592387
       |893174265""".stripMargin.replaceAll("\n", "").toCharArray
+  lazy val sudoku69 = SCandidate(0, frame69, 1, 17)
+
+  lazy val sudoku69Result = time(Await.result(sudoku69.calc(), Duration.Inf), t => println(s"emptyFrame: $t ms"))
 
   lazy val emptyFrame = new Mat(1280, 768, CvType.CV_8UC3)
   lazy val emptySudoku = SCandidate(0, emptyFrame, 1, 1)

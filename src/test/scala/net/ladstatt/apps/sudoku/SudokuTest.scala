@@ -16,7 +16,6 @@ import scala.util.{Success, Try}
  * Created by lad on 05.05.14.
  */
 class SudokuTest extends OpenCvUnitTest with Utils {
-  val sudoku69 = SCandidate(0, frame69, 1, 17)
 
   val refCellNumbers: Seq[(Int, Double)] = {
     val lines: Iterator[String] = Source.fromFile(new File("src/test/resources/cellNumbers69.csv")).getLines

@@ -30,7 +30,7 @@ case class SSuccess(candidate: SCandidate,
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
 }
 
-case class SFailure(candidate: SCandidate) extends SudokuResult  {
+case class SFailure(candidate: SCandidate) extends SudokuResult {
   val isSolved = false
 }
 
@@ -55,18 +55,25 @@ case class SCandidate(nr: Int,
                       digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
                       blockSizes: Array[Size] = Array.fill(cellCount)(new Size)
-                      // someSolutionMat: Option[Mat] = None // TODO REMOVE
                        ) extends CanLog {
 
 
   def statsAsString(): String =
-    s"""$hitCountsAsString"""
+    s"""$digitQualityAsString
+       |$hitCountsAsString
+       |""".stripMargin
+
+  def digitQualityAsString: String =
+    s"""Quality:
+      |--------
+      |${digitQuality.map(q => q).mkString("\n")}
+      |""".stripMargin
 
   def hitCountsAsString(): String = {
-    s"""Hitcounts :
-      |-----------
-      |${hitCounts.map(_.mkString(",")).mkString("\n")}
+    s"""Hitcounts:
+      |----------
       |
+      |${hitCounts.map(_.mkString(",")).mkString("\n")}
       |""".stripMargin
   }
 
@@ -135,6 +142,7 @@ case class SCandidate(nr: Int,
            solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
       } yield {
         if (someDigitSolution.isDefined) {
+          val x = s0
           SSuccess(copy(), detectedCells.toArray, someDigitSolution.get, solutionMat, someSolutionCells.get)
         } else {
           SFailure(copy())
