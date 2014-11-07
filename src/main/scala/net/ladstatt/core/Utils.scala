@@ -5,8 +5,6 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
 import java.util.UUID
 
-import net.ladstatt.apps.sudoku._
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 trait HasDescription {
@@ -18,6 +16,8 @@ trait CanLog extends Utils {
   def logInfo(msg: String) = println("INFO: " + msg)
 
   def logWarn(msg: String) = println("WARN: " + msg)
+
+  def logTrace(msg: String) = ()
 
   def logError(msg: String) = System.err.println(msg)
 
@@ -43,9 +43,21 @@ object SystemEnv {
 
 trait Utils {
 
+  def traverseWithIndex[A](cs: Seq[A])(up: (A, Int) => Unit): Unit = {
+    var i = 0
+    for (c <- cs) {
+      up(c, i)
+      i = i + 1
+    }
+  }
+
   def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
     val p = new java.io.PrintWriter(f)
-    try { op(p) } finally { p.close() }
+    try {
+      op(p)
+    } finally {
+      p.close()
+    }
   }
 
   def execFuture[A](f: => A)(implicit ec: ExecutionContext): Future[A] = {

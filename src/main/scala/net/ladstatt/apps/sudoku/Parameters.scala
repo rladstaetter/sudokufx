@@ -16,7 +16,7 @@ object Parameters {
   val range = 0 until ssize
   val digitRange = 0 to ssize
 
-  val positions = 0 until cellCount
+  val cellRange = 0 until cellCount
 
   val colorRange = 0 to 256 by 16
   private val leftRange: Seq[Int] = Seq(0, 1, 2)
@@ -32,11 +32,11 @@ object Parameters {
 
 
   lazy val templateLibrary: Map[Int, Mat] = {
-    val templatesAsByteArray: Seq[Array[Int]] =
+    val digits: Seq[Array[Int]] =
       (Source.fromInputStream(getClass.getResourceAsStream("/net/ladstatt/apps/sudokufx/templates.csv")).getLines.map(l => l.split(",").map(e => if (e == "0") 0 else 255))).toSeq
 
     (1 to 9).map {
-      case i => i -> OpenCV.toMat(templatesAsByteArray(i - 1), Parameters.templateSize)
+      case i => i -> OpenCV.toMat(digits(i - 1), Parameters.templateSize)
     }.toMap
   }
 

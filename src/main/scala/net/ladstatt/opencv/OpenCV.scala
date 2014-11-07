@@ -40,7 +40,7 @@ object OpenCV extends CanLog {
   }
 
   def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
-    val curvesWithAreas =
+    val curvesWithAreas: Seq[(Double, MatOfPoint)] =
       (for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)).toSeq
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   }
@@ -220,14 +220,17 @@ object OpenCV extends CanLog {
 
   def has4Sides(needle: MatOfPoint2f) = needle.size == new Size(1, 4)
 
-  def mkApproximation(curve: MatOfPoint2f, epsilon: Double): MatOfPoint2f = {
+  def mkApproximation(curve: MatOfPoint2f, epsilon: Double = 0.02): MatOfPoint2f = {
     val arcLength = Imgproc.arcLength(curve, true)
     val approxCurve = new MatOfPoint2f
     Imgproc.approxPolyDP(curve, approxCurve, epsilon * arcLength, true)
     approxCurve
   }
 
-  def findBestFit(contours: Seq[MatOfPoint], center: Point, minArea: Double, maxArea: Double): Option[(Double, MatOfPoint2f, MatOfPoint)] = {
+  def findBestFit(contours: Seq[MatOfPoint],
+                  center: Point,
+                  minArea: Double,
+                  maxArea: Double): Option[(Double, MatOfPoint2f, MatOfPoint)] = {
     val candidates =
       for (c <- contours if ({
         val boundingRect = Imgproc.boundingRect(c)
@@ -242,7 +245,11 @@ object OpenCV extends CanLog {
     candidates.sortWith((a, b) => a._1 > b._1).headOption
   }
 
-  def findCellContour(input: Mat, original: Mat, center: Point, minArea: Double, maxArea: Double): Option[Mat] = {
+  def findCellContour(input: Mat,
+                      original: Mat,
+                      center: Point,
+                      minArea: Double,
+                      maxArea: Double): Option[Mat] = {
     val contours = coreFindContours(input)
     findBestFit(contours, center, minArea, maxArea) map {
       case (contourArea, curve, contour) => {

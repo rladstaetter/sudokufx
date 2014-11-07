@@ -51,11 +51,10 @@ case class SCandidate(nr: Int,
                       // for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
                       // was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
                       // the "empty" cell)
-                      hitCounts: Array[HitCount] = Array.fill(positions.size)(Array.fill[SCount](digitRange.size)(0)),
+                      hitCounts: Array[HitCount] = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
                       digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                      blockSizes: Array[Size] = Array.fill(cellCount)(new Size)
-                       ) extends CanLog {
+                      blockSizes: Array[Size] = Array.fill(cellCount)(new Size)) extends CanLog {
 
 
   def statsAsString(): String =
@@ -98,8 +97,8 @@ case class SCandidate(nr: Int,
   lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuSize)
   lazy val warpedToFitSize = cellSize(warpedToFit.size)
 
-  lazy val rects = positions.map(mkRect(_, sudokuSize))
-  lazy val warpedToFitRects = positions.map(mkRect(_, warpedToFitSize))
+  lazy val rects = cellRange.map(mkRect(_, sudokuSize))
+  lazy val warpedToFitRects = cellRange.map(mkRect(_, warpedToFitSize))
 
   lazy val cellMats: IndexedSeq[Mat] = rects.map(colorWarped.submat(_))
   lazy val cellNumbers: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_))
@@ -129,7 +128,7 @@ case class SCandidate(nr: Int,
       for {detectedCells <- Future.sequence(cellNumbers)
            //for {detectedCells <- Future.sequence(detectCells(warpedToFit, warpedToFitRects))
            s0 <- updateLibrary(detectedCells)
-           _ <- countHits(detectedCells)
+           _ <- countHits(detectedCells.map(_.value))
            cms <- Future.successful(cellMats)
            //_ <- Future.successful(cms.map(persist(_, new File(s"target/cm${UUID.randomUUID}.png"))))
            //   _ <- persist(colorWarped, new File(s"colorwarped$nr.png"))
@@ -162,8 +161,6 @@ case class SCandidate(nr: Int,
 
   def detectSudokuCorners(preprocessed: Mat): Future[MatOfPoint2f] = {
     execFuture {
-      val epsilon = 0.02
-
       extractCurveWithMaxArea(coreFindContours(preprocessed)) match {
         case None => {
           logWarn("Could not detect any curve ... ")
@@ -171,22 +168,22 @@ case class SCandidate(nr: Int,
         }
         case Some((maxArea, c)) => {
           val expectedMaxArea = Imgproc.contourArea(frameCorners) / 30
-          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*), epsilon)
+          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
           if (maxArea > expectedMaxArea) {
             if (has4Sides(approxCurve)) {
               val corners = mkSortedCorners(approxCurve)
               if (isSomewhatSquare(corners.toList)) {
                 corners
               } else {
-                logWarn(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+                logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
                 new MatOfPoint2f()
               }
             } else {
-              logWarn(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+              logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
               new MatOfPoint2f()
             }
           } else {
-            logWarn(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
+            logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
             new MatOfPoint2f()
           }
         }
@@ -212,6 +209,7 @@ case class SCandidate(nr: Int,
         if (isValid(solution)) {
           // only copy cells which are not already known
           for ((cell, i) <- solution.zipWithIndex if (detectedCells(i).value == 0)) {
+            // copyTo(cell.data, canvas, mkRect(i, cell.data.size))
             copyTo(cell.data, canvas, mkRect(i, cell.data.size))
           }
         } else {
@@ -282,8 +280,11 @@ case class SCandidate(nr: Int,
     rowColWellFormed(i, value) && sectorWellFormed(i, value)
   }
 
+
+
+
   // TODO remove
-  def countHits(cells: Seq[SCell]): Future[Unit] = Future {
+  def countHits(cells: Seq[Int]): Future[Unit] = Future {
 
     def updateHitCounts(i: SIndex, value: Int): Unit = {
       val hitCountAtPos = hitCounts(i)
@@ -292,13 +293,21 @@ case class SCandidate(nr: Int,
       }
     }
 
-    cells.zipWithIndex.map { case (c, i) if ((c.value == 0) || posWellFormed(i, c.value)) => updateHitCounts(i, c.value)}
+    traverseWithIndex(cells)((c, i) => {
+      if ((c == 0) || posWellFormed(i, c)) {
+        updateHitCounts(i, c)
+      }
+    })
+
+    //  cells.zipWithIndex.map { case (c, i) if ((c == 0) || posWellFormed(i, c)) => updateHitCounts(i, c)}
     ()
 
   }
 
   def resetIfInvalidCellsDetected(cells: Seq[SCell]): Future[Unit] = Future {
-    if (cells.filter(c => c.value != 0).zipWithIndex.forall { case (c, i) => posWellFormed(i, c.value)}) {
+    if (cells.filter(c => c.value != 0).zipWithIndex.forall {
+      case (c, i) => posWellFormed(i, c.value)
+    }) {
       hitCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
       digitData.transform(_ => None)
       digitQuality.transform(_ => Double.MaxValue)
@@ -316,7 +325,7 @@ case class SCandidate(nr: Int,
   // returns the sudoku matrix by analyzing the hitcounts array
   def mkVM(p: Int => Boolean): SudokuDigitSolution = {
     val h =
-      for (i <- positions) yield {
+      for (i <- cellRange) yield {
         ((for ((v, i) <- hitCounts(i).zipWithIndex if p(v)) yield i).headOption.getOrElse(0) + 48).toChar
       }
     //(for (line <- h.sliding(9, 9)) yield line.toArray).toArray
@@ -334,7 +343,7 @@ case class SCandidate(nr: Int,
    */
   private def toSolutionCells(digitSolution: SudokuDigitSolution): Cells = {
     val allCells: Cells =
-      (for (pos <- positions) yield {
+      (for (pos <- cellRange) yield {
         val value = digitSolution(pos).asDigit
 
         val x: Option[SCell] =
@@ -368,7 +377,9 @@ case class SCandidate(nr: Int,
      * @return
      */
     def determineMatParams(digitData: Array[Option[Mat]]): Option[(Size, Int)] = {
-      digitData.flatten.headOption.map { case m => (m.size, m.`type`)}
+      digitData.flatten.headOption.map {
+        case m => (m.size, m.`type`)
+      }
     }
 
     for ((size, matType) <- determineMatParams(digitData)) yield {
