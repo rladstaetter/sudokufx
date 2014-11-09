@@ -15,8 +15,8 @@ class HistoryTest extends OpenCvUnitTest with Utils {
 
 
   @Test def detectInvalidSector(): Unit = {
-    val r = Await.result(emptySudoku.computeSolution(), Duration.Inf)
-    assertTrue(0 == emptySudoku.hitCounts(0)(0))
+    val r = Await.result(emptySudoku.computeSolution(emptySudoku.hCounts), Duration.Inf)
+    assertTrue(0 == emptySudoku.hCounts(0)(0))
   }
 
   def checkStats(expected: String, result: SudokuResult): Unit = {
