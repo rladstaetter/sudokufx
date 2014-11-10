@@ -50,7 +50,7 @@ object SudokuAlgos {
     def solve(mmx: SudokuDigitSolution, maxDuration: Long = 100l): Option[SudokuDigitSolution] = time({
       val before = System.currentTimeMillis()
       var cnt = 0
-      val mx: Array[Array[Char]] = mmx.sliding(9,9).toArray
+      val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
       def isCancelled = {
         cnt = cnt + 1
         val duration = (System.currentTimeMillis() - before)
@@ -71,7 +71,7 @@ object SudokuAlgos {
 
       def populateSolution() = {
         val mxx = mx.flatten
-        for ((x,i) <- mxx.zipWithIndex) {
+        for ((x, i) <- mxx.zipWithIndex) {
           solution(i) = x
         }
       }
@@ -193,21 +193,15 @@ object SudokuAlgos {
   }
 
 
-  def detectCell(cell: Mat): Future[SCell] = {
+  def detectCell(cell: Mat, digitQuality: Array[Double]): Future[SCell] = {
     import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
     for {
       contour <- extractContour(cell)
-      (value, quality) <- contour.map(detectNumber(_)).getOrElse(Future.successful((0, 0.0)))
+     (value, quality) <- contour.map(detectNumber(_).filter(nq => nq._1 != 0 && nq._2 < digitQuality(nq._1))).getOrElse(Future.successful((0, 0.0)))
     } yield {
       SCell(value, quality, cell)
     }
   }
-
-  def detectCells(searchArea: Mat, rects: Seq[Rect]): Seq[Future[SCell]] = {
-    rects.map(r => detectCell(searchArea.submat(r)))
-    //for (r <- rects) yield detectCell(searchArea.submat(r))
-  }
-
 
   def preprocess2(input: Mat): Future[Mat] = {
     for {

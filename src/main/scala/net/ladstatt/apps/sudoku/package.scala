@@ -17,6 +17,7 @@ package object sudoku {
   // this means if for a cell 2 times a 3 is counted, the array looks like this:
   // Array(0,0,2,0,0,0,0,0,0)
   type HitCount = Array[SCount]
+  type HitCounts = Array[HitCount]
   type DetectionMethod = Option[Mat] => Future[(SNum, SHitQuality)]
 
   // TODO solution should be an array of Int or a string with 81 entries
