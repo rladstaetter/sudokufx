@@ -165,8 +165,8 @@ object OpenCV extends CanLog {
         val resultImage = new Mat(width, height, CvType.CV_32FC1)
         Imgproc.matchTemplate(c, needle, resultImage, Imgproc.TM_SQDIFF)
         val minMaxResult = Core.minMaxLoc(resultImage)
-//        OpenCV.persist(c, new File(s"target/${number}_${minMaxResult.minVal}_candidate_.png"))
-//        OpenCV.persist(needle, new File(s"target/${number}_${minMaxResult.minVal}_needle_.png"))
+        //        OpenCV.persist(c, new File(s"target/${number}_${minMaxResult.minVal}_candidate_.png"))
+        //        OpenCV.persist(needle, new File(s"target/${number}_${minMaxResult.minVal}_needle_.png"))
         (number, minMaxResult.minVal)
       }
     result
@@ -245,11 +245,12 @@ object OpenCV extends CanLog {
     candidates.sortWith((a, b) => a._1 > b._1).headOption
   }
 
-  def findCellContour(input: Mat,
-                      original: Mat,
+  def findCellContour(original: Mat,
                       center: Point,
                       minArea: Double,
                       maxArea: Double): Option[Mat] = {
+    val input = new Mat
+    original.copyTo(input)
     val contours = coreFindContours(input)
     findBestFit(contours, center, minArea, maxArea) map {
       case (contourArea, curve, contour) => {

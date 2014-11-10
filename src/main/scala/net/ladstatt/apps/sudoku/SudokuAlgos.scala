@@ -186,10 +186,9 @@ object SudokuAlgos {
     for {
       cell <- toGray(coloredCell)
       (cellData, center, minArea, maxArea) <- specialize(cell)
-      a <- preprocess2(cellData) // TODO what is going on here?
-      b <- preprocess2(cellData)
+      a <- preprocess2(cellData)
     } yield
-      findCellContour(a, b, center, minArea, maxArea)
+      findCellContour(a, center, minArea, maxArea)
   }
 
 
@@ -197,7 +196,7 @@ object SudokuAlgos {
     import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
     for {
       contour <- extractContour(cell)
-     (value, quality) <- contour.map(detectNumber(_).filter(nq => nq._1 != 0 && nq._2 < digitQuality(nq._1))).getOrElse(Future.successful((0, 0.0)))
+      (value, quality) <- contour.map(detectNumber(_).filter(nq => nq._1 != 0 && nq._2 < digitQuality(nq._1))).getOrElse(Future.successful((0, 0.0)))
     } yield {
       SCell(value, quality, cell)
     }
