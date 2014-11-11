@@ -20,6 +20,10 @@ object OpenCV extends CanLog {
 
   import net.ladstatt.apps.sudoku.Parameters._
 
+  def ioc(input: Mat)(prog: Seq[Mat => Mat]): Mat = {
+    prog.foldLeft(input)((c, f) => f(c))
+  }
+
   case class OpenCVException(mat: Mat, message: String) extends RuntimeException(message)
 
   case class CRange(hue: (Double, Double),
@@ -128,20 +132,19 @@ object OpenCV extends CanLog {
    * @param input
    * @return
    */
-  def equalizeHist(input: Mat): Future[Mat] =
-    execFuture {
-      val output = new Mat
-      Imgproc.equalizeHist(input, output)
-      output
-    }
+  def equalizeHist(input: Mat): Mat = {
+    val output = new Mat
+    Imgproc.equalizeHist(input, output)
+    output
+  }
 
 
   def norm(mat: Mat): Future[Mat] = {
+
     for {
-      b <- blur(mat)
+      b <- blurF(mat)
       dilated <- dilate(b)
-      thresholded <- adaptiveThreshold(dilated, 255, 9)
-    } yield thresholded
+    } yield adaptiveThreshold2(dilated)
   }
 
   /**
@@ -194,11 +197,16 @@ object OpenCV extends CanLog {
    * @param pattern
    * @return
    */
-  def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Future[Mat] =
-    execFuture {
-      source.copyTo(destination, pattern)
-      destination
-    }
+  def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Mat = {
+    source.copyTo(destination, pattern)
+    destination
+  }
+
+  def duplicate(s: Mat) = {
+    val m = new Mat
+    s.copyTo(m)
+    m
+  }
 
   /**
    * warps image to make feature extraction's life easier (time intensive call)
@@ -245,10 +253,29 @@ object OpenCV extends CanLog {
     candidates.sortWith((a, b) => a._1 > b._1).headOption
   }
 
-  def findCellContour(original: Mat,
-                      center: Point,
-                      minArea: Double,
-                      maxArea: Double): Option[Mat] = {
+  // only search for contours in a subrange of the original cell to get rid of possible border lines
+  def specialize(src: Mat): (Mat, Point, Double, Double) = {
+    val cellRawData = toGray(src)
+    val (width, height) = (cellRawData.size.width, cellRawData.size.height)
+    val cellData = new Mat(cellRawData, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
+    val cellArea = cellData.size().area
+    val (minArea, maxArea) = (0.15 * cellArea, 0.5 * cellArea)
+    val (centerX, centerY) = (cellData.size.width / 2, cellData.size.height / 2)
+    (preprocess2(cellData), new Point(centerX, centerY), minArea, maxArea)
+  }
+
+  def preprocess2(input: Mat): Mat = {
+    ioc(input)(Seq(equalizeHist _, blur _, threshold _, bitwiseNot _))
+  }
+
+  // filter out false positives
+  // use information known (size, position of digits)
+  // the bounding box of the contours must fit into some rough predicate, like follows:
+  // the area must be of a certain size
+  // the area must not be greater than a certain size
+  // the center of the image has to be part of the bounding rectangle
+  def findCellContour(src: Mat): Option[Mat] = {
+    val (original, center, minArea, maxArea) = specialize(src)
     val input = new Mat
     original.copyTo(input)
     val contours = coreFindContours(input)
@@ -272,30 +299,31 @@ object OpenCV extends CanLog {
     new MatOfPoint2f(topleft, topright, bottomright, bottomleft)
   }
 
-  def adaptiveThreshold(input: Mat,
-                        maxValue: Double = 255,
-                        blockSize: Int = 5,
-                        c: Double = 2,
-                        adaptiveMethod: Int = Imgproc.ADAPTIVE_THRESH_MEAN_C): Future[Mat] =
-    execFuture {
-      val thresholded = new Mat()
-      Imgproc.adaptiveThreshold(input, thresholded, maxValue, adaptiveMethod, Imgproc.THRESH_BINARY, blockSize, c)
-      thresholded
-    }
+  def ad(input: Mat)(blockSize: Int, c: Double): Mat = {
+    val adaptiveMethod: Int = Imgproc.ADAPTIVE_THRESH_MEAN_C
+    val maxValue: Double = 255
+    val thresholded = new Mat()
+    Imgproc.adaptiveThreshold(input, thresholded, maxValue, adaptiveMethod, Imgproc.THRESH_BINARY, blockSize, c)
+    thresholded
+  }
 
-  def threshold(input: Mat): Future[Mat] =
-    execFuture {
-      val output = new Mat
-      Imgproc.threshold(input, output, 30, 255, Imgproc.THRESH_BINARY)
-      output
-    }
+  def adaptiveThreshold(input: Mat): Mat = ad(input)(5, 2)
 
-  def bitwiseNot(input: Mat): Future[Mat] =
-    execFuture {
-      val output = new Mat
-      Core.bitwise_not(input, output)
-      output
-    }
+  def adaptiveThreshold2(input: Mat): Mat = ad(input)(255, 9)
+
+  def threshold(input: Mat): Mat = {
+    val output = new Mat
+    Imgproc.threshold(input, output, 30, 255, Imgproc.THRESH_BINARY)
+    output
+  }
+
+  def bitwiseNot(input: Mat): Mat = {
+    val output = new Mat
+    Core.bitwise_not(input, output)
+    output
+  }
+
+  def bitwiseNotF(input: Mat) = execFuture(bitwiseNot(input))
 
   def mkKernel(size: Int, kernelData: ArrayBuffer[Byte]) = {
     val kernel = new Mat(size, size, CvType.CV_8U)
@@ -326,12 +354,14 @@ object OpenCV extends CanLog {
     }
 
 
-  def blur(input: Mat): Future[Mat] =
-    execFuture {
-      val dest = new Mat()
-      Imgproc.GaussianBlur(input, dest, new Size(11, 11), 0)
-      dest
-    }
+  def blur(input: Mat): Mat = {
+    val dest = new Mat()
+    Imgproc.GaussianBlur(input, dest, new Size(11, 11), 0)
+    dest
+  }
+
+  def blurF(input: Mat): Future[Mat] =
+    execFuture(blur(input))
 
 
   def runtimeNativeLibName =
@@ -363,13 +393,12 @@ object OpenCV extends CanLog {
    * @param input
    * @return
    */
-  def colorSpace(conversionMethod: Int = Imgproc.COLOR_BGR2GRAY, input: Mat): Future[Mat] =
-    execFuture {
-      val colorTransformed = new Mat
-      Imgproc.cvtColor(input, colorTransformed, conversionMethod)
-      colorTransformed
-    }
+  def colorSpace(conversionMethod: Int = Imgproc.COLOR_BGR2GRAY, input: Mat): Mat = {
+    val colorTransformed = new Mat
+    Imgproc.cvtColor(input, colorTransformed, conversionMethod)
+    colorTransformed
+  }
 
-  def toGray(mat: Mat): Future[Mat] = colorSpace(Imgproc.COLOR_BGR2GRAY, mat)
+  def toGray(mat: Mat): Mat = colorSpace(Imgproc.COLOR_BGR2GRAY, mat)
 
 }

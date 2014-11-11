@@ -181,11 +181,10 @@ case class SCandidate(nr: Int,
         withSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
         annotatedSolution <- paintCorners(withSolution, detectedCells, someSolutionCells, hCounts)
         unwarped <- Future.successful(warp(annotatedSolution, frameCorners, sudokuCorners))
-        solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
       } yield {
         if (someDigitSolution.isDefined) {
           val x = s0
-          SSuccess(copy(), detectedCells.toArray, someDigitSolution.get, solutionMat, someSolutionCells.get)
+          SSuccess(copy(), detectedCells.toArray, someDigitSolution.get, copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped), someSolutionCells.get)
         } else {
           SFailure(copy())
         }
