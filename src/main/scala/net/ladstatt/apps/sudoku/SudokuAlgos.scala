@@ -166,9 +166,6 @@ object SudokuAlgos {
   def cellSize(size: Size): Size = new Size(size.width / ssize, size.height / ssize)
 
 
-
-
-
   def detectCell(cell: Mat, digitQuality: Array[Double]): Future[SCell] = {
     import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
     for {
@@ -179,16 +176,20 @@ object SudokuAlgos {
   }
 
 
-
-
   def imageIOChain(input: Mat): Future[ImageIOChain] = {
-    val imageIoChain = ioc(input)(Seq(duplicate _, toGray _, blur _, adaptiveThreshold _))
-    val working = copySrcToDestWithMask(input, new Mat, input)
-    val grayed = toGray(working)
-    val blurred = blur(grayed)
-    val thresholdApplied = adaptiveThreshold(blurred)
+    //toGray(duplicate(input))
+    // val imageIoChain = ioc(input)(Seq(duplicate _, toGray _, blur _, adaptiveThreshold _))
+    // val working = copySrcToDestWithMask(input, new Mat, input)
+    // val grayed = toGray(working)
+    // val blurred = blur(grayed)
+    // val thresholdApplied = adaptiveThreshold(blurred)
+
     for {
-      inverted <- bitwiseNotF(imageIoChain)
+      working <- execFuture(copySrcToDestWithMask(input, new Mat, input))
+      grayed <- execFuture(toGray(working))
+      blurred <- execFuture(blur(grayed))
+      thresholdApplied <- execFuture(adaptiveThreshold(blurred))
+      inverted <- bitwiseNotF(thresholdApplied)
       dilated <- dilate(inverted)
       eroded <- erode(inverted)
     //  dilated <- dilate(thresholdApplied)
