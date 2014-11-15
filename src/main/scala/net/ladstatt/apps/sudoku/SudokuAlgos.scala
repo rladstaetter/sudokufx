@@ -165,31 +165,60 @@ object SudokuAlgos {
 
   def cellSize(size: Size): Size = new Size(size.width / ssize, size.height / ssize)
 
+  // only search for contours in a subrange of the original cell to get rid of possible border lines
+  def specialize(cellRawData: Mat): Future[(Mat, Point, Double, Double)] =
+    execFuture {
+      val (width, height) = (cellRawData.size.width, cellRawData.size.height)
+      val cellData = new Mat(cellRawData, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
+      val cellArea = cellData.size().area
+      val (minArea, maxArea) = (0.15 * cellArea, 0.5 * cellArea)
+      val (centerX, centerY) = (cellData.size.width / 2, cellData.size.height / 2)
+      (cellData, new Point(centerX, centerY), minArea, maxArea)
+    }
+
+  // filter out false positives
+  // use information known (size, position of digits)
+  // the bounding box of the contours must fit into some rough predicate, like follows:
+  // the area must be of a certain size
+  // the area must not be greater than a certain size
+  // the center of the image has to be part of the bounding rectangle
+  def extractContour(coloredCell: Mat): Future[Option[Mat]] = {
+    for {
+      cell <- toGray(coloredCell)
+      (cellData, center, minArea, maxArea) <- specialize(cell)
+      a <- preprocess2(cellData)
+    } yield
+      findCellContour(a, center, minArea, maxArea)
+  }
+
 
   def detectCell(cell: Mat, digitQuality: Array[Double]): Future[SCell] = {
     import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
     for {
-      (value, quality) <- findCellContour(cell).map(detectNumber(_).filter(nq => nq._1 != 0 && nq._2 < digitQuality(nq._1))).getOrElse(Future.successful((0, 0.0)))
+      contour <- extractContour(cell)
+      (value, quality) <- contour.map(detectNumber(_).filter(nq => nq._1 != 0 && nq._2 < digitQuality(nq._1))).getOrElse(Future.successful((0, 0.0)))
     } yield {
       SCell(value, quality, cell)
     }
   }
 
+  def preprocess2(input: Mat): Future[Mat] = {
+    for {
+      equalized <- equalizeHist(input)
+      blurred <- blur(equalized)
+      thresholded <- threshold(blurred)
+      inverted <- bitwiseNot(thresholded)
+    } yield inverted
+  }
 
   def imageIOChain(input: Mat): Future[ImageIOChain] = {
-    //toGray(duplicate(input))
-    // val imageIoChain = ioc(input)(Seq(duplicate _, toGray _, blur _, adaptiveThreshold _))
-    // val working = copySrcToDestWithMask(input, new Mat, input)
-    // val grayed = toGray(working)
-    // val blurred = blur(grayed)
-    // val thresholdApplied = adaptiveThreshold(blurred)
 
     for {
-      working <- execFuture(copySrcToDestWithMask(input, new Mat, input))
-      grayed <- execFuture(toGray(working))
-      blurred <- execFuture(blur(grayed))
-      thresholdApplied <- execFuture(adaptiveThreshold(blurred))
-      inverted <- bitwiseNotF(thresholdApplied)
+      working <- copySrcToDestWithMask(input, new Mat, input)
+      grayed <- toGray(working)
+      blurred <- blur(grayed)
+      thresholdApplied <- adaptiveThreshold(blurred)
+      inverted <- bitwiseNot(thresholdApplied)
       dilated <- dilate(inverted)
       eroded <- erode(inverted)
     //  dilated <- dilate(thresholdApplied)
