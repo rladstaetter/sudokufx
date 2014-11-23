@@ -25,6 +25,7 @@ import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.jfx.{OpenCVTimedFrameGrabberTask, _}
+import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.controlsfx.dialog.Dialogs
 import org.opencv.core._
@@ -493,7 +494,6 @@ with SharedState {
 
   @FXML var modeButtons: ToggleGroup = _
 
-
   loadNativeLib()
 
   def updateHistoryToolbar(frameNumber: Int, color: Color): Unit =
@@ -501,23 +501,6 @@ with SharedState {
       println(s"adding $frameNumber with $color")
       historyToolBar.getItems.add(Hit(frameNumber, color))
       ()
-    }
-
-
-  def persist(mat: Mat, file: File): Future[File] =
-    execFuture {
-      if (getCameraActive()) {
-        logWithTimer(s"Wrote ${file.getAbsolutePath}", {
-          if (!Highgui.imwrite(file.getAbsolutePath, mat)) {
-            throw new OpenCVException(mat, s"Could not save to file $file")
-          } else {
-            file
-          }
-        })
-      } else {
-        logWarn("Camera has been closed. Scheduled persist process aborted.")
-        new File(".")
-      }
     }
 
   /**
@@ -592,7 +575,6 @@ with SharedState {
     historyToolBar.getItems.clear()
   }
 
-  def getPerformanceTracker: PerformanceTracker
 
 }
 
@@ -697,7 +679,6 @@ with Initializable {
 
 
     startCapture
-    ()
   }
 
 
