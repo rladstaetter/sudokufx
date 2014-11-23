@@ -15,9 +15,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-sealed trait SudokuResult {
-  def isSolved: Boolean
-}
+sealed trait SudokuResult
 
 case class SSuccess(candidate: SCandidate,
                     detectedCells: Cells,
@@ -25,14 +23,10 @@ case class SSuccess(candidate: SCandidate,
                     solutionMat: Mat,
                     solutionCells: Cells) extends SudokuResult {
 
-  val isSolved = true
-
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
 }
 
-case class SFailure(candidate: SCandidate) extends SudokuResult {
-  val isSolved = false
-}
+case class SFailure(candidate: SCandidate) extends SudokuResult
 
 object SCandidate {
 
@@ -141,7 +135,7 @@ case class SCandidate(nr: Int,
   lazy val warpedToFitRects = cellRange.map(mkRect(_, warpedToFitSize))
 
   lazy val cellMats: IndexedSeq[Mat] = rects.map(colorWarped.submat(_))
-  lazy val cellNumbers: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_,digitQuality))
+  lazy val cellNumbers: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_, digitQuality))
 
   // search on all positions for potential hits (don't count the "empty"/"zero" fields
   // TODO remove, see cellNumbers
@@ -289,7 +283,9 @@ case class SCandidate(nr: Int,
 
   def updateLibrary(detectedCells: Traversable[SCell]): Future[SCandidate] = execFuture {
     val hits = detectedCells.filter(qualityFilter)
-    hits.foreach(c => {
+    val grouped: Map[Int, Traversable[SCell]] = detectedCells.groupBy(f => f.value)
+    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
+    optimal.values.foreach(c => {
       digitData(c.value) = Some(c.data)
       digitQuality(c.value) = c.quality
     })
