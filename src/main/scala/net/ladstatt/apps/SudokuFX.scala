@@ -11,7 +11,8 @@ import _root_.javafx.scene.paint.Color
 import _root_.javafx.stage.Stage
 import java.io.{File, FilenameFilter}
 import java.net.URL
-import java.util.ResourceBundle
+import java.text.SimpleDateFormat
+import java.util.{Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property._
@@ -24,17 +25,15 @@ import javafx.scene.shape.{Circle, Polyline, Rectangle}
 import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
-import net.ladstatt.jfx.{OpenCVTimedFrameGrabberTask, _}
-import net.ladstatt.opencv.OpenCV
+import net.ladstatt.jfx.{FrameGrabberTask, _}
 import net.ladstatt.opencv.OpenCV._
 import org.controlsfx.dialog.Dialogs
 import org.opencv.core._
-import org.opencv.highgui.{Highgui, VideoCapture}
+import org.opencv.highgui.Highgui
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
@@ -231,11 +230,15 @@ trait SharedState extends OpenCVJfxUtils with CanLog with JfxUtils {
   }
 
   val borderFadeTransition: FadeTransition = mkFadeTransition(500, sudokuBorder, 1.0, 0.0)
+  val basedir = new File("/Users/lad/Documents/sudokufx/runs/")
+  val sessionName = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date())
+  val workingDirectory = new File(basedir, sessionName)
+  workingDirectory.mkdirs()
 
   /**
    * where application will put captured frames
    */
-  val workingDirectoryProperty = new SimpleObjectProperty[File](new File("/Users/lad/temp"))
+  val workingDirectoryProperty = new SimpleObjectProperty[File](workingDirectory)
 
   def getWorkingDirectory = workingDirectoryProperty.get
 
@@ -455,8 +458,6 @@ trait AnalyticsMode extends JfxUtils with SharedState {
 
   def initializeSlider(): Unit = {
     frameBuffer.clear
-    allFrames.foreach(println)
-    println(s"Framesize is ${allFrames.size}")
     setCurrentFrameFiles(allFrames)
     historySlider.setMin(0)
     historySlider.setMax((getCurrentFrameFiles.size - 1).toDouble)
@@ -509,22 +510,42 @@ with SharedState {
   def processFrame(observableValue: ObservableValue[_ <: SCandidate],
                    oldState: SCandidate,
                    sudokuCandidate: SCandidate): Unit = {
+    val updatedState: SCandidate =
+      if (oldState != null) {
+        /*
+              frame: Mat,
+              cap: Int = 8,
+              minHits: Int = 20,
+              // for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
+              // was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
+              // the "empty" cell)
+              hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
+              digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
+              digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
+              blockSizes: Array[Size] = Array.fill(cellCount)(new Size)) extends CanLog {
+      */
+
+        sudokuCandidate.copy(hCounts = oldState.hCounts.clone(),
+          digitQuality = oldState.digitQuality.clone(),
+          digitData = oldState.digitData.clone)
+      }
+      else sudokuCandidate
     for {
-    // f <- persist(sudokuState.frame, new File(getWorkingDirectory, s"frame${frameNumber}.png"))
-      result <- sudokuCandidate.calc
+    // f <- persist(sudokuCandidate.frame, new File(getWorkingDirectory, s"frame${sudokuCandidate.nr}.png"))
+      _ <- sudokuCandidate.persistFrame(getWorkingDirectory)
+      result <- updatedState.calc
     } display(result)
   }
 
-  val frameChangeListener = mkChangeListener(processFrame)
 
-  def mkCaptureTask = new OpenCVTimedFrameGrabberTask(new VideoCapture(0), frameChangeListener)
+  def mkCaptureTask = new FrameGrabberTask(processFrame)
 
-  val currentFrameGrabberTaskProperty = new SimpleObjectProperty[OpenCVTimedFrameGrabberTask]()
+  val currentFrameGrabberTaskProperty = new SimpleObjectProperty[FrameGrabberTask]()
 
-  def getCurrentFrameGrabberTask() = currentFrameGrabberTaskProperty.get
+  def getCurrentFrameGrabberTask = currentFrameGrabberTaskProperty.get
 
-  def setCurrentFrameGrabberTask(task: OpenCVTimedFrameGrabberTask) = {
-    if (getCurrentFrameGrabberTask() != null) {
+  def setCurrentFrameGrabberTask(task: FrameGrabberTask) = {
+    if (getCurrentFrameGrabberTask != null) {
       getCurrentFrameGrabberTask.cancel
     }
     currentFrameGrabberTaskProperty.set(task)
@@ -547,7 +568,7 @@ with SharedState {
   def startCapture(): Unit = {
     resetHistoryBar()
     setCurrentFrameGrabberTask(mkCaptureTask)
-    frameTimer.schedule(getCurrentFrameGrabberTask(), 0, 50)
+    frameTimer.schedule(getCurrentFrameGrabberTask, 0, 50)
     setCameraActive(true)
     bestMatchToolBar.setVisible(false)
     templateToolBar.setVisible(false)

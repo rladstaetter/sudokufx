@@ -1,5 +1,6 @@
 package net.ladstatt.apps.sudoku
 
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 import net.ladstatt.apps.sudoku.Parameters._
@@ -58,8 +59,9 @@ c <- colSector if (c != col(index))
   // searches rows and cols if there exist already the value in the same row or column
   private def rowColWellFormed(hitCounts: HitCounts, i: Int, value: Int, cap: Int): Boolean = {
     // val otherCells = cellRange.filter(u => u != i && ((row(u) == row(i) || col(u) == col(i)) || sectorIndizes(i).contains(u)))
-    val otherCells = cellRange.filter(u => u != i && ((row(u) == row(i) || col(u) == col(i))))
-    !otherCells.exists(i => hitCounts(i).contains(value) && hitCounts(value) == cap)
+    val otherCells = cellRange.filter(u => u != i && (row(u) == row(i) || col(u) == col(i)))
+    !otherCells.exists(i => hitCounts(i).contains(value) && hitCounts(i)(value) == cap)
+    // !otherCells.exists(i => hitCounts(i).contains(value))
   }
 
   private def posWellFormed(hitCounts: HitCounts, i: SIndex, value: Int, cap: Int): Boolean = {
@@ -110,6 +112,7 @@ case class SCandidate(nr: Int,
       |""".stripMargin
   }
 
+  def persistFrame(workingDirectory: File) = persist(frame, new File(workingDirectory, s"frame${nr}.png"))
 
   val start = System.nanoTime()
 

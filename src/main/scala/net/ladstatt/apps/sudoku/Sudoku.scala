@@ -11,9 +11,6 @@ import scala.concurrent._
 object TemplateDetectionStrategy {
 
 
-
-
-
   /**
    * given a template library, match the given contour to find the best match. this function takes around 1 ms
    *

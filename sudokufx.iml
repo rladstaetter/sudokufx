@@ -1,19 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module org.jetbrains.idea.maven.project.MavenProjectsManager.isMavenModule="true" type="JAVA_MODULE" version="4">
-  <component name="FacetManager">
-    <facet type="scala" name="Scala">
-      <configuration>
-        <option name="compilerLibraryLevel" value="Project" />
-        <option name="compilerLibraryName" value="Maven: org.scala-lang:scala-compiler-bundle:2.11.2" />
-        <option name="compilerOptions" value="-Xfatal-warnings -Xlint -Ywarn-dead-code -Ywarn-numeric-widen -Ywarn-value-discard -encoding UTF-8 -feature -language:existentials -language:higherKinds -language:implicitConversions -target:jvm-1.6" />
-        <option name="deprecationWarnings" value="true" />
-        <option name="languageLevel" value="Scala 2.11" />
-        <option name="optimiseBytecode" value="true" />
-        <option name="uncheckedWarnings" value="true" />
-        <option name="vmOptions" value="-client -Xms64m -Xmx2G" />
-      </configuration>
-    </facet>
-  </component>
   <component name="NewModuleRootManager" inherit-compiler-output="false">
     <output url="file://$MODULE_DIR$/target/classes" />
     <output-test url="file://$MODULE_DIR$/target/test-classes" />
@@ -22,11 +8,11 @@
       <sourceFolder url="file://$MODULE_DIR$/src/main/scala" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/resources" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/scala" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/runs" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.11.2" level="project" />
     <orderEntry type="library" name="Maven: org.opencv:opencv-java7:2.4.6" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.11" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.hamcrest:hamcrest-core:1.3" level="project" />
@@ -41,6 +27,6 @@
     <orderEntry type="library" name="Maven: org.scalatest:scalatest_2.11:2.2.2" level="project" />
     <orderEntry type="library" name="Maven: org.scala-lang:scala-reflect:2.11.2" level="project" />
     <orderEntry type="library" name="Maven: org.scala-lang.modules:scala-xml_2.11:1.0.2" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scala-sdk:2.11.2" level="project" />
   </component>
 </module>
-

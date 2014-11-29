@@ -32,15 +32,11 @@ class StringConverter4HasDescription[T <: HasDescription] extends StringConverte
 }
 
 
-trait SudokuTask {
+case class FrameGrabberTask(processFrame: (ObservableValue[_ <: SCandidate], SCandidate, SCandidate) => Unit) extends TimerTask
+with JfxUtils with Utils {
 
-}
-
-
-case class OpenCVTimedFrameGrabberTask(videoCapture: VideoCapture,
-                                       mainLoop: ChangeListener[SCandidate]) extends TimerTask
-with Utils {
-
+  val mainLoop: ChangeListener[SCandidate] = mkChangeListener(processFrame)
+  val videoCapture = new VideoCapture(0)
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
   def setFrameNumber(i: Int) = frameNumberProperty.set(i)
@@ -69,7 +65,7 @@ with Utils {
   //  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_HEIGHT,600)
 
 
-  def aquireMat = {
+  def aquireMat() = {
     val image = new Mat()
     if (videoCapture.isOpened) {
       videoCapture.read(image)
@@ -83,7 +79,7 @@ with Utils {
 
 class FrameTimer extends Timer {
 
-  def schedule(task: OpenCVTimedFrameGrabberTask, delay: Long = 0, period: Long = 1) = {
+  def schedule(task: FrameGrabberTask, delay: Long = 0, period: Long = 1) = {
     super.schedule(task, delay, period)
   }
 }
