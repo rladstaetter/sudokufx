@@ -158,11 +158,6 @@ object SudokuAlgos {
 
   case object SolutionStage extends ProcessingStage
 
-  abstract trait SolverStrategy extends HasDescription {
-
-    def solve(s: String)(log: String => Unit): String
-  }
-
   def cellSize(size: Size): Size = new Size(size.width / ssize, size.height / ssize)
 
   // only search for contours in a subrange of the original cell to get rid of possible border lines
