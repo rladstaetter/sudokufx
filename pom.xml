@@ -75,7 +75,7 @@
                 </executions>
                 <configuration>
                     <vendor>${project.organization.name}</vendor>
-                    <mainClass>net.ladstatt.apps.SudokuFX</mainClass>
+                    <mainClass>net.ladstatt.apps.sudoku.fx.SudokuFX</mainClass>
                 </configuration>
             </plugin>
 

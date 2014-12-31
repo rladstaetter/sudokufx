@@ -337,6 +337,7 @@ object OpenCV extends CanLog {
   def runtimeNativeLibName =
     if (SystemEnv.runOnMac)
       "lib/libopencv_java246.dylib"
+      //"/Users/lad/Library/opencv-3.0.0-beta/build/lib/libopencv_java300.dylib"
     else if (SystemEnv.isX64) {
       "lib/win/x64/opencv_java246.dll"
     } else {
