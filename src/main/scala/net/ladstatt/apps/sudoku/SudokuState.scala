@@ -16,7 +16,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-sealed trait SudokuResult
+sealed trait SudokuResult {
+  def candidate: SCandidate
+}
 
 case class SSuccess(candidate: SCandidate,
                     detectedCells: Cells,
@@ -42,19 +44,6 @@ object SCandidate {
     values.zipWithIndex.forall {
       case (c, i) => SCandidate.posWellFormed(hitCounts, i, c, cap)
     }
-
-  /*
-private def sectorWellFormed(hitCounts: HitCounts, index: SIndex, value: Int): Boolean = {
-val rowSector = sectors(row(index) / 3)
-val colSector = sectors(col(index) / 3)
-val sectorVals =
-for {
-r <- rowSector if (r != row(index))
-c <- colSector if (c != col(index))
-(count, num) <- hitCounts(index).zipWithIndex if (count == cap)
-} yield num
-!sectorVals.contains(value)
-}      */
 
   // searches rows and cols if there exist already the value in the same row or column
   private def rowColWellFormed(hitCounts: HitCounts, i: Int, value: Int, cap: Int): Boolean = {
@@ -112,7 +101,10 @@ case class SCandidate(nr: Int,
       |""".stripMargin
   }
 
-  def persistFrame(workingDirectory: File) = persist(frame, new File(workingDirectory, s"frame${nr}.png"))
+  def persistFrame(workingDirectory: File) : Future[File] = {
+   // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
+    Future.successful(null)
+  }
 
   val start = System.nanoTime()
 

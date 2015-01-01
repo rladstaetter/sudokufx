@@ -18,7 +18,12 @@
                 </Menu>
             </menus>
         </MenuBar>
-
+        <HBox>
+            <children>
+                <FlowPane fx:id="statsFlowPane"/>
+                <FlowPane fx:id="resultFlowPane"/>
+            </children>
+        </HBox>
         <AnchorPane id="AnchorPane" fx:id="canvas" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
                     minWidth="-Infinity" prefHeight="750.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8"
                     xmlns:fx="http://javafx.com/fxml/1">
@@ -47,29 +52,12 @@
                 </ToolBar>
                 <ToolBar fx:id="templateToolBar" layoutY="135.0" style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
                     <items/>
-                    <!--
-                    <ImageView fx:id="tplView1"/>
-                        <ImageView fx:id="tplView2"/>
-                        <ImageView fx:id="tplView3"/>
-                        <ImageView fx:id="tplView4"/>
-                        <ImageView fx:id="tplView5"/>
-                        <ImageView fx:id="tplView6"/>
-                        <ImageView fx:id="tplView7"/>
-                        <ImageView fx:id="tplView8"/>
-                        <ImageView fx:id="tplView9"/>
-                    </items> -->
                 </ToolBar>
                 <ToolBar layoutX="0.0" layoutY="0.0" prefWidth="1280.0">
                     <fx:define>
                         <ToggleGroup fx:id="viewButtons"/>
-                        <ToggleGroup fx:id="modeButtons"/>
                     </fx:define>
                     <items>
-                        <ToggleButton fx:id="captureButton" mnemonicParsing="false" text="Capture" selected="true"
-                                      toggleGroup="$modeButtons"/>
-                        <ToggleButton fx:id="analyticsButton" mnemonicParsing="false" text="Analytics"
-                                      toggleGroup="$modeButtons"/>
-                        <Separator orientation="VERTICAL"/>
                         <ToggleButton fx:id="inputButton" mnemonicParsing="false" text="Input"
                                       toggleGroup="$viewButtons"/>
                         <ToggleButton fx:id="grayedButton" mnemonicParsing="false" text="Grayed"
@@ -90,9 +78,6 @@
                 </ToolBar>
             </children>
         </AnchorPane>
-        <ScrollPane>
-            <ToolBar fx:id="historyToolBar"/>
-        </ScrollPane>
-        <Slider fx:id="historySlider"/>
+
     </children>
 </VBox>
