@@ -46,6 +46,8 @@ object SudokuFX {
 
 class SudokuFX extends Application with Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
 
+  import net.ladstatt.apps.sudoku.SudokuAlgos._
+
   @FXML var captureButton: ToggleButton = _
   @FXML var inputButton: ToggleButton = _
   @FXML var grayedButton: ToggleButton = _
@@ -57,8 +59,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var statsFlowPane: FlowPane = _
   @FXML var resultFlowPane: FlowPane = _
 
-  import net.ladstatt.apps.sudoku.SudokuAlgos._
-
+  @FXML var numberFlowPane: FlowPane = _
   @FXML var canvas: AnchorPane = _
 
   @FXML var videoView: ImageView = _
@@ -66,27 +67,10 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var viewButtons: ToggleGroup = _
   @FXML var statusLabel: Label = _
 
-  @FXML var bestMatchToolBar: ToolBar = _
-  @FXML var nrView1: ImageView = _
-  @FXML var nrView2: ImageView = _
-  @FXML var nrView3: ImageView = _
-
-  @FXML var nrView4: ImageView = _
-  @FXML var nrView5: ImageView = _
-  @FXML var nrView6: ImageView = _
-
-  @FXML var nrView7: ImageView = _
-  @FXML var nrView8: ImageView = _
-  @FXML var nrView9: ImageView = _
-
   @FXML var templateToolBar: ToolBar = _
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
-  lazy val nrViews: Array[ImageView] =
-    Array(nrView1, nrView2, nrView3,
-      nrView4, nrView5, nrView6,
-      nrView7, nrView8, nrView9)
 
   val history = new File("runs/").listFiles()
 
@@ -113,16 +97,9 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   def processFrame(observableValue: ObservableValue[_ <: SCandidate],
                    oldState: SCandidate,
                    sudokuCandidate: SCandidate): Unit = {
-    val updatedState: SCandidate =
-      if (oldState != null) {
-        sudokuCandidate.copy(hCounts = oldState.hCounts.clone(),
-          digitQuality = oldState.digitQuality.clone(),
-          digitData = oldState.digitData.clone)
-      }
-      else sudokuCandidate
     for {
       _ <- sudokuCandidate.persistFrame(getWorkingDirectory)
-      result <- updatedState.calc
+      result <- sudokuCandidate.calc
     } display(result)
   }
 
@@ -158,7 +135,6 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     setCurrentFrameGrabberTask(mkCaptureTask)
     frameTimer.schedule(getCurrentFrameGrabberTask, 0, 50)
     setCameraActive(true)
-    bestMatchToolBar.setVisible(false)
     templateToolBar.setVisible(false)
   }
 
@@ -178,23 +154,9 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
   def initializeSharedState(location: URL, resources: ResourceBundle): Unit = {
     require(statusLabel != null)
-    require(bestMatchToolBar != null)
 
     require(templateToolBar != null)
     require(mainMenuBar != null)
-
-    // nr image views
-    require(nrView1 != null)
-    require(nrView2 != null)
-    require(nrView3 != null)
-
-    require(nrView4 != null)
-    require(nrView5 != null)
-    require(nrView6 != null)
-
-    require(nrView7 != null)
-    require(nrView8 != null)
-    require(nrView9 != null)
 
     mainMenuBar.getMenus.add(historyMenu)
     imageTemplates.foldLeft(templateToolBar) {
@@ -220,7 +182,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     statusLabel.setText(message)
   }
 
-  def updateBestMatch(sudokuHistory: SCandidate): Unit = {
+  def updateBestMatch(sudokuHistory: SCandidate, nrViews: Seq[ImageView]): Unit = {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
@@ -437,7 +399,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       case success: SSuccess => {
         updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
         setAnalysisMouseTransparent(false)
-        updateBestMatch(success.candidate)
+        updateBestMatch(success.candidate, numberFlowPane.getChildren.map(_.asInstanceOf[ImageView]))
         updateStatus(mkFps(success.candidate.start), Color.GREEN)
         updateBorder(success.candidate.sudokuCorners)
         updateCellBounds(success.candidate.sudokuCorners, analysisCellBounds)
@@ -446,7 +408,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       case SFailure(candidate) => {
         updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
         setAnalysisMouseTransparent(false)
-        updateBestMatch(candidate)
+        updateBestMatch(candidate, numberFlowPane.getChildren.map(_.asInstanceOf[ImageView]))
         updateStatus(mkFps(candidate.start), Color.GREEN)
       }
     }
@@ -470,12 +432,6 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       .showInformation()
     ()
   }
-
-  def startAnalytics(): Unit = {
-    bestMatchToolBar.setVisible(true)
-    templateToolBar.setVisible(true)
-  }
-
 
   def initResultPane(resultPane: FlowPane): Boolean = {
     def mkSolutionPane(): Seq[Label] = {
@@ -551,6 +507,12 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   }
 
 
+  def initNumberFlowPane(numberFlowPane: FlowPane) = {
+    numberFlowPane.setMinWidth(426.0)
+    numberFlowPane.setPrefWrapLength(426.0)
+    (1 to 9).foreach(i => numberFlowPane.getChildren.add(new ImageView))
+  }
+
   override def initialize(location: URL, resources: ResourceBundle): Unit = {
 
     import net.ladstatt.apps.sudoku.SudokuAlgos._
@@ -569,8 +531,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     require(statsFlowPane != null)
     require(resultFlowPane != null)
+    require(numberFlowPane != null)
+
     initResultPane(resultFlowPane)
     initStatsPane(statsFlowPane)
+    initNumberFlowPane(numberFlowPane)
     //    modeButtons.selectedToggleProperty.addListener(mkChangeListener(onModeChange))
 
     inputButton.setUserData(InputStage)

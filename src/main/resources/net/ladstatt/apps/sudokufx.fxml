@@ -22,6 +22,7 @@
             <children>
                 <FlowPane fx:id="statsFlowPane"/>
                 <FlowPane fx:id="resultFlowPane"/>
+                <FlowPane fx:id="numberFlowPane"/>
             </children>
         </HBox>
         <AnchorPane id="AnchorPane" fx:id="canvas" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
@@ -37,19 +38,6 @@
                         <Font name="Alpha Echo" size="20.0"/>
                     </font>
                 </Label>
-                <ToolBar fx:id="bestMatchToolBar" layoutY="42.0" style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
-                    <items>
-                        <ImageView fx:id="nrView1"/>
-                        <ImageView fx:id="nrView2"/>
-                        <ImageView fx:id="nrView3"/>
-                        <ImageView fx:id="nrView4"/>
-                        <ImageView fx:id="nrView5"/>
-                        <ImageView fx:id="nrView6"/>
-                        <ImageView fx:id="nrView7"/>
-                        <ImageView fx:id="nrView8"/>
-                        <ImageView fx:id="nrView9"/>
-                    </items>
-                </ToolBar>
                 <ToolBar fx:id="templateToolBar" layoutY="135.0" style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
                     <items/>
                 </ToolBar>
