@@ -45,6 +45,40 @@ object OpenCV extends CanLog {
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   }
 
+  def detectSudokuCorners(preprocessed: Mat, frameCorners : MatOfPoint2f): Future[MatOfPoint2f] = {
+    execFuture {
+      extractCurveWithMaxArea(coreFindContours(preprocessed)) match {
+        case None => {
+          logWarn("Could not detect any curve ... ")
+          new MatOfPoint2f()
+        }
+        case Some((maxArea, c)) => {
+          val expectedMaxArea = Imgproc.contourArea(frameCorners) / 30
+          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
+          if (maxArea > expectedMaxArea) {
+            if (has4Sides(approxCurve)) {
+              val corners = mkSortedCorners(approxCurve)
+              if (isSomewhatSquare(corners.toList)) {
+                corners
+              } else {
+                logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+                new MatOfPoint2f()
+              }
+            } else {
+              logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+              new MatOfPoint2f()
+            }
+          } else {
+            logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
+            new MatOfPoint2f()
+          }
+        }
+      }
+    }
+
+  }
+  
+  
   def isSomewhatSquare(corners: Seq[Point]): Boolean = {
 
     import scala.math.{abs, atan2}
@@ -138,7 +172,7 @@ object OpenCV extends CanLog {
 
   def norm(mat: Mat): Future[Mat] = {
     for {
-      b <- blur(mat)
+      b <- gaussianblur(mat)
       dilated <- dilate(b)
       thresholded <- adaptiveThreshold(dilated, 255, 9)
     } yield thresholded
@@ -326,12 +360,21 @@ object OpenCV extends CanLog {
     }
 
 
-  def blur(input: Mat): Future[Mat] =
+  def gaussianblur(input: Mat): Future[Mat] =
     execFuture {
       val dest = new Mat()
       Imgproc.GaussianBlur(input, dest, new Size(11, 11), 0)
       dest
     }
+
+  def blur(input: Mat): Future[Mat] =
+    execFuture {
+      val dest = new Mat()
+      Imgproc.blur(input, dest, new Size(20, 20), new Point(-1,-1))
+      dest
+    }
+
+
 
 
   def runtimeNativeLibName =

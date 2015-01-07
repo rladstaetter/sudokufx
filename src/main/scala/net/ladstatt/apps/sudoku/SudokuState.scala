@@ -9,9 +9,9 @@ import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
-import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
+import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -24,7 +24,8 @@ case class SSuccess(candidate: SCandidate,
                     detectedCells: Cells,
                     solution: SudokuDigitSolution,
                     solutionMat: Mat,
-                    solutionCells: Cells) extends SudokuResult {
+                    solutionCells: Cells,
+                    sudokuCorners: List[Point]) extends SudokuResult {
 
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
 }
@@ -57,34 +58,68 @@ object SCandidate {
     value == 0 || rowColWellFormed(hitCounts, i, value, cap) //&& sectorWellFormed(hitCounts, i, value)
   }
 
+  def duplicate(frame: Mat): Mat = {
+    val copiedFrame = new Mat
+    frame.copyTo(copiedFrame)
+    copiedFrame
+  }
+
+  def duplicate(origHCounts: HitCounts): HitCounts = {
+    for (cnts <- origHCounts) yield {
+      for (x <- cnts) yield x
+    }
+  }
+
+  def duplicate(origDigitQuality: Array[Double]): Array[Double] = origDigitQuality.clone()
+
+  def duplicate(origDigitData: Array[Option[Mat]]): Array[Option[Mat]] = origDigitData.clone()
+
+  def apply(orig: SCandidate): SCandidate = {
+    SCandidate(
+      nr = orig.nr,
+      frame = duplicate(orig.frame),
+      cap = orig.cap,
+      minHits = orig.minHits,
+      currentState = SudokuState(orig.currentState))
+  }
+
+}
+
+object SudokuState {
+
+  def duplicate(origHCounts: HitCounts): HitCounts = {
+    for (cnts <- origHCounts) yield {
+      for (x <- cnts) yield x
+    }
+  }
+
+  def duplicate(origDigitQuality: Array[Double]): Array[Double] = origDigitQuality.clone()
+
+  def duplicate(origDigitData: Array[Option[Mat]]): Array[Option[Mat]] = origDigitData.clone()
+
+  def apply(orig : SudokuState) : SudokuState = {
+    SudokuState(hCounts = duplicate(orig.hCounts),
+      digitQuality = duplicate(orig.digitQuality),
+      digitData = duplicate(orig.digitData)
+    )
+  }
 }
 
 /**
- *
- * @param nr number of the frame
- * @param frame the frame information itself
- * @param cap how often should a digit be detected before it is considered "stable enough"
- * @param minHits how many digits have to be detected before a solution attempt is executed
  * @param hCounts the individual detection numbers
+ *                for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
+ *                was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
+ *                the "empty" cell)
  * @param digitQuality indicates the best hit for each number
  * @param digitData saves the picture information for the best hit
  */
-case class SCandidate(nr: Int,
-                      frame: Mat,
-                      cap: Int = 8,
-                      minHits: Int = 20,
-                      // for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
-                      // was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
-                      // the "empty" cell)
-                      hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
-                      digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
-                      digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                      blockSizes: Array[Size] = Array.fill(cellCount)(new Size)) extends CanLog {
-
+case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
+                       digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
+                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None)) {
 
   def statsAsString(): String =
     s"""$digitQualityAsString
-       |$hitCountsAsString
+       |${hitCountsAsString(hCounts)}
        |""".stripMargin
 
   def digitQualityAsString: String =
@@ -93,16 +128,33 @@ case class SCandidate(nr: Int,
       |${digitQuality.map(q => q).mkString("\n")}
       |""".stripMargin
 
-  def hitCountsAsString(): String = {
+  def hitCountsAsString(hitCounts: HitCounts): String = {
     s"""Hitcounts:
       |----------
       |
-      |${hCounts.map(_.mkString(",")).mkString("\n")}
+      |${hitCounts.map(_.mkString(",")).mkString("\n")}
       |""".stripMargin
   }
+}
 
-  def persistFrame(workingDirectory: File) : Future[File] = {
-   // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
+
+/**
+ *
+ * @param nr number of the frame
+ * @param frame the frame information itself
+ * @param cap how often should a digit be detected before it is considered "stable enough"
+ * @param minHits how many digits have to be detected before a solution attempt is executed
+ * @param currentState current state of affairs
+ */
+case class SCandidate(nr: Int,
+                      frame: Mat,
+                      cap: Int = 8,
+                      minHits: Int = 20,
+                      currentState: SudokuState) extends CanLog {
+
+
+  def persistFrame(workingDirectory: File): Future[File] = {
+    // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
     Future.successful(null)
   }
 
@@ -117,20 +169,20 @@ case class SCandidate(nr: Int,
 
   val sudokuCorners: MatOfPoint2f =
     Await.result(for {
-      corners <- detectSudokuCorners(imageIoChain.dilated) // if (!detectedCorners.empty)
+      corners <- detectSudokuCorners(imageIoChain.dilated, frameCorners) // if (!detectedCorners.empty)
     } yield corners, Duration(1400, TimeUnit.MILLISECONDS))
 
   lazy val colorWarped = warp(frame, sudokuCorners, frameCorners)
-  lazy val sudokuSize = cellSize(colorWarped.size)
+  lazy val sudokuSize = mkCellSize(colorWarped.size)
 
-  lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuSize)
-  lazy val warpedToFitSize = cellSize(warpedToFit.size)
+  lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuTemplateSize)
+  lazy val warpedToFitSize = mkCellSize(warpedToFit.size)
 
-  lazy val rects = cellRange.map(mkRect(_, sudokuSize))
+  lazy val rects: immutable.IndexedSeq[Rect] = cellRange.map(mkRect(_, sudokuSize))
   lazy val warpedToFitRects = cellRange.map(mkRect(_, warpedToFitSize))
 
   lazy val cellMats: IndexedSeq[Mat] = rects.map(colorWarped.submat(_))
-  lazy val cellNumbers: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_, digitQuality))
+  lazy val futureSCells: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_, currentState.digitQuality))
 
   // search on all positions for potential hits (don't count the "empty"/"zero" fields
   // TODO remove, see cellNumbers
@@ -143,86 +195,57 @@ case class SCandidate(nr: Int,
     }).flatten
   }
 
+
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
-   *
-   * @return
    */
   def calc(): Future[SudokuResult] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
-    if (!foundCorners) {
+    if (foundCorners) {
       for {
-        detectedCells <- Future.fold(cellNumbers)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
-        //dCells <- Future.sequence(cellNumbers)
-        //for {detectedCells <- Future.sequence(detectCells(warpedToFit, warpedToFitRects))
-        s0 <- updateLibrary(detectedCells)
-        _ <- countHits(hCounts, detectedCells.map(_.value))
-        //cms <- Future.successful(cellMats)
-        //_ <- Future.successful(cms.map(persist(_, new File(s"target/cm${UUID.randomUUID}.png"))))
-        //   _ <- persist(colorWarped, new File(s"colorwarped$nr.png"))
-        //   _ <- persist(warpedToFit, new File(s"warpedToFit$nr.png"))
-        _ <- resetIfInvalidCellsDetected(hCounts, detectedCells.map(_.value))
-        someDigitSolution <- computeSolution(hCounts)
-        someSolutionCells <- Future.successful(someDigitSolution.map(s => toSolutionCells(s))) //for (solution <- someDigitSolution) yield toSolutionCells(solution))
-        withSolution <- paintSolution(colorWarped, detectedCells, someSolutionCells)
-        annotatedSolution <- paintCorners(withSolution, detectedCells, someSolutionCells, hCounts)
-        unwarped <- Future.successful(warp(annotatedSolution, frameCorners, sudokuCorners))
-        solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
+        detectedCells <- Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+
+        _ <- updateLibrary(detectedCells)
+        detectedValues = detectedCells.map(_.value)
+        _ <- countHits(currentState.hCounts, detectedValues)
+        _ <- resetIfInvalidCellsDetected(currentState.hCounts, detectedValues)
+
+        someDigitSolution <- computeSolution(currentState.hCounts)
+
+        someSolutionCells = someDigitSolution.map(s => toSolutionCells(s)) //for (solution <- someDigitSolution) yield toSolutionCells(solution))
+        withSolution <- paintSolution(colorWarped, detectedValues, someSolutionCells)
+        annotatedSolution <- paintCorners(withSolution, rects, someSolutionCells, currentState.hCounts)
+
+        unwarped = warp(annotatedSolution, frameCorners, sudokuCorners)
+        //blurry <- blur(frame)
+        //solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
+        solutionMat <- copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
       } yield {
         if (someDigitSolution.isDefined) {
-          val x = s0
-          SSuccess(copy(), detectedCells.toArray, someDigitSolution.get, solutionMat, someSolutionCells.get)
+          SSuccess(SCandidate(this),
+            detectedCells.toArray,
+            someDigitSolution.get,
+            solutionMat,
+            someSolutionCells.get,
+            sudokuCorners.toList.toList)
         } else {
-          SFailure(copy())
+          SFailure(SCandidate(this))
         }
       }
-      //  someResult = Some(FrameSuccess(detectedCells.toArray, someDigitSolution, someSolutionCells))))
     } else {
-      Future.successful(SFailure(copy()))
+      Future.successful(SFailure(SCandidate(this)))
     }
 
   }
 
 
   def foundCorners: Boolean = {
-    sudokuCorners.empty
+    !sudokuCorners.empty
   }
 
-  def detectSudokuCorners(preprocessed: Mat): Future[MatOfPoint2f] = {
-    execFuture {
-      extractCurveWithMaxArea(coreFindContours(preprocessed)) match {
-        case None => {
-          logWarn("Could not detect any curve ... ")
-          new MatOfPoint2f()
-        }
-        case Some((maxArea, c)) => {
-          val expectedMaxArea = Imgproc.contourArea(frameCorners) / 30
-          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
-          if (maxArea > expectedMaxArea) {
-            if (has4Sides(approxCurve)) {
-              val corners = mkSortedCorners(approxCurve)
-              if (isSomewhatSquare(corners.toList)) {
-                corners
-              } else {
-                logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
-                new MatOfPoint2f()
-              }
-            } else {
-              logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-              new MatOfPoint2f()
-            }
-          } else {
-            logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
-            new MatOfPoint2f()
-          }
-        }
-      }
-    }
-
-  }
 
   def computeSolution(hitCounts: HitCounts): Future[Option[SudokuDigitSolution]] =
     Future {
@@ -236,20 +259,32 @@ case class SCandidate(nr: Int,
    * returns the modified canvas with the solution painted upon.
    */
   // potentially modifies canvas
-  private def paintSolution(canvas: Mat, detectedCells: Seq[SCell], someSolution: Option[Cells]): Future[Mat] =
+  private def paintSolution(canvas: Mat,
+                            detectedCells: Seq[Int],
+                            someSolution: Option[Cells]): Future[Mat] =
     Future {
-      for (solution <- someSolution if (isValid(solution))) {
-        time(traverseWithIndex(solution)((cell, i) => if (detectedCells(i).value == 0) copyTo(cell.data, canvas, rects(i))), t => logTrace(s"copied in $t ms"))
+      for (solution <- someSolution if isValid(solution)) {
+        time(traverseWithIndex(solution)((cell, i) => if (detectedCells(i) == 0) copyTo(cell.data, canvas, rects(i))), t => logTrace(s"copied in $t ms"))
       }
       canvas
     }
 
-  // modifies canvas
-  private def paintCorners(canvas: Mat, detectedCells: Seq[SCell], someSolution: Option[Cells], hitCounts: HitCounts): Future[Mat] =
+  /**
+   * paints green borders around the cells
+   * @param canvas
+   * @param rects
+   * @param someSolution
+   * @param hitCounts
+   * @return
+   */
+  private def paintCorners(canvas: Mat,
+                           rects: IndexedSeq[Rect],
+                           someSolution: Option[Cells],
+                           hitCounts: HitCounts): Future[Mat] =
     Future {
-      if (someSolution.isEmpty) {
-        traverseWithIndex(detectedCells)((cell, i) =>
-          paintRect(canvas, rects(i), color(hitCounts, i), 3)
+      for (solution <- someSolution if isValid(solution)) {
+        traverseWithIndex(rects)((cell, i) =>
+          paintRect(canvas, rects(i), color(hitCounts, i), 1)
         )
       }
 
@@ -265,7 +300,6 @@ case class SCandidate(nr: Int,
     s
   }
 
-
   def isValid(solution: Cells): Boolean = {
     solution.foldLeft(0)((acc, s) => acc + s.value) == 405
   }
@@ -273,16 +307,21 @@ case class SCandidate(nr: Int,
   private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
 
   val qualityFilter: PartialFunction[SCell, Boolean] = {
-    case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
+    case c => (c.value != 0) && (c.quality < currentState.digitQuality(c.value)) // lower means "better"
   }
 
+  /**
+   * From a given list of cells, choose the ones which are the best hits
+   * @param detectedCells
+   * @return
+   */
   def updateLibrary(detectedCells: Traversable[SCell]): Future[SCandidate] = execFuture {
-    val hits = detectedCells.filter(qualityFilter)
-    val grouped: Map[Int, Traversable[SCell]] = detectedCells.groupBy(f => f.value)
+    val hits: Traversable[SCell] = detectedCells.filter(qualityFilter)
+    val grouped: Map[Int, Traversable[SCell]] = hits.groupBy(f => f.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
     optimal.values.foreach(c => {
-      digitData(c.value) = Some(c.data)
-      digitQuality(c.value) = c.quality
+      currentState.digitData(c.value) = Some(c.data)
+      currentState.digitQuality(c.value) = c.quality
     })
     this
   }
@@ -309,10 +348,12 @@ case class SCandidate(nr: Int,
   // TODO remove, create new SCandidate object
   def resetIfInvalidCellsDetected(hitCounts: HitCounts, cells: Seq[Int]): Future[Unit] = Future {
     if (!SCandidate.isValid(hitCounts, cells, cap)) {
+
       hitCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
-      digitData.transform(_ => None)
-      digitQuality.transform(_ => Double.MaxValue)
+      currentState.digitData.transform(_ => None)
+      currentState.digitQuality.transform(_ => Double.MaxValue)
       ()
+      ???
     }
   }
 
@@ -348,10 +389,10 @@ case class SCandidate(nr: Int,
 
         val x: Option[SCell] =
           if (value != 0) {
-            val someM = digitData(value)
+            val someM = currentState.digitData(value)
             (if (someM.isEmpty) {
-              digitData(value) = mkFallback(value, digitData)
-              digitData(value)
+              currentState.digitData(value) = mkFallback(value, currentState.digitData)
+              currentState.digitData(value)
             } else someM)
               .map(SCell(value, 0, _))
           } else None

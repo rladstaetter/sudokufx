@@ -4,7 +4,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import java.util.{Timer, TimerTask}
 import javafx.application.Platform
-import javafx.beans.property.{SimpleIntegerProperty, SimpleObjectProperty}
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.{ChangeListener, ObservableValue}
 import javafx.collections.{FXCollections, ListChangeListener, ObservableList}
 import javafx.concurrent.Task
@@ -14,10 +14,9 @@ import javafx.fxml.{FXMLLoader, JavaFXBuilderFactory}
 import javafx.geometry.Orientation
 import javafx.scene.control._
 import javafx.scene.image.Image
-import javafx.util.{Callback, StringConverter}
+import javafx.util.Callback
 
-import net.ladstatt.apps.sudoku.SCandidate
-import net.ladstatt.core.{HasDescription, Utils}
+import net.ladstatt.core.Utils
 import org.opencv.core.{Mat, Point}
 import org.opencv.highgui.{Highgui, VideoCapture}
 
@@ -25,26 +24,14 @@ import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class StringConverter4HasDescription[T <: HasDescription] extends StringConverter[T] {
-  override def toString(t: T): String = t.description
-
-  override def fromString(string: String): T = ???
-}
-
-
-case class FrameGrabberTask(processFrame: (ObservableValue[_ <: SCandidate], SCandidate, SCandidate) => Unit) extends TimerTask
+case class FrameGrabberTask(processFrame: (ObservableValue[_ <: Mat], Mat, Mat) => Unit) extends TimerTask
 with JfxUtils with Utils {
 
-  val mainLoop: ChangeListener[SCandidate] = mkChangeListener(processFrame)
+  val mainLoop: ChangeListener[Mat] = mkChangeListener(processFrame)
   val videoCapture = new VideoCapture(0)
-  val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
-
-  def setFrameNumber(i: Int) = frameNumberProperty.set(i)
-
-  def getFrameNumber() = frameNumberProperty.get()
 
   lazy val sudokuProperty = {
-    val sop = new SimpleObjectProperty[SCandidate]
+    val sop = new SimpleObjectProperty[Mat]
     sop.addListener(mainLoop)
     sop
   }
@@ -56,8 +43,7 @@ with JfxUtils with Utils {
   }
 
   override def run(): Unit = {
-    sudokuProperty.set(new SCandidate(getFrameNumber(), aquireMat, 1, 20))
-    setFrameNumber(getFrameNumber() + 1)
+    sudokuProperty.set(aquireMat)
   }
 
 
@@ -145,8 +131,12 @@ trait OpenCVJfxUtils extends Utils {
 
 
   def convert2PolyLinePoints(points: Iterable[Point]): List[java.lang.Double] = {
-    val ps = points.map(p => List[java.lang.Double](p.x, p.y)).flatten.toList
-    ps ++ List(ps(0), ps(1))
+    if (points.isEmpty)
+      List()
+    else {
+      val ps = points.map(p => List[java.lang.Double](p.x, p.y)).flatten.toList
+      ps ++ List(ps(0), ps(1))
+    }
   }
 
   /*

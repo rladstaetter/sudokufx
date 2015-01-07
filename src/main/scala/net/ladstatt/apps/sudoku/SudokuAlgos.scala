@@ -158,7 +158,7 @@ object SudokuAlgos {
 
   case object SolutionStage extends ProcessingStage
 
-  def cellSize(size: Size): Size = new Size(size.width / ssize, size.height / ssize)
+  def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
 
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   def specialize(cellRawData: Mat): Future[(Mat, Point, Double, Double)] =
@@ -200,7 +200,7 @@ object SudokuAlgos {
   def preprocess2(input: Mat): Future[Mat] = {
     for {
       equalized <- equalizeHist(input)
-      blurred <- blur(equalized)
+      blurred <- gaussianblur(equalized)
       thresholded <- threshold(blurred)
       inverted <- bitwiseNot(thresholded)
     } yield inverted
@@ -211,7 +211,7 @@ object SudokuAlgos {
     for {
       working <- copySrcToDestWithMask(input, new Mat, input)
       grayed <- toGray(working)
-      blurred <- blur(grayed)
+      blurred <- gaussianblur(grayed)
       thresholdApplied <- adaptiveThreshold(blurred)
       inverted <- bitwiseNot(thresholdApplied)
       dilated <- dilate(inverted)

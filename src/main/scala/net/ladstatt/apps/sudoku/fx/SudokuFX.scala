@@ -14,9 +14,8 @@ import java.text.SimpleDateFormat
 import java.util.{Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
-import javafx.beans.property.{SimpleBooleanProperty, SimpleObjectProperty}
+import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
 import javafx.beans.value.ObservableValue
-import javafx.collections.ObservableList
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image.{Image, ImageView}
@@ -25,12 +24,13 @@ import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polyline, Rectangle}
 
 import com.sun.javafx.perf.PerformanceTracker
+import net.ladstatt.apps.sudoku.Parameters._
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.jfx.{FrameGrabberTask, FrameTimer, JfxUtils, OpenCVJfxUtils}
 import net.ladstatt.opencv.OpenCV._
 import org.controlsfx.dialog.Dialogs
-import org.opencv.core.{Mat, MatOfPoint2f}
+import org.opencv.core.{Mat, Point}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -71,6 +71,19 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
+  val currentHitCountsProperty = new SimpleObjectProperty[HitCounts](Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)))
+
+  def getCurrentHitCounts = currentHitCountsProperty.get()
+
+  def setCurrentHitCounts(h: HitCounts) = currentHitCountsProperty.set(h)
+
+
+  val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
+
+  def setFrameNumber(i: Int) = frameNumberProperty.set(i)
+
+  def getFrameNumber() = frameNumberProperty.get()
+
 
   val history = new File("runs/").listFiles()
 
@@ -91,16 +104,47 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
   loadNativeLib()
 
+  def mergeHitCounts(currentHitCounts: HitCounts, hitCounts: HitCounts): HitCounts = {
+    for {(as, bs) <- (currentHitCounts zip hitCounts)} yield {
+      for {(a, b) <- (as zip bs)} yield {
+        a + b
+      }
+    }
+  }
+
+  def duplicate(hitCounts: HitCounts): HitCounts = {
+    for {as <- hitCounts} yield {
+      for {b <- as} yield b
+    }
+  }
+
+  def mergeWithCurrent(result: SudokuResult): Unit = {
+    setCurrentHitCounts(mergeHitCounts(getCurrentHitCounts, result.candidate.currentState.hCounts))
+  }
+
   /**
    * main event loop in capturing mode
    */
-  def processFrame(observableValue: ObservableValue[_ <: SCandidate],
-                   oldState: SCandidate,
-                   sudokuCandidate: SCandidate): Unit = {
+  def processFrame(observableValue: ObservableValue[_ <: Mat],
+                   oldFrame: Mat,
+                   currentFrame: Mat): Unit = {
+    val currentFrameNumber = getFrameNumber()
+    setFrameNumber(currentFrameNumber + 1)
+
+    val candidate =
+      SCandidate(nr = currentFrameNumber,
+        cap = 1,
+        minHits = 20,
+        frame = currentFrame,
+        currentState = SudokuState())
+
     for {
-      _ <- sudokuCandidate.persistFrame(getWorkingDirectory)
-      result <- sudokuCandidate.calc
-    } display(result)
+      _ <- candidate.persistFrame(getWorkingDirectory)
+      result <- candidate.calc
+    } {
+      //mergeWithCurrent(result)
+      display(result)
+    }
   }
 
 
@@ -182,11 +226,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     statusLabel.setText(message)
   }
 
-  def updateBestMatch(sudokuHistory: SCandidate, nrViews: Seq[ImageView]): Unit = {
+  def updateBestMatch(scandidate: SCandidate, nrViews: Seq[ImageView]): Unit = {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        sudokuHistory.digitData(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
+        scandidate.currentState.digitData(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
       })
   }
 
@@ -283,10 +327,10 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     }
 
     sudokuResult match {
-      case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells) => {
+      case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells, _) => {
         updateVideo(stage, candidate, solutionMat)
-        displayResult(solution, resultFlowPane.getChildren)
-        displayHitCounts(candidate.hCounts, statsFlowPane.getChildren.map(_.asInstanceOf[FlowPane]))
+        displayResult(solution, as[Label](resultFlowPane.getChildren))
+        displayHitCounts(candidate.currentState.hCounts, as[FlowPane](statsFlowPane.getChildren))
       }
       case SFailure(candidate) => {
         updateVideo(stage, candidate, candidate.frame)
@@ -323,8 +367,8 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
    * @param corners
    * @return
    */
-  def mkCellCorners(corners: MatOfPoint2f): IndexedSeq[(Double, Double)] = {
-    val List(ul, ur, lr, ll) = corners.toList.toList
+  def mkCellCorners(corners: List[Point]): IndexedSeq[(Double, Double)] = {
+    val List(ul, ur, lr, ll) = corners
     val left = splitRange(ul.x, ul.y, ll.x, ll.y)
     val right = splitRange(ur.x, ur.y, lr.x, lr.y)
     if (left.size == 10) {
@@ -360,7 +404,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     for (i <- 0 to 88 if (!exclusions.contains(i))) yield extractBound(i)
   }
 
-  def updateCellBounds(border: MatOfPoint2f, cellBounds: Array[Polyline]): Unit = {
+  def updateCellBounds(border: List[Point], cellBounds: Array[Polyline]): Unit = {
     val cellCorners = mkCellCorners(border)
     if (cellCorners.size == 100) {
       val boundCoordinates = mkCellBounds(cellCorners)
@@ -378,7 +422,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     }
   }
 
-  def updateCellCorners(corners: MatOfPoint2f, cellCorners: Array[Circle]): Unit = {
+  def updateCellCorners(corners: List[Point], cellCorners: Array[Circle]): Unit = {
     mkCellCorners(corners).zipWithIndex.foreach {
       case ((x, y), index) => {
         cellCorners(index).setCenterX(x)
@@ -388,9 +432,9 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     }
   }
 
-  def updateBorder(corners: MatOfPoint2f): Unit = {
+  def updateBorder(corners: List[Point]): Unit = {
     sudokuBorder.getPoints.clear()
-    sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners.toList))
+    sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners))
     borderFadeTransition.play
   }
 
@@ -399,16 +443,18 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       case success: SSuccess => {
         updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
         setAnalysisMouseTransparent(false)
-        updateBestMatch(success.candidate, numberFlowPane.getChildren.map(_.asInstanceOf[ImageView]))
+        updateBestMatch(success.candidate, as[ImageView](numberFlowPane.getChildren))
         updateStatus(mkFps(success.candidate.start), Color.GREEN)
-        updateBorder(success.candidate.sudokuCorners)
-        updateCellBounds(success.candidate.sudokuCorners, analysisCellBounds)
-        updateCellCorners(success.candidate.sudokuCorners, analysisCellCorners)
+        if (!success.candidate.sudokuCorners.toList.isEmpty) {
+          updateBorder(success.sudokuCorners)
+          updateCellBounds(success.sudokuCorners, analysisCellBounds)
+          updateCellCorners(success.sudokuCorners, analysisCellCorners)
+        }
       }
       case SFailure(candidate) => {
         updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
         setAnalysisMouseTransparent(false)
-        updateBestMatch(candidate, numberFlowPane.getChildren.map(_.asInstanceOf[ImageView]))
+        updateBestMatch(candidate, as[ImageView](numberFlowPane.getChildren))
         updateStatus(mkFps(candidate.start), Color.GREEN)
       }
     }
@@ -453,9 +499,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   }
 
   def initStatsPane(flowPane: FlowPane): Unit = {
-    flowPane.setStyle("-fx-border-color:red;-fx-border-width:3px;-fx-border-style:solid;")
-    flowPane.setMaxWidth(10 * (40.0 + 1) - 6)
-    flowPane.setPrefWrapLength(10 * (40.0 + 1))
+    val cellWidth = 40.0
+    flowPane.setStyle("-fx-border-color:red;-fx-border-width:1px;-fx-border-style:solid;")
+    flowPane.setMaxWidth(9 * (cellWidth + 2) - 16)
+    flowPane.setMinWidth(9 * (cellWidth + 2) - 16)
+    flowPane.setPrefWrapLength(9 * (cellWidth + 2))
 
     val cells = 1 to 81
     val numbers = 0 to 9
@@ -463,32 +511,31 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       for (cellCounts <- cells) yield {
         val fp = new FlowPane()
         fp.setStyle("-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
-        fp.setPrefWrapLength(20.0)
-        fp.setMinWidth(40.0)
-        fp.setMinHeight(40.0)
-        fp.setMaxWidth(40.0)
-        fp.setMaxHeight(40.0)
-        fp.setClip(new Rectangle(40.0, 40.0))
-        //fp.setMaxHeight(20)
+        fp.setMinWidth(cellWidth)
+        fp.setMinHeight(cellWidth)
+        fp.setMaxWidth(cellWidth)
+        fp.setMaxHeight(cellWidth)
+        fp.setClip(new Rectangle(cellWidth, cellWidth))
+        fp.setAlignment(Pos.CENTER)
         val icells = numbers.map(n => {
           val l = new Label(n.toString)
           l.setStyle("-fx-font-size:5px")
           l
         })
-        fp.getChildren.addAll(icells.toSeq)
+        fp.getChildren.addAll(icells)
         fp
       }
-    flowPane.getChildren.addAll(cellz.toSeq)
+    flowPane.getChildren.addAll(cellz)
     ()
   }
 
-  def displayResult(solution: SudokuDigitSolution, list: ObservableList[Node]): Unit = {
-    for ((n, s) <- list zip solution) {
-      n match {
-        case l: Label => l.setText(s.toString)
-      }
+  def displayResult(solution: SudokuDigitSolution, labels: Seq[Label]): Unit = {
+    for ((label, s) <- labels zip solution) {
+      label.setText(s.toString)
     }
   }
+
+  def as[A](xs: Seq[_]): Seq[A] = xs.map(_.asInstanceOf[A])
 
   /**
    * updates UI to show for each cell (there are 81 of them) which number was detected how often
@@ -498,24 +545,39 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
    * @param displayItems
    */
   def displayHitCounts(hitCounts: HitCounts, displayItems: Seq[FlowPane]): Unit = {
-    for {(cellDisplay, cellContent) <- displayItems zip hitCounts
-         (nDisplay, distribution) <- cellDisplay.getChildren.map(_.asInstanceOf[Label]) zip cellContent} {
-      if (distribution != 0) {
-        nDisplay.setStyle(s"-fx-font-size:${distribution * 10}px")
+
+    // change colors of flowpanes such that if there are more than one hits it
+    // the pane should change to a orange color
+    def colory(count: Int): String = {
+      count match {
+        case 0 => "-fx-background-color:yellow;"
+        case 1 => "-fx-background-color:green;"
+        case 2 => "-fx-background-color:orange;"
+        case _ => "-fx-background-color:red;"
       }
     }
+
+    for {(cellDisplay, cellContent) <- displayItems zip hitCounts
+         (nDisplay, distribution) <- as[Label](cellDisplay.getChildren) zip cellContent if (distribution != 0)} {
+      nDisplay.setStyle(s"-fx-font-size:${distribution}px;")
+    }
+
+    for ((cellDisplay, cellContent) <- displayItems zip hitCounts) {
+      val cssColor = colory(cellContent.foldLeft(0)((acc, c) => acc + (if (c > 0) 1 else 0)))
+      cellDisplay.setStyle(s"$cssColor;-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
+    }
+
+
   }
 
 
   def initNumberFlowPane(numberFlowPane: FlowPane) = {
-    numberFlowPane.setMinWidth(426.0)
-    numberFlowPane.setPrefWrapLength(426.0)
+    numberFlowPane.setMinWidth(3 * 142.0)
+    numberFlowPane.setPrefWrapLength(3 * 142.0)
     (1 to 9).foreach(i => numberFlowPane.getChildren.add(new ImageView))
   }
 
   override def initialize(location: URL, resources: ResourceBundle): Unit = {
-
-    import net.ladstatt.apps.sudoku.SudokuAlgos._
 
     initializeSharedState(location, resources)
     initializeCapturing(location, resources)

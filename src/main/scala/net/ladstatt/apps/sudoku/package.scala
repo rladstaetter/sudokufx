@@ -1,5 +1,6 @@
 package net.ladstatt.apps
 
+import net.ladstatt.apps.sudoku.Parameters._
 import org.opencv.core.Mat
 
 import scala.concurrent.Future
@@ -28,4 +29,5 @@ package object sudoku {
 
   // represents the computed solution
   type SudokuDigitSolution = Array[Char]
+
 }

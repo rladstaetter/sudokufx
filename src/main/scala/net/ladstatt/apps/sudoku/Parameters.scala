@@ -26,9 +26,9 @@ object Parameters {
 
   val (templateWidth, templateHeight) = (25.0, 50.0)
   val templateSize = new Size(templateWidth, templateHeight)
-  lazy val sudokuSize = new Size(templateWidth * ssize, templateHeight * ssize)
+  lazy val sudokuTemplateSize = new Size(templateWidth * ssize, templateHeight * ssize)
 
-  lazy val templateCorners = OpenCV.mkCorners(sudokuSize)
+  lazy val templateCorners = OpenCV.mkCorners(sudokuTemplateSize)
 
 
   lazy val templateLibrary: Map[Int, Mat] = {
