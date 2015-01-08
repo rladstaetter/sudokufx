@@ -71,19 +71,12 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
-  @deprecated("use currentStateProperty","now")
   val currentHitCountsProperty = new SimpleObjectProperty[HitCounts](Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)))
-  @deprecated("use currentStateProperty","now")
+
   def getCurrentHitCounts = currentHitCountsProperty.get()
-  @deprecated("use currentStateProperty","now")
+
   def setCurrentHitCounts(h: HitCounts) = currentHitCountsProperty.set(h)
 
-
-  val currentStateProperty = new SimpleObjectProperty[SudokuState](SudokuState())
-
-  def setCurrentState(currentState: SudokuState) = currentStateProperty.set(currentState)
-
-  def getCurrentState() = currentStateProperty.get()
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
@@ -143,7 +136,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
         cap = 1,
         minHits = 20,
         frame = currentFrame,
-        currentState = getCurrentState)
+        currentState = SudokuState())
 
     for {
       _ <- candidate.persistFrame(getWorkingDirectory)
