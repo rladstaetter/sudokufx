@@ -139,7 +139,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
         currentState = SudokuState())
 
     for {
-      _ <- candidate.persistFrame(getWorkingDirectory)
+      _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
       result <- candidate.calc
     } {
       //mergeWithCurrent(result)

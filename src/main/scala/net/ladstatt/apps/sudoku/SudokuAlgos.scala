@@ -1,5 +1,7 @@
 package net.ladstatt.apps.sudoku
 
+import java.io.File
+
 import net.ladstatt.core.{HasDescription, Utils}
 import org.opencv.core._
 
@@ -221,4 +223,9 @@ object SudokuAlgos {
     } yield ImageIOChain(working, grayed, blurred, thresholdApplied, inverted, dilated, eroded)
   }
 
+
+  def persistFrame(frame : Mat, nr : Int, workingDirectory: File): Future[File] = {
+    // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
+    Future.successful(null)
+  }
 }

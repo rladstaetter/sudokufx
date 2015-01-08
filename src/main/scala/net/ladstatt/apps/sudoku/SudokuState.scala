@@ -54,7 +54,7 @@ object SCandidate {
     // !otherCells.exists(i => hitCounts(i).contains(value))
   }
 
-  private def posWellFormed(hitCounts: HitCounts, i: SIndex, value: Int, cap: Int): Boolean = {
+   def posWellFormed(hitCounts: HitCounts, i: SIndex, value: Int, cap: Int): Boolean = {
     value == 0 || rowColWellFormed(hitCounts, i, value, cap) //&& sectorWellFormed(hitCounts, i, value)
   }
 
@@ -135,6 +135,45 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
       |${hitCounts.map(_.mkString(",")).mkString("\n")}
       |""".stripMargin
   }
+
+  // TODO remove
+  def countHits(hitCounts: HitCounts, cells: Seq[Int], cap : Int): Future[Unit] = Future {
+
+    def updateHitCounts(i: SIndex, value: Int): Unit = {
+      val hitCountAtPos = hitCounts(i)
+      if (hitCountAtPos.max < cap) {
+        hitCountAtPos(value) = (1 + hitCountAtPos(value))
+      }
+    }
+
+    traverseWithIndex(cells)((c, i) => {
+      if (SCandidate.posWellFormed(hitCounts, i, c, cap)) {
+        updateHitCounts(i, c)
+      }
+    })
+  }
+
+  val qualityFilter: PartialFunction[SCell, Boolean] = {
+    case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
+  }
+
+
+  /**
+   * From a given list of cells, choose the ones which are the best hits
+   * @param detectedCells
+   * @return
+   */
+  def updateLibrary(detectedCells: Traversable[SCell]): Future[SudokuState] = execFuture {
+    val hits: Traversable[SCell] = detectedCells.filter(qualityFilter)
+    val grouped: Map[Int, Traversable[SCell]] = hits.groupBy(f => f.value)
+    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
+    optimal.values.foreach(c => {
+      digitData(c.value) = Some(c.data)
+      digitQuality(c.value) = c.quality
+    })
+    this
+  }
+
 }
 
 
@@ -152,11 +191,6 @@ case class SCandidate(nr: Int,
                       minHits: Int = 20,
                       currentState: SudokuState) extends CanLog {
 
-
-  def persistFrame(workingDirectory: File): Future[File] = {
-    // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
-    Future.successful(null)
-  }
 
   val start = System.nanoTime()
 
@@ -208,9 +242,9 @@ case class SCandidate(nr: Int,
       for {
         detectedCells <- Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
-        _ <- updateLibrary(detectedCells)
+        _ <- currentState.updateLibrary(detectedCells)
         detectedValues = detectedCells.map(_.value)
-        _ <- countHits(currentState.hCounts, detectedValues)
+        _ <- currentState.countHits(currentState.hCounts, detectedValues,cap)
         _ <- resetIfInvalidCellsDetected(currentState.hCounts, detectedValues)
 
         someDigitSolution <- computeSolution(currentState.hCounts)
@@ -306,43 +340,10 @@ case class SCandidate(nr: Int,
 
   private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
 
-  val qualityFilter: PartialFunction[SCell, Boolean] = {
-    case c => (c.value != 0) && (c.quality < currentState.digitQuality(c.value)) // lower means "better"
-  }
-
-  /**
-   * From a given list of cells, choose the ones which are the best hits
-   * @param detectedCells
-   * @return
-   */
-  def updateLibrary(detectedCells: Traversable[SCell]): Future[SCandidate] = execFuture {
-    val hits: Traversable[SCell] = detectedCells.filter(qualityFilter)
-    val grouped: Map[Int, Traversable[SCell]] = hits.groupBy(f => f.value)
-    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
-    optimal.values.foreach(c => {
-      currentState.digitData(c.value) = Some(c.data)
-      currentState.digitQuality(c.value) = c.quality
-    })
-    this
-  }
 
 
-  // TODO remove
-  def countHits(hitCounts: HitCounts, cells: Seq[Int]): Future[Unit] = Future {
 
-    def updateHitCounts(i: SIndex, value: Int): Unit = {
-      val hitCountAtPos = hitCounts(i)
-      if (hitCountAtPos.max < cap) {
-        hitCountAtPos(value) = (1 + hitCountAtPos(value))
-      }
-    }
 
-    traverseWithIndex(cells)((c, i) => {
-      if (SCandidate.posWellFormed(hitCounts, i, c, cap)) {
-        updateHitCounts(i, c)
-      }
-    })
-  }
 
 
   // TODO remove, create new SCandidate object
