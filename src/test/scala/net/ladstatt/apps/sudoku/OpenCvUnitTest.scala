@@ -28,8 +28,7 @@ trait OpenCvUnitTest {
   lazy val sudoku69 = SCandidate(
     nr = 0,
     frame = frame69,
-    minHits = 17,
-    currentState = SudokuState(cap = 1))
+    currentState = SudokuState(cap = 1, minHits = 17))
 
   lazy val sudoku69Result = time(Await.result(sudoku69.calc(), Duration.Inf), t => println(s"emptyFrame: $t ms"))
 
@@ -37,8 +36,7 @@ trait OpenCvUnitTest {
   lazy val emptySudoku = SCandidate(
     nr = 0,
     frame = emptyFrame,
-    minHits = 1,
-    currentState = SudokuState(cap = 1))
+    currentState = SudokuState(cap = 1, minHits = 1))
   lazy val emptySudokuResult = time(Await.result(emptySudoku.calc(), Duration.Inf), t => println(s"emptyFrame: $t ms"))
 
 

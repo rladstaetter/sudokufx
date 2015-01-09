@@ -31,7 +31,7 @@ object SudokuAlgos {
 
     val description = "default"
 
-    def printTime(t: Long) = println(s"solved in $t ms.")
+    def printTime(t: Long) = println(s"solved in $t micros.")
 
     /**
      * give this function a net.ladstatt.apps.sudoku in the form

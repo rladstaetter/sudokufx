@@ -133,7 +133,6 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     val candidate =
       SCandidate(nr = currentFrameNumber,
-        minHits = 20,
         frame = currentFrame,
         currentState = SudokuState())
 
@@ -326,7 +325,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     }
 
     sudokuResult match {
-      case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells, _) => {
+      case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells) => {
         updateVideo(stage, candidate, solutionMat)
         displayResult(solution, as[Label](resultFlowPane.getChildren))
         displayHitCounts(candidate.currentState.hCounts, as[FlowPane](statsFlowPane.getChildren))

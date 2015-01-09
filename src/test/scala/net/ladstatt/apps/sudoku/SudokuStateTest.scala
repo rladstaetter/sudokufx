@@ -20,8 +20,7 @@ final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks 
          minHits <- Gen.choose(20, 30)} yield SCandidate(
       nr = nr,
       frame = f,
-      minHits = minHits,
-      currentState = SudokuState(cap = cap))
+      currentState = SudokuState(cap = cap, minHits = minHits))
 
   def printState(s: SCandidate): Unit = println(s.sudokuCorners.toList)
 

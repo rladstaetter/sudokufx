@@ -23,7 +23,6 @@ case class SSuccess(candidate: SCandidate,
                     detectedCells: Cells,
                     solution: SudokuDigitSolution,
                     solutionMat: Mat,
-                    solutionCells: Cells,
                     sudokuCorners: List[Point]) extends SudokuResult {
 
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
@@ -77,7 +76,6 @@ object SCandidate {
     SCandidate(
       nr = orig.nr,
       frame = duplicate(orig.frame),
-      minHits = orig.minHits,
       currentState = SudokuState(orig.currentState))
   }
 
@@ -99,7 +97,8 @@ object SudokuState {
     SudokuState(hCounts = duplicate(orig.hCounts),
       digitQuality = duplicate(orig.digitQuality),
       digitData = duplicate(orig.digitData),
-      cap = orig.cap
+      cap = orig.cap,
+      minHits = orig.minHits
     )
   }
 }
@@ -112,11 +111,13 @@ object SudokuState {
  * @param digitQuality indicates the best hit for each number
  * @param digitData saves the picture information for the best hit
  * @param cap how often should a digit be detected before it is considered "stable enough"
+ * @param minHits how many digits have to be detected before a solution attempt is executed
  */
 case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                       cap: Int = 1) {
+                       cap: Int = 1,
+                       minHits: Int = 20) {
 
   def statsAsString(): String =
     s"""$digitQualityAsString
@@ -138,7 +139,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
   }
 
   // TODO remove
-  def countHits(cells: Seq[Int], cap: Int): Unit = {
+  def countHits(cells: Seq[Int]): Unit = {
 
     def updateHitCounts(i: SIndex, value: Int): Unit = {
       val hitCountAtPos = hCounts(i)
@@ -167,25 +168,30 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
   def updateLibrary(detectedCells: Seq[SCell]): Future[Unit] = execFuture {
     merge(detectedCells)
     val detectedValues = detectedCells.map(_.value)
-    countHits(detectedValues, cap)
-    resetIfInvalidCellsDetected(detectedValues, cap)
+    countHits(detectedValues)
+    resetIfInvalidCellsDetected(detectedValues)
     ()
   }
 
-  def merge(detectedCells: Traversable[SCell]): Unit = {
-    val hits: Traversable[SCell] = detectedCells.filter(qualityFilter)
-    val grouped: Map[Int, Traversable[SCell]] = hits.groupBy(f => f.value)
+  def copyMat(orig: Mat): Mat = {
+    val dest = new Mat()
+    orig.copyTo(dest)
+    dest
+  }
+
+  def merge(detectedCells: Seq[SCell]): Unit = time({
+    val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
+    val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
-    optimal.values.foreach(c => {
-      digitData(c.value) = Some(c.data)
+    // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
+    for (c <- optimal.values if (digitQuality(c.value) > c.quality)) {
+      digitData(c.value) = Some(copyMat(c.data))
       digitQuality(c.value) = c.quality
-    })
-    ()
-  }
+    }
+  }, t => println(s"Merging took: ${t} micros"))
 
 
-  def resetIfInvalidCellsDetected(cells: Seq[Int],
-                                  cap: Int): Unit = {
+  def resetIfInvalidCellsDetected(cells: Seq[Int]): Unit = {
     if (!SCandidate.isValid(hCounts, cells, cap)) {
 
       hCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
@@ -207,11 +213,14 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     }).flatten
   }
 
-  def computeSolution( minHits: Int): Future[Option[SudokuDigitSolution]] =
+  def computeSolution(): Future[(Option[SudokuDigitSolution], Option[Cells])] =
     Future {
-      if (detectedNumbers(hCounts, cap).size > minHits)
-        solve(mkSudokuMatrix(hCounts, cap))
-      else Some(mkIntermediateSudokuMatrix(hCounts))
+      val someDigitSolution =
+        (if (detectedNumbers(hCounts, cap).size > minHits)
+          solve(mkSudokuMatrix(hCounts, cap))
+        else Some(mkIntermediateSudokuMatrix(hCounts)))
+      val someCells = someDigitSolution.map(s => toSolutionCells(s))
+      (someDigitSolution, someCells)
     }
 
   private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
@@ -301,7 +310,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
                    rects: IndexedSeq[Rect],
                    someSolution: Option[Cells],
                    hitCounts: HitCounts
-                   ): Future[Mat] = {
+                    ): Future[Mat] = {
 
 
     // TODO update colors
@@ -336,12 +345,10 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
  * @param nr number of the frame
  * @param frame the frame information itself
 
- * @param minHits how many digits have to be detected before a solution attempt is executed
  * @param currentState current state of affairs
  */
 case class SCandidate(nr: Int,
                       frame: Mat,
-                      minHits: Int = 20,
                       currentState: SudokuState) extends CanLog {
 
 
@@ -386,9 +393,8 @@ case class SCandidate(nr: Int,
 
         _ <- currentState.updateLibrary(detectedCells)
 
-        someDigitSolution <- currentState.computeSolution(minHits)
+        (someDigitSolution, someSolutionCells) <- currentState.computeSolution()
 
-        someSolutionCells = someDigitSolution.map(s => currentState.toSolutionCells(s)) //for (solution <- someDigitSolution) yield toSolutionCells(solution))
         withSolution <- paintSolution(colorWarped, detectedCells.map(_.value), someSolutionCells)
         annotatedSolution <- currentState.paintCorners(withSolution, rects, someSolutionCells, currentState.hCounts)
 
@@ -397,12 +403,11 @@ case class SCandidate(nr: Int,
         //solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
         solutionMat <- copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
       } yield {
-        if (someDigitSolution.isDefined) {
+        if (someSolutionCells.isDefined) {
           SSuccess(SCandidate(this),
             detectedCells.toArray,
             someDigitSolution.get,
             solutionMat,
-            someSolutionCells.get,
             sudokuCorners.toList.toList)
         } else {
           SFailure(SCandidate(this))
