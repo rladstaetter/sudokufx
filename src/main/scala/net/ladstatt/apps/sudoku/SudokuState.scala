@@ -77,7 +77,6 @@ object SCandidate {
     SCandidate(
       nr = orig.nr,
       frame = duplicate(orig.frame),
-      cap = orig.cap,
       minHits = orig.minHits,
       currentState = SudokuState(orig.currentState))
   }
@@ -99,7 +98,8 @@ object SudokuState {
   def apply(orig: SudokuState): SudokuState = {
     SudokuState(hCounts = duplicate(orig.hCounts),
       digitQuality = duplicate(orig.digitQuality),
-      digitData = duplicate(orig.digitData)
+      digitData = duplicate(orig.digitData),
+      cap = orig.cap
     )
   }
 }
@@ -111,10 +111,12 @@ object SudokuState {
  *                the "empty" cell)
  * @param digitQuality indicates the best hit for each number
  * @param digitData saves the picture information for the best hit
+ * @param cap how often should a digit be detected before it is considered "stable enough"
  */
 case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
-                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None)) {
+                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
+                       cap: Int = 1) {
 
   def statsAsString(): String =
     s"""$digitQualityAsString
@@ -162,7 +164,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * @param detectedCells
    * @return
    */
-  def updateLibrary(detectedCells: Seq[SCell], cap: Int): Future[Unit] = execFuture {
+  def updateLibrary(detectedCells: Seq[SCell]): Future[Unit] = execFuture {
     merge(detectedCells)
     val detectedValues = detectedCells.map(_.value)
     countHits(detectedValues, cap)
@@ -205,7 +207,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     }).flatten
   }
 
-  def computeSolution( cap: Int, minHits: Int): Future[Option[SudokuDigitSolution]] =
+  def computeSolution( minHits: Int): Future[Option[SudokuDigitSolution]] =
     Future {
       if (detectedNumbers(hCounts, cap).size > minHits)
         solve(mkSudokuMatrix(hCounts, cap))
@@ -229,6 +231,103 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     h.toArray
   }
 
+
+  /**
+   * Performance:
+   *
+   * Benchmark                                          Mode   Samples         Mean   Mean error    Units
+   * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
+   *
+   * @return
+   */
+  def toSolutionCells(digitSolution: SudokuDigitSolution): Cells = {
+    val allCells: Cells =
+      (for (pos <- cellRange) yield {
+        val value = digitSolution(pos).asDigit
+
+        val x: Option[SCell] =
+          if (value != 0) {
+            val someM = digitData(value)
+            (if (someM.isEmpty) {
+              digitData(value) = mkFallback(value, digitData)
+              digitData(value)
+            } else someM)
+              .map(SCell(value, 0, _))
+          } else None
+        x
+      }).flatten.toArray
+
+    allCells
+  }
+
+
+  /**
+   * provides a fallback if there is no digit detected for this number.
+   *
+   * the size and type of the mat is calculated by looking at the other elements of the digit
+   * library. if none found there, just returns null
+   *
+   * @param number
+   * @return
+   */
+  private def mkFallback(number: Int, digitData: Array[Option[Mat]]): Option[Mat] = {
+    /**
+     * returns size and type of Mat's contained int he digitLibrary
+     * @return
+     */
+    def determineMatParams(digitData: Array[Option[Mat]]): Option[(Size, Int)] = {
+      digitData.flatten.headOption.map {
+        case m => (m.size, m.`type`)
+      }
+    }
+
+    for ((size, matType) <- determineMatParams(digitData)) yield {
+      val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
+      Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
+      mat
+    }
+  }
+
+
+  /**
+   * paints green borders around the cells
+   * @param canvas
+   * @param rects
+   * @param someSolution
+   * @param hitCounts
+   * @return
+   */
+  def paintCorners(canvas: Mat,
+                   rects: IndexedSeq[Rect],
+                   someSolution: Option[Cells],
+                   hitCounts: HitCounts
+                   ): Future[Mat] = {
+
+
+    // TODO update colors
+    def color(hitCounts: HitCounts, i: Int, cap: Int): Scalar = {
+      val vals = hitCounts(i)
+      val n = vals.max.toDouble
+      val s = new Scalar(0, n * 256 / cap, 256 - n * 256 / cap)
+      s
+    }
+
+    def isValid(solution: Cells): Boolean = {
+      solution.foldLeft(0)((acc, s) => acc + s.value) == 405
+    }
+
+
+    Future {
+      for (solution <- someSolution if isValid(solution)) {
+        traverseWithIndex(rects)((cell, i) =>
+          paintRect(canvas, rects(i), color(hitCounts, i, cap), 1)
+        )
+      }
+
+      canvas
+    }
+  }
+
 }
 
 
@@ -236,13 +335,12 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
  *
  * @param nr number of the frame
  * @param frame the frame information itself
- * @param cap how often should a digit be detected before it is considered "stable enough"
+
  * @param minHits how many digits have to be detected before a solution attempt is executed
  * @param currentState current state of affairs
  */
 case class SCandidate(nr: Int,
                       frame: Mat,
-                      cap: Int = 8,
                       minHits: Int = 20,
                       currentState: SudokuState) extends CanLog {
 
@@ -286,13 +384,13 @@ case class SCandidate(nr: Int,
       for {
         detectedCells <- Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
-        _ <- currentState.updateLibrary(detectedCells, cap)
+        _ <- currentState.updateLibrary(detectedCells)
 
-        someDigitSolution <- currentState.computeSolution(cap, minHits)
+        someDigitSolution <- currentState.computeSolution(minHits)
 
-        someSolutionCells = someDigitSolution.map(s => toSolutionCells(s)) //for (solution <- someDigitSolution) yield toSolutionCells(solution))
+        someSolutionCells = someDigitSolution.map(s => currentState.toSolutionCells(s)) //for (solution <- someDigitSolution) yield toSolutionCells(solution))
         withSolution <- paintSolution(colorWarped, detectedCells.map(_.value), someSolutionCells)
-        annotatedSolution <- paintCorners(withSolution, rects, someSolutionCells, currentState.hCounts, cap)
+        annotatedSolution <- currentState.paintCorners(withSolution, rects, someSolutionCells, currentState.hCounts)
 
         unwarped = warp(annotatedSolution, frameCorners, sudokuCorners)
         //blurry <- blur(frame)
@@ -338,99 +436,10 @@ case class SCandidate(nr: Int,
       canvas
     }
 
-  /**
-   * paints green borders around the cells
-   * @param canvas
-   * @param rects
-   * @param someSolution
-   * @param hitCounts
-   * @return
-   */
-  private def paintCorners(canvas: Mat,
-                           rects: IndexedSeq[Rect],
-                           someSolution: Option[Cells],
-                           hitCounts: HitCounts,
-                           cap: Int): Future[Mat] =
-    Future {
-      for (solution <- someSolution if isValid(solution)) {
-        traverseWithIndex(rects)((cell, i) =>
-          paintRect(canvas, rects(i), color(hitCounts, i, cap), 1)
-        )
-      }
-
-      canvas
-    }
-
-
-  // TODO update colors
-  def color(hitCounts: HitCounts, i: Int, cap: Int): Scalar = {
-    val vals = hitCounts(i)
-    val n = vals.max.toDouble
-    val s = new Scalar(0, n * 256 / cap, 256 - n * 256 / cap)
-    s
-  }
 
   def isValid(solution: Cells): Boolean = {
     solution.foldLeft(0)((acc, s) => acc + s.value) == 405
   }
-
-
-  /**
-   * Performance:
-   *
-   * Benchmark                                          Mode   Samples         Mean   Mean error    Units
-   * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
-   *
-   * @return
-   */
-  private def toSolutionCells(digitSolution: SudokuDigitSolution): Cells = {
-    val allCells: Cells =
-      (for (pos <- cellRange) yield {
-        val value = digitSolution(pos).asDigit
-
-        val x: Option[SCell] =
-          if (value != 0) {
-            val someM = currentState.digitData(value)
-            (if (someM.isEmpty) {
-              currentState.digitData(value) = mkFallback(value, currentState.digitData)
-              currentState.digitData(value)
-            } else someM)
-              .map(SCell(value, 0, _))
-          } else None
-        x
-      }).flatten.toArray
-
-    allCells
-  }
-
-
-  /**
-   * provides a fallback if there is no digit detected for this number.
-   *
-   * the size and type of the mat is calculated by looking at the other elements of the digit
-   * library. if none found there, just returns null
-   *
-   * @param number
-   * @return
-   */
-  private def mkFallback(number: Int, digitData: Array[Option[Mat]]): Option[Mat] = {
-    /**
-     * returns size and type of Mat's contained int he digitLibrary
-     * @return
-     */
-    def determineMatParams(digitData: Array[Option[Mat]]): Option[(Size, Int)] = {
-      digitData.flatten.headOption.map {
-        case m => (m.size, m.`type`)
-      }
-    }
-
-    for ((size, matType) <- determineMatParams(digitData)) yield {
-      val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
-      Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
-      mat
-    }
-  }
-
 
 }
 

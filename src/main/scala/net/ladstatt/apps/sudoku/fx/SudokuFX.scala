@@ -133,7 +133,6 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     val candidate =
       SCandidate(nr = currentFrameNumber,
-        cap = 1,
         minHits = 20,
         frame = currentFrame,
         currentState = SudokuState())
