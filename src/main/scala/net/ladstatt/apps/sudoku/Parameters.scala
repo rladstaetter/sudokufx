@@ -16,7 +16,7 @@ object Parameters {
   val range = 0 until ssize
   val digitRange = 0 to ssize
 
-  val cellRange = 0 until cellCount
+  val cellRange: Range = 0 until cellCount
 
   val colorRange = 0 to 256 by 16
   private val leftRange: Seq[Int] = Seq(0, 1, 2)

@@ -443,7 +443,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
         setAnalysisMouseTransparent(false)
         updateBestMatch(success.candidate, as[ImageView](numberFlowPane.getChildren))
         updateStatus(mkFps(success.candidate.start), Color.GREEN)
-        if (!success.candidate.sudokuCorners.toList.isEmpty) {
+        if (success.candidate.warper.foundCorners) {
           updateBorder(success.sudokuCorners)
           updateCellBounds(success.sudokuCorners, analysisCellBounds)
           updateCellCorners(success.sudokuCorners, analysisCellCorners)

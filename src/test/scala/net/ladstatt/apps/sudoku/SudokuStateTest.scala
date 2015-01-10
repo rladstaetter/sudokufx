@@ -22,7 +22,7 @@ final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks 
       frame = f,
       currentState = SudokuState(cap = cap, minHits = minHits))
 
-  def printState(s: SCandidate): Unit = println(s.sudokuCorners.toList)
+  def printState(s: SCandidate): Unit = println(s.warper.sudokuCorners.toList)
 
   test("t2") {
 

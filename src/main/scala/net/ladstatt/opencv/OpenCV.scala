@@ -45,40 +45,38 @@ object OpenCV extends CanLog {
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   }
 
-  def detectSudokuCorners(preprocessed: Mat, frameCorners : MatOfPoint2f): Future[MatOfPoint2f] = {
-    execFuture {
-      extractCurveWithMaxArea(coreFindContours(preprocessed)) match {
-        case None => {
-          logWarn("Could not detect any curve ... ")
-          new MatOfPoint2f()
-        }
-        case Some((maxArea, c)) => {
-          val expectedMaxArea = Imgproc.contourArea(frameCorners) / 30
+  def detectSudokuCorners(input: Mat, ratio: Int = 30): MatOfPoint2f = {
+    extractCurveWithMaxArea(coreFindContours(input)) match {
+      case None => {
+        logWarn("Could not detect any curve ... ")
+        SudokuCornerDetector.EmptyCorners
+      }
+      case Some((maxArea, c)) => {
+        val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / ratio
+        if (maxArea > expectedMaxArea) {
           val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
-          if (maxArea > expectedMaxArea) {
-            if (has4Sides(approxCurve)) {
-              val corners = mkSortedCorners(approxCurve)
-              if (isSomewhatSquare(corners.toList)) {
-                corners
-              } else {
-                logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
-                new MatOfPoint2f()
-              }
+          if (has4Sides(approxCurve)) {
+            val corners = mkSortedCorners(approxCurve)
+            if (isSomewhatSquare(corners.toList)) {
+              corners
             } else {
-              logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-              new MatOfPoint2f()
+              logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+              SudokuCornerDetector.EmptyCorners
             }
           } else {
-            logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
-            new MatOfPoint2f()
+            logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+            SudokuCornerDetector.EmptyCorners
           }
+        } else {
+          logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
+          SudokuCornerDetector.EmptyCorners
         }
       }
     }
 
   }
-  
-  
+
+
   def isSomewhatSquare(corners: Seq[Point]): Boolean = {
 
     import scala.math.{abs, atan2}
@@ -370,17 +368,15 @@ object OpenCV extends CanLog {
   def blur(input: Mat): Future[Mat] =
     execFuture {
       val dest = new Mat()
-      Imgproc.blur(input, dest, new Size(20, 20), new Point(-1,-1))
+      Imgproc.blur(input, dest, new Size(20, 20), new Point(-1, -1))
       dest
     }
-
-
 
 
   def runtimeNativeLibName =
     if (SystemEnv.runOnMac)
       "lib/libopencv_java246.dylib"
-      //"/Users/lad/Library/opencv-3.0.0-beta/build/lib/libopencv_java300.dylib"
+    //"/Users/lad/Library/opencv-3.0.0-beta/build/lib/libopencv_java300.dylib"
     else if (SystemEnv.isX64) {
       "lib/win/x64/opencv_java246.dll"
     } else {

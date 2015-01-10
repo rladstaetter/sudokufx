@@ -1,7 +1,5 @@
 package net.ladstatt.apps.sudoku
 
-import java.util.concurrent.TimeUnit
-
 import net.ladstatt.apps.sudoku.Parameters._
 import net.ladstatt.apps.sudoku.SudokuAlgos._
 import net.ladstatt.core.CanLog
@@ -10,10 +8,8 @@ import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 
 import scala.collection.JavaConversions._
-import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 sealed trait SudokuResult {
   def candidate: SCandidate
@@ -307,7 +303,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * @return
    */
   def paintCorners(canvas: Mat,
-                   rects: IndexedSeq[Rect],
+                   rects: Seq[Rect],
                    someSolution: Option[Cells],
                    hitCounts: HitCounts
                     ): Future[Mat] = {
@@ -339,6 +335,22 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
 
 }
 
+object SudokuCornerDetector {
+
+  val EmptyCorners = new MatOfPoint2f
+}
+
+case class SudokuCornerDetector(input: Mat) {
+
+  val frameCorners = mkCorners(input.size)
+
+  val sudokuCorners: MatOfPoint2f = detectSudokuCorners(input)
+
+  val foundCorners: Boolean = {
+    !sudokuCorners.empty
+  }
+
+}
 
 /**
  *
@@ -354,30 +366,21 @@ case class SCandidate(nr: Int,
 
   val start = System.nanoTime()
 
-  val frameCorners = mkCorners(frame.size)
+  val imageIoChain = ImageIOChain(frame)
 
-  val imageIoChain: ImageIOChain =
-    Await.result(for {
-      imgIo <- imageIOChain(frame)
-    } yield imgIo, Duration(1400, TimeUnit.MILLISECONDS))
+  val warper = SudokuCornerDetector(imageIoChain.dilated)
 
-  val sudokuCorners: MatOfPoint2f =
-    Await.result(for {
-      corners <- detectSudokuCorners(imageIoChain.dilated, frameCorners) // if (!detectedCorners.empty)
-    } yield corners, Duration(1400, TimeUnit.MILLISECONDS))
-
-  lazy val colorWarped = warp(frame, sudokuCorners, frameCorners)
-  lazy val sudokuSize = mkCellSize(colorWarped.size)
+  lazy val colorWarped = warp(frame, warper.sudokuCorners, warper.frameCorners)
 
   lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuTemplateSize)
   lazy val warpedToFitSize = mkCellSize(warpedToFit.size)
 
-  lazy val rects: immutable.IndexedSeq[Rect] = cellRange.map(mkRect(_, sudokuSize))
-  lazy val warpedToFitRects = cellRange.map(mkRect(_, warpedToFitSize))
+  lazy val sudokuSize = mkCellSize(colorWarped.size)
+  lazy val rects: Seq[Rect] = cellRange.map(mkRect(_, sudokuSize))
+  lazy val warpedToFitRects: Seq[Rect] = cellRange.map(mkRect(_, warpedToFitSize))
 
-  lazy val cellMats: IndexedSeq[Mat] = rects.map(colorWarped.submat(_))
-  lazy val futureSCells: IndexedSeq[Future[SCell]] = cellMats.map(detectCell(_, currentState.digitQuality))
-
+  lazy val cellMats: Seq[Mat] = rects.map(colorWarped.submat(_))
+  lazy val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell(_, currentState.digitQuality))
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
@@ -387,7 +390,7 @@ case class SCandidate(nr: Int,
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
-    if (foundCorners) {
+    if (warper.foundCorners) {
       for {
         detectedCells <- Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
@@ -398,7 +401,7 @@ case class SCandidate(nr: Int,
         withSolution <- paintSolution(colorWarped, detectedCells.map(_.value), someSolutionCells)
         annotatedSolution <- currentState.paintCorners(withSolution, rects, someSolutionCells, currentState.hCounts)
 
-        unwarped = warp(annotatedSolution, frameCorners, sudokuCorners)
+        unwarped = warp(annotatedSolution, warper.frameCorners, warper.sudokuCorners)
         //blurry <- blur(frame)
         //solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
         solutionMat <- copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
@@ -408,7 +411,7 @@ case class SCandidate(nr: Int,
             detectedCells.toArray,
             someDigitSolution.get,
             solutionMat,
-            sudokuCorners.toList.toList)
+            warper.sudokuCorners.toList.toList)
         } else {
           SFailure(SCandidate(this))
         }
@@ -420,9 +423,7 @@ case class SCandidate(nr: Int,
   }
 
 
-  def foundCorners: Boolean = {
-    !sudokuCorners.empty
-  }
+
 
 
   /**
