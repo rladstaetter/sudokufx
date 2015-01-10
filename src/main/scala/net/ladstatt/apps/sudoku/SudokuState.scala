@@ -335,20 +335,30 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
 
 }
 
-object SudokuCornerDetector {
+object SudokuCellDetector {
 
   val EmptyCorners = new MatOfPoint2f
 }
 
-case class SudokuCornerDetector(input: Mat) {
+case class SudokuCellDetector(frame: Mat, dilated: Mat) {
 
-  val frameCorners = mkCorners(input.size)
+  val frameCorners = mkCorners(dilated.size)
 
-  val sudokuCorners: MatOfPoint2f = detectSudokuCorners(input)
+  val sudokuCorners: MatOfPoint2f = detectSudokuCorners(dilated)
 
   val foundCorners: Boolean = {
     !sudokuCorners.empty
   }
+
+  lazy val colorWarped = warp(frame, sudokuCorners, frameCorners)
+  lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuTemplateSize)
+  lazy val warpedToFitSize = mkCellSize(warpedToFit.size)
+  lazy val sudokuSize = mkCellSize(colorWarped.size)
+  lazy val rects: Seq[Rect] = cellRange.map(mkRect(_, sudokuSize))
+  lazy val warpedToFitRects: Seq[Rect] = cellRange.map(mkRect(_, warpedToFitSize))
+  lazy val cellMats: Seq[Mat] = rects.map(colorWarped.submat(_))
+  lazy val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell)
+  lazy val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
 }
 
@@ -368,19 +378,8 @@ case class SCandidate(nr: Int,
 
   val imageIoChain = ImageIOChain(frame)
 
-  val warper = SudokuCornerDetector(imageIoChain.dilated)
+  val warper = SudokuCellDetector(frame, imageIoChain.dilated)
 
-  lazy val colorWarped = warp(frame, warper.sudokuCorners, warper.frameCorners)
-
-  lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuTemplateSize)
-  lazy val warpedToFitSize = mkCellSize(warpedToFit.size)
-
-  lazy val sudokuSize = mkCellSize(colorWarped.size)
-  lazy val rects: Seq[Rect] = cellRange.map(mkRect(_, sudokuSize))
-  lazy val warpedToFitRects: Seq[Rect] = cellRange.map(mkRect(_, warpedToFitSize))
-
-  lazy val cellMats: Seq[Mat] = rects.map(colorWarped.submat(_))
-  lazy val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell(_, currentState.digitQuality))
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
@@ -392,14 +391,14 @@ case class SCandidate(nr: Int,
     // pipeline
     if (warper.foundCorners) {
       for {
-        detectedCells <- Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+        detectedCells <- warper.futureDetectedCells
 
         _ <- currentState.updateLibrary(detectedCells)
 
         (someDigitSolution, someSolutionCells) <- currentState.computeSolution()
 
-        withSolution <- paintSolution(colorWarped, detectedCells.map(_.value), someSolutionCells)
-        annotatedSolution <- currentState.paintCorners(withSolution, rects, someSolutionCells, currentState.hCounts)
+        withSolution <- paintSolution(warper.colorWarped, detectedCells.map(_.value), someSolutionCells)
+        annotatedSolution <- currentState.paintCorners(withSolution, warper.rects, someSolutionCells, currentState.hCounts)
 
         unwarped = warp(annotatedSolution, warper.frameCorners, warper.sudokuCorners)
         //blurry <- blur(frame)
@@ -423,9 +422,6 @@ case class SCandidate(nr: Int,
   }
 
 
-
-
-
   /**
    * paints the solution to the canvas.
    *
@@ -437,7 +433,7 @@ case class SCandidate(nr: Int,
                             someSolution: Option[Cells]): Future[Mat] =
     Future {
       for (solution <- someSolution if isValid(solution)) {
-        time(traverseWithIndex(solution)((cell, i) => if (detectedCells(i) == 0) copyTo(cell.data, canvas, rects(i))), t => logTrace(s"copied in $t ms"))
+        time(traverseWithIndex(solution)((cell, i) => if (detectedCells(i) == 0) copyTo(cell.data, canvas, warper.rects(i))), t => logTrace(s"copied in $t ms"))
       }
       canvas
     }

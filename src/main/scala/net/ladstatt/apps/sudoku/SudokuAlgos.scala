@@ -189,11 +189,11 @@ object SudokuAlgos {
   }
 
 
-  def detectCell(cell: Mat, digitQuality: Array[Double]): Future[SCell] = {
+  def detectCell(cell: Mat): Future[SCell] = {
     import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
     for {
       contour <- extractContour(cell)
-      (value, quality) <- contour.map(detectNumber(_).filter(nq => nq._1 != 0 && nq._2 < digitQuality(nq._1))).getOrElse(Future.successful((0, 0.0)))
+      (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
     } yield {
       SCell(value, quality, cell)
     }

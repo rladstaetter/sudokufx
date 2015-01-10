@@ -49,7 +49,7 @@ object OpenCV extends CanLog {
     extractCurveWithMaxArea(coreFindContours(input)) match {
       case None => {
         logWarn("Could not detect any curve ... ")
-        SudokuCornerDetector.EmptyCorners
+        SudokuCellDetector.EmptyCorners
       }
       case Some((maxArea, c)) => {
         val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / ratio
@@ -61,15 +61,15 @@ object OpenCV extends CanLog {
               corners
             } else {
               logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
-              SudokuCornerDetector.EmptyCorners
+              SudokuCellDetector.EmptyCorners
             }
           } else {
             logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-            SudokuCornerDetector.EmptyCorners
+            SudokuCellDetector.EmptyCorners
           }
         } else {
           logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
-          SudokuCornerDetector.EmptyCorners
+          SudokuCellDetector.EmptyCorners
         }
       }
     }
