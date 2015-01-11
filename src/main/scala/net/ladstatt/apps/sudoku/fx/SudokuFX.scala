@@ -71,12 +71,9 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
-  val currentHitCountsProperty = new SimpleObjectProperty[HitCounts](Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)))
-
-  def getCurrentHitCounts = currentHitCountsProperty.get()
-
-  def setCurrentHitCounts(h: HitCounts) = currentHitCountsProperty.set(h)
-
+  val currentSudokuStateProperty = new SimpleObjectProperty[SudokuState](SudokuState())
+  def getCurrentSudokuState() = currentSudokuStateProperty.get()
+  def setCurrentSudokuState(sudokuState : SudokuState) = currentSudokuStateProperty.set(sudokuState)
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
@@ -103,7 +100,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
 
   loadNativeLib()
-
+      /*
   def mergeHitCounts(currentHitCounts: HitCounts, hitCounts: HitCounts): HitCounts = {
     for {(as, bs) <- (currentHitCounts zip hitCounts)} yield {
       for {(a, b) <- (as zip bs)} yield {
@@ -121,7 +118,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   def mergeWithCurrent(result: SudokuResult): Unit = {
     setCurrentHitCounts(mergeHitCounts(getCurrentHitCounts, result.candidate.currentState.hCounts))
   }
-
+          */
   /**
    * main event loop in capturing mode
    */
@@ -131,16 +128,12 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     val currentFrameNumber = getFrameNumber()
     setFrameNumber(currentFrameNumber + 1)
 
-    val candidate =
-      SCandidate(nr = currentFrameNumber,
-        frame = currentFrame,
-        currentState = SudokuState())
+    val candidate = SCandidate(nr = currentFrameNumber, frame = currentFrame)
 
     for {
       _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
-      result <- candidate.calc
+      result <- candidate.calc(getCurrentSudokuState())
     } {
-      //mergeWithCurrent(result)
       display(result)
     }
   }
@@ -224,11 +217,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     statusLabel.setText(message)
   }
 
-  def updateBestMatch(scandidate: SCandidate, nrViews: Seq[ImageView]): Unit = {
+  def updateBestMatch(currentState: SudokuState, nrViews: Seq[ImageView]): Unit = {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        scandidate.currentState.digitData(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
+        currentState.digitData(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
       })
   }
 
@@ -258,11 +251,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     line.setLayoutY(layoutY)
     line.setOnMouseEntered(mkEventHandler(e => {
       analysisFadeIn.play
-      println(s"entered box $idx")
+      logInfo(s"entered box $idx")
     }))
     line.setOnMouseExited(mkEventHandler(e => {
       analysisFadeOut.play
-      println(s"left box $idx")
+      logInfo(s"left box $idx")
     }))
     line
   }
@@ -328,7 +321,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells) => {
         updateVideo(stage, candidate, solutionMat)
         displayResult(solution, as[Label](resultFlowPane.getChildren))
-        displayHitCounts(candidate.currentState.hCounts, as[FlowPane](statsFlowPane.getChildren))
+        displayHitCounts(getCurrentSudokuState.hCounts, as[FlowPane](statsFlowPane.getChildren))
       }
       case SFailure(candidate) => {
         updateVideo(stage, candidate, candidate.frame)
@@ -365,7 +358,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
    * @param corners
    * @return
    */
-  def mkCellCorners(corners: List[Point]): IndexedSeq[(Double, Double)] = {
+  def mkCellCorners(corners: List[Point]): Seq[(Double, Double)] = {
     val List(ul, ur, lr, ll) = corners
     val left = splitRange(ul.x, ul.y, ll.x, ll.y)
     val right = splitRange(ur.x, ur.y, lr.x, lr.y)
@@ -376,11 +369,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
         }).flatten
       } else {
         logError(s"Right column had not 10 points, but ${right.size}. [$ur,$lr]")
-        IndexedSeq()
+        Seq()
       }
     } else {
       logError(s"Left column had not 10 points, but ${left.size}. [$ul,$ll]")
-      IndexedSeq()
+      Seq()
     }
   }
 
@@ -389,9 +382,9 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
    * @param cellCorners
    * @return
    */
-  def mkCellBounds(cellCorners: IndexedSeq[(Double, Double)]): IndexedSeq[IndexedSeq[java.lang.Double]] = {
+  def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
 
-    def extractBound(index: Int): IndexedSeq[java.lang.Double] = {
+    def extractBound(index: Int): Seq[java.lang.Double] = {
       IndexedSeq(cellCorners(index)._1, cellCorners(index)._2,
         cellCorners(index + 1)._1, cellCorners(index + 1)._2,
         cellCorners(index + 11)._1, cellCorners(index + 11)._2,
@@ -441,9 +434,9 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       case success: SSuccess => {
         updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
         setAnalysisMouseTransparent(false)
-        updateBestMatch(success.candidate, as[ImageView](numberFlowPane.getChildren))
+        updateBestMatch(getCurrentSudokuState, as[ImageView](numberFlowPane.getChildren))
         updateStatus(mkFps(success.candidate.start), Color.GREEN)
-        if (success.candidate.warper.foundCorners) {
+        if (success.candidate.sudokuCellDetector.foundCorners) {
           updateBorder(success.sudokuCorners)
           updateCellBounds(success.sudokuCorners, analysisCellBounds)
           updateCellCorners(success.sudokuCorners, analysisCellCorners)
@@ -452,7 +445,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       case SFailure(candidate) => {
         updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
         setAnalysisMouseTransparent(false)
-        updateBestMatch(candidate, as[ImageView](numberFlowPane.getChildren))
+        updateBestMatch(getCurrentSudokuState, as[ImageView](numberFlowPane.getChildren))
         updateStatus(mkFps(candidate.start), Color.GREEN)
       }
     }

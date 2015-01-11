@@ -31,7 +31,7 @@ object SudokuAlgos {
 
     val description = "default"
 
-    def printTime(t: Long) = println(s"solved in $t micros.")
+    def printTime(t: Long) = logInfo(s"solved in $t micros.")
 
     /**
      * give this function a net.ladstatt.apps.sudoku in the form
@@ -55,15 +55,11 @@ object SudokuAlgos {
       val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
       def isCancelled = {
         cnt = cnt + 1
-        val duration = (System.currentTimeMillis() - before)
+        val duration = System.currentTimeMillis() - before
         if (duration > maxDuration) {
-          System.err.println(s"---> CANCEL (timeout: $duration ms, count $cnt.)")
+          logWarn(s"CANCEL for sudoku calculation (timeout: $duration ms, count $cnt.)")
           true
         } else false
-      }
-
-      def copy(s: SudokuDigitSolution): SudokuDigitSolution = {
-        s.clone()
       }
 
       // The board is represented by an array of strings (arrays of chars),
@@ -96,9 +92,9 @@ object SudokuAlgos {
       // accu by applying the given function f to it whenever a solution m
       // is found
       def search(x: Int, y: Int, f: Int => Int, accu: Int): Int = (x, y) match {
-        case (9, yy) if (!isCancelled) => search(0, y + 1, f, accu) // next row
-        case (0, 9) if (!isCancelled) => f(accu) // found a solution
-        case (xx, yy) if (!isCancelled) => {
+        case (9, yy) if !isCancelled => search(0, y + 1, f, accu) // next row
+        case (0, 9) if !isCancelled => f(accu) // found a solution
+        case (xx, yy) if !isCancelled => {
           if (mx(y)(x) != '0') {
             search(x + 1, y, f, accu)
           } else {
@@ -123,16 +119,14 @@ object SudokuAlgos {
       // the total number of solutions
       Try {
         search(0, 0, i => {
-          //println(i)
           populateSolution()
-          //???
           i + 1
         }, 0)
         solution
       } match {
         case Success(s) => Some(s)
         case Failure(e) => {
-          println(e.getMessage)
+          logError(e.getMessage)
           None
         }
       }

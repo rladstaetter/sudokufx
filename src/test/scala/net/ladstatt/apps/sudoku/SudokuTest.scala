@@ -30,7 +30,7 @@ class SudokuTest extends OpenCvUnitTest with Utils {
   @Test def testDetect(): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
     assertEquals(81.toLong, refCellNumbers.size.toLong)
-    val cells = Await.result(Future.sequence(sudoku69.warper.futureSCells), Duration.Inf)
+    val cells = Await.result(Future.sequence(sudoku69.sudokuCellDetector.futureSCells), Duration.Inf)
     var i = 0
     for (c <- cells) {
       assertEquals(refCellNumbers(i)._1.toLong, c.value.toLong)
@@ -40,7 +40,7 @@ class SudokuTest extends OpenCvUnitTest with Utils {
   }
 
   @Test def solveSudoku69(): Unit = {
-    Await.result(sudoku69.calc(), Duration.Inf) match {
+    Await.result(sudoku69.calc(SudokuState()), Duration.Inf) match {
       case s: SSuccess => {
         //assertTrue(h.detectedNumbers.size > h.minHits)
         assertEquals(new String(solution69), new String(s.solution))

@@ -1,6 +1,7 @@
 package net.ladstatt.apps.sudoku
 
 
+import net.ladstatt.core.CanLog
 import org.junit.runner.RunWith
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
@@ -8,21 +9,17 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 @RunWith(classOf[JUnitRunner])
-final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks with OpenCvUnitTest {
-
-  // case class SudokuState(nr : Int, frame : Mat, cap : Int, minHits : Int)
+final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks with OpenCvUnitTest with CanLog {
 
   // val frameGen : Gen[Mat] =
   val stateGen: Gen[SCandidate] =
     for {nr <- Gen.choose(0, 10000)
          f <- Gen.const(frame69)
          cap <- Gen.choose(8, 15)
-         minHits <- Gen.choose(20, 30)} yield SCandidate(
-      nr = nr,
-      frame = f,
-      currentState = SudokuState(cap = cap, minHits = minHits))
+         minHits <- Gen.choose(20, 30)} yield SCandidate(nr = nr, frame = f )
+                     // SudokuState(cap = cap, minHits = minHits)
 
-  def printState(s: SCandidate): Unit = println(s.warper.sudokuCorners.toList)
+  def printState(s: SCandidate): Unit = logInfo(s"${s.sudokuCellDetector.sudokuCorners.toList}")
 
   test("t2") {
 

@@ -94,7 +94,6 @@ trait OpenCVJfxUtils extends Utils {
       case 3 => BufferedImage.TYPE_3BYTE_BGR
       case 4 => BufferedImage.TYPE_4BYTE_ABGR
       case _ => {
-        //println(matrix.channels())
         BufferedImage.TYPE_BYTE_GRAY
       }
     }
@@ -118,10 +117,7 @@ trait OpenCVJfxUtils extends Utils {
           i = i + 4
         }
       }
-      case _ => {
-        // do nothing?
-        // println("?" + matrix.channels())
-      }
+      case _ => {}
     }
 
     val image = new BufferedImage(cols, rows, lType)

@@ -88,9 +88,9 @@ class JavaFXThreadingRule extends TestRule {
         }
       })
 
-      // System.out.println("javafx initialising...")
+      // System.out.logInfo("javafx initialising...")
       latch.await()
-      // System.out.println("javafx is initialised in " + (System.currentTimeMillis() - timeMillis) + "ms")
+      // System.out.logInfo("javafx is initialised in " + (System.currentTimeMillis() - timeMillis) + "ms")
     }
 
   }

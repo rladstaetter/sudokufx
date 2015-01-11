@@ -30,6 +30,12 @@ object OpenCV extends CanLog {
     def ub = new Scalar(Array(hue._2, saturation._2, value._2))
   }
 
+  def copyMat(orig: Mat): Mat = {
+    val dest = new Mat()
+    orig.copyTo(dest)
+    dest
+  }
+
   def copyTo(data: Mat, canvas: Mat, roi: Rect): Unit = {
     val cellTarget = new Mat(canvas, roi)
     data.copyTo(cellTarget)

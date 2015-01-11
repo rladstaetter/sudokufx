@@ -5,7 +5,7 @@ import javafx.concurrent.{Service, Task, WorkerStateEvent}
 
 import net.ladstatt.JavaFXUnitTest
 import net.ladstatt.apps.sudoku.SudokuAlgos.BruteForceSolver
-import net.ladstatt.core.Utils
+import net.ladstatt.core.{CanLog, Utils}
 import net.ladstatt.jfx.JfxUtils
 import org.junit.Test
 import org.opencv.core.Mat
@@ -13,7 +13,7 @@ import org.opencv.core.Mat
 /**
  * Created by lad on 21.09.14.
  */
-class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
+class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils with CanLog {
 
   val solverService = new SolverService
   val sudoku1 =
@@ -51,7 +51,7 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
 
     setOnCancelled(mkEventHandler(
       (e: WorkerStateEvent) => {
-        println("CANCELLED")
+        logInfo("CANCELLED")
       }
     ))
 
@@ -59,20 +59,20 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
     override def createTask(): Task[SudokuDigitSolution] =
       new Task[SudokuDigitSolution] {
         override def call(): SudokuDigitSolution = {
-          println("entering")
+          logInfo("entering")
           val someResult: Option[SudokuDigitSolution] = BruteForceSolver.solve(sudoku)
           if (isCancelled) {
-            println("i was cancelled")
+            logInfo("i was cancelled")
             Thread.currentThread().interrupt()
             Array()
           } else {
             someResult match {
               case None => {
-                println("not found valid solution")
+                logInfo("not found valid solution")
                 Array()
               }
               case Some(s) => {
-                println("task finished successfully")
+                logInfo("task finished successfully")
                 s
               }
             }
@@ -87,10 +87,10 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils {
       time({
         Thread.sleep(50)
         solverService.cancel()
-        println("cancelled task.")
+        logInfo("cancelled task.")
         solverService.restart()
         Thread.sleep(10)
-      }, t => println(s"Finished turn in $t ms."))
+      }, t => logInfo(s"Finished turn in $t ms."))
 
     Thread.sleep(1000)
   }
