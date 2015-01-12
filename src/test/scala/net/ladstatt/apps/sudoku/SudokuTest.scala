@@ -45,7 +45,7 @@ class SudokuTest extends OpenCvUnitTest with Utils {
         //assertTrue(h.detectedNumbers.size > h.minHits)
         assertEquals(new String(solution69), new String(s.solution))
       }
-      case SFailure(_) => fail()
+      case _ => fail()
     }
   }
 

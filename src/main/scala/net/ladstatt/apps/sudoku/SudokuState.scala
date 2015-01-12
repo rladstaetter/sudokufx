@@ -12,10 +12,26 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 sealed trait SudokuResult {
-  def candidate: SCandidate
+  /*def nr: Int
+
+  def frame: Mat
+
+  def start: Long
+  */
 }
 
-case class SSuccess(candidate: SCandidate,
+case class SCorners(nr: Int,
+                    frame: Mat,
+                    start: Long,
+                    imageIOChain: ImageIOChain,
+                    detectedCells: Cells,
+                    sudokuCorners: List[Point]) extends SudokuResult
+
+case class SSuccess(nr: Int,
+                    frame: Mat,
+                    start: Long,
+                    imageIOChain: ImageIOChain,
+                    foundCorners: Boolean,
                     detectedCells: Cells,
                     solution: SudokuDigitSolution,
                     solutionMat: Mat,
@@ -24,7 +40,7 @@ case class SSuccess(candidate: SCandidate,
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
 }
 
-case class SFailure(candidate: SCandidate) extends SudokuResult
+case class SFailure(nr: Int, frame: Mat, start: Long, imageIoChain: ImageIOChain) extends SudokuResult
 
 object SCandidate {
 
@@ -51,7 +67,6 @@ object SCandidate {
   def posWellFormed(hitCounts: HitCounts, i: SIndex, value: Int, cap: Int): Boolean = {
     value == 0 || rowColWellFormed(hitCounts, i, value, cap) //&& sectorWellFormed(hitCounts, i, value)
   }
-
 
 
   def duplicate(origHCounts: HitCounts): HitCounts = {
@@ -107,7 +122,7 @@ object SudokuState {
 case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                       cap: Int = 2,
+                       cap: Int = 8,
                        minHits: Int = 20) {
 
   def statsAsString(): String =
@@ -135,7 +150,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     def updateHitCounts(i: SIndex, value: Int): Unit = {
       val hitCountAtPos = hCounts(i)
       if (hitCountAtPos.max < cap) {
-        hitCountAtPos(value) = (1 + hitCountAtPos(value))
+        hitCountAtPos(value) = 1 + hitCountAtPos(value)
       }
     }
 
@@ -163,7 +178,6 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     resetIfInvalidCellsDetected(detectedValues)
     ()
   }
-
 
 
   def merge(detectedCells: Seq[SCell]): Unit = time({
@@ -393,17 +407,26 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
         solutionMat <- copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
       } yield {
         if (someSolutionCells.isDefined) {
-          SSuccess(SCandidate(this),
+          SSuccess(nr,
+            frame,
+            start,
+            imageIoChain,
+            sudokuCellDetector.foundCorners,
             detectedCells.toArray,
             someDigitSolution.get,
             solutionMat,
             sudokuCellDetector.sudokuCorners.toList.toList)
         } else {
-          SFailure(SCandidate(this))
+          SCorners(nr,
+            frame,
+            start,
+            imageIoChain,
+            detectedCells.toArray,
+            sudokuCellDetector.sudokuCorners.toList.toList)
         }
       }
     } else {
-      Future.successful(SFailure(SCandidate(this)))
+      Future.successful(SFailure(nr, frame, start, imageIoChain))
     }
 
   }

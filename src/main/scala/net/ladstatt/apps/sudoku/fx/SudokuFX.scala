@@ -24,7 +24,6 @@ import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polyline, Rectangle}
 
 import com.sun.javafx.perf.PerformanceTracker
-import net.ladstatt.apps.sudoku.Parameters._
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.jfx.{FrameGrabberTask, FrameTimer, JfxUtils, OpenCVJfxUtils}
@@ -72,8 +71,10 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var modeButtons: ToggleGroup = _
 
   val currentSudokuStateProperty = new SimpleObjectProperty[SudokuState](SudokuState())
+
   def getCurrentSudokuState() = currentSudokuStateProperty.get()
-  def setCurrentSudokuState(sudokuState : SudokuState) = currentSudokuStateProperty.set(sudokuState)
+
+  def setCurrentSudokuState(sudokuState: SudokuState) = currentSudokuStateProperty.set(sudokuState)
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
@@ -100,25 +101,8 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
 
   loadNativeLib()
-      /*
-  def mergeHitCounts(currentHitCounts: HitCounts, hitCounts: HitCounts): HitCounts = {
-    for {(as, bs) <- (currentHitCounts zip hitCounts)} yield {
-      for {(a, b) <- (as zip bs)} yield {
-        a + b
-      }
-    }
-  }
 
-  def duplicate(hitCounts: HitCounts): HitCounts = {
-    for {as <- hitCounts} yield {
-      for {b <- as} yield b
-    }
-  }
 
-  def mergeWithCurrent(result: SudokuResult): Unit = {
-    setCurrentHitCounts(mergeHitCounts(getCurrentHitCounts, result.candidate.currentState.hCounts))
-  }
-          */
   /**
    * main event loop in capturing mode
    */
@@ -301,34 +285,6 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     videoView.setImage(toImage(mat))
   }
 
-  def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
-
-    def updateVideo(stage: ProcessingStage, candidate: SCandidate, solutionMat: Mat): Unit = {
-      stage match {
-        case InputStage => updateVideoView(candidate.frame)
-        case GrayedStage => updateVideoView(candidate.imageIoChain.grayed)
-        case BlurredStage => updateVideoView(candidate.imageIoChain.blurred)
-        case ThresholdedStage => updateVideoView(candidate.imageIoChain.thresholded)
-        case InvertedStage => updateVideoView(candidate.imageIoChain.inverted)
-        case DilatedStage => updateVideoView(candidate.imageIoChain.dilated)
-        case ErodedStage => updateVideoView(candidate.imageIoChain.eroded)
-        case SolutionStage => updateVideoView(solutionMat)
-        case _ => ???
-      }
-    }
-
-    sudokuResult match {
-      case SSuccess(candidate, detectedCells, solution, solutionMat, solutionCells) => {
-        updateVideo(stage, candidate, solutionMat)
-        displayResult(solution, as[Label](resultFlowPane.getChildren))
-        displayHitCounts(getCurrentSudokuState.hCounts, as[FlowPane](statsFlowPane.getChildren))
-      }
-      case SFailure(candidate) => {
-        updateVideo(stage, candidate, candidate.frame)
-      }
-    }
-
-  }
 
   def mkRange(a: Double, b: Double, nrCells: Int = 9): Seq[Double] = {
     if (a == b) {
@@ -429,25 +385,58 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     borderFadeTransition.play
   }
 
+  def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
+
+    def updateVideo(stage: ProcessingStage, frame: Mat, imageIoChain: ImageIOChain, solutionMat: Mat): Unit = {
+      stage match {
+        case InputStage => updateVideoView(frame)
+        case GrayedStage => updateVideoView(imageIoChain.grayed)
+        case BlurredStage => updateVideoView(imageIoChain.blurred)
+        case ThresholdedStage => updateVideoView(imageIoChain.thresholded)
+        case InvertedStage => updateVideoView(imageIoChain.inverted)
+        case DilatedStage => updateVideoView(imageIoChain.dilated)
+        case ErodedStage => updateVideoView(imageIoChain.eroded)
+        case SolutionStage => updateVideoView(solutionMat)
+        case _ => ???
+      }
+    }
+
+    sudokuResult match {
+      case SSuccess(nr, frame, start, imageIoChain, foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
+        updateVideo(stage, frame, imageIoChain, solutionMat)
+        displayResult(solution, as[Label](resultFlowPane.getChildren))
+        displayHitCounts(getCurrentSudokuState.hCounts, as[FlowPane](statsFlowPane.getChildren))
+      }
+      case SCorners(nr, frame, start, imageIoChain, detectedCells, solutionCells) => {
+        updateVideo(stage, frame, imageIoChain, frame)
+      }
+      case SFailure(nr, frame, start, imageIoChain) => {
+        updateVideo(stage, frame, imageIoChain, frame)
+      }
+    }
+
+  }
+
   def display(result: SudokuResult) = execOnUIThread {
+    val selectedToggle = viewButtons.getSelectedToggle
+    if (selectedToggle != null) {
+      val userData = selectedToggle.getUserData
+      if (userData != null) {
+        updateDisplay(userData.asInstanceOf[ProcessingStage], result)
+      }
+    }
+    setAnalysisMouseTransparent(false)
+    updateBestMatch(getCurrentSudokuState, as[ImageView](numberFlowPane.getChildren))
     result match {
       case success: SSuccess => {
-        updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
-        setAnalysisMouseTransparent(false)
-        updateBestMatch(getCurrentSudokuState, as[ImageView](numberFlowPane.getChildren))
-        updateStatus(mkFps(success.candidate.start), Color.GREEN)
-        if (success.candidate.sudokuCellDetector.foundCorners) {
-          updateBorder(success.sudokuCorners)
-          updateCellBounds(success.sudokuCorners, analysisCellBounds)
-          updateCellCorners(success.sudokuCorners, analysisCellCorners)
-        }
+        updateStatus(mkFps(success.start), Color.GREEN)
       }
-      case SFailure(candidate) => {
-        updateDisplay(viewButtons.getSelectedToggle.getUserData.asInstanceOf[ProcessingStage], result)
-        setAnalysisMouseTransparent(false)
-        updateBestMatch(getCurrentSudokuState, as[ImageView](numberFlowPane.getChildren))
-        updateStatus(mkFps(candidate.start), Color.GREEN)
+      case onlyCornersDetected: SCorners => {
+        updateStatus(mkFps(onlyCornersDetected.start), Color.ORANGE)
+        updateCellBounds(onlyCornersDetected.sudokuCorners, analysisCellBounds)
+        updateCellCorners(onlyCornersDetected.sudokuCorners, analysisCellCorners)
       }
+      case SFailure(nr, frame, start, imageIoChain) => updateStatus(mkFps(start), Color.AQUA)
     }
   }
 
