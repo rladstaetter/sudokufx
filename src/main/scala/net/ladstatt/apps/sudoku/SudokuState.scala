@@ -104,7 +104,8 @@ object SudokuState {
       digitQuality = duplicate(orig.digitQuality),
       digitData = duplicate(orig.digitData),
       cap = orig.cap,
-      minHits = orig.minHits
+      minHits = orig.minHits,
+      cells = orig.cells.map(_.duplicate())
     )
   }
 }
@@ -123,7 +124,9 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
                        cap: Int = 8,
-                       minHits: Int = 20) {
+                       minHits: Int = 20,
+                       cells: Seq[SCell] = Seq(),
+                       digitLibrary: Map[SNum, (SHitQuality, Option[Mat])] = Map().withDefaultValue((Double.MaxValue, None))) {
 
   def statsAsString(): String =
     s"""$digitQualityAsString
@@ -161,6 +164,11 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     })
   }
 
+  /**
+   * The filter returns only cells which contain 'better match' cells.
+   *
+   * If there are cells containing '0' detected they are ignored.
+   */
   val qualityFilter: PartialFunction[SCell, Boolean] = {
     case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
   }
@@ -179,8 +187,27 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     ()
   }
 
+  /**
+   * Returns a Sudoku State which is populated with the values delivered by the detected Cells
+   * if the quality of those cells is better than the already known cells.
+   *
+   * @param origState
+   * @return
+   */
+  def mergeN(origState: SudokuState): SudokuState = time({
+    val hits: Seq[SCell] = origState.cells.filter(qualityFilter)
+    val grouped: Map[Int, Seq[SCell]] = hits.groupBy(c => c.value)
+    val optimal: Map[Int, SCell] = grouped.map { case (i, cls) => i -> cls.maxBy(c => c.quality)}
+    // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
 
-  def merge(detectedCells: Seq[SCell]): Unit = time({
+    val x: Map[SNum, (SHitQuality, Some[Mat])] =
+      (for ((i,c) <- optimal if digitQuality(c.value) > c.quality) yield (i , (c.quality, Some(copyMat(c.data))))).toMap
+
+    copy(digitLibrary = digitLibrary ++ x)
+  }, t => logInfo(s"Merging took: ${t} micros"))
+
+
+  def merge(detectedCells: Seq[SCell]): SudokuState = time({
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
@@ -189,6 +216,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
       digitData(c.value) = Some(copyMat(c.data))
       digitQuality(c.value) = c.quality
     }
+    SudokuState(this)
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 

@@ -1,5 +1,6 @@
 package net.ladstatt.apps.sudoku
 
+import net.ladstatt.opencv.OpenCV
 import org.opencv.core.Mat
 
 /**
@@ -12,4 +13,7 @@ case class SCell(value: Int, quality: Double, data: Mat) {
   assert(0 <= value && value <= 9, s"value: $value")
   assert(quality >= 0)
 
+  def duplicate(): SCell = {
+    SCell(value, quality, OpenCV.copyMat(data))
+  }
 }
