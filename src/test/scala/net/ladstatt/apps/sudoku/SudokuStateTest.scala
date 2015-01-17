@@ -19,7 +19,7 @@ final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks 
          minHits <- Gen.choose(20, 30)} yield SCandidate(nr = nr, frame = f )
                      // SudokuState(cap = cap, minHits = minHits)
 
-  def printState(s: SCandidate): Unit = logInfo(s"${s.sudokuCellDetector.sudokuCorners.toList}")
+  def printState(s: SCandidate): Unit = logInfo(s"${s.cornerDetector.corners.toList}")
 
   test("t2") {
 

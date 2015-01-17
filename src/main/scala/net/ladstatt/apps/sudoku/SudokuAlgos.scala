@@ -49,7 +49,7 @@ object SudokuAlgos {
      * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
      *
      */
-    def solve(mmx: SudokuDigitSolution, maxDuration: Long = 100l): Option[SudokuDigitSolution] = time({
+    def solve(mmx: SudokuDigitSolution, maxDuration: Long = 1000l): Option[SudokuDigitSolution] = time({
       val before = System.currentTimeMillis()
       var cnt = 0
       val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray

@@ -3,7 +3,6 @@ package net.ladstatt.apps.sudoku
 import net.ladstatt.apps.sudoku.Parameters._
 import net.ladstatt.apps.sudoku.SudokuAlgos._
 import net.ladstatt.core.CanLog
-import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 
@@ -181,7 +180,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    */
   def updateLibrary(detectedCells: Seq[SCell]): Future[Unit] = execFuture {
     merge(detectedCells)
-    val detectedValues = detectedCells.map(_.value)
+    val detectedValues: Seq[SIndex] = detectedCells.map(_.value)
     countHits(detectedValues)
     resetIfInvalidCellsDetected(detectedValues)
     ()
@@ -191,19 +190,20 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * Returns a Sudoku State which is populated with the values delivered by the detected Cells
    * if the quality of those cells is better than the already known cells.
    *
-   * @param origState
+   * @param other
    * @return
    */
-  def mergeN(origState: SudokuState): SudokuState = time({
-    val hits: Seq[SCell] = origState.cells.filter(qualityFilter)
+  def mergeN(other: SudokuState): SudokuState = time({
+    val hits: Seq[SCell] = other.cells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(c => c.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cls) => i -> cls.maxBy(c => c.quality)}
     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
 
     val x: Map[SNum, (SHitQuality, Some[Mat])] =
-      (for ((i,c) <- optimal if digitQuality(c.value) > c.quality) yield (i , (c.quality, Some(copyMat(c.data))))).toMap
+      (for ((i, c) <- optimal if digitQuality(c.value) > c.quality) yield (i, (c.quality, Some(copyMat(c.data))))).toMap
 
-    copy(digitLibrary = digitLibrary ++ x)
+    copy(digitLibrary = digitLibrary ++ x,
+      cells = other.cells.map(_.duplicate))
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 
@@ -287,7 +287,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
           if (value != 0) {
             val someM = digitData(value)
             (if (someM.isEmpty) {
-              digitData(value) = mkFallback(value, digitData)
+//              digitData(value) = mkFallback(value, digitData)
               digitData(value)
             } else someM)
               .map(SCell(value, 0, _))
@@ -299,32 +299,7 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
   }
 
 
-  /**
-   * provides a fallback if there is no digit detected for this number.
-   *
-   * the size and type of the mat is calculated by looking at the other elements of the digit
-   * library. if none found there, just returns null
-   *
-   * @param number
-   * @return
-   */
-  private def mkFallback(number: Int, digitData: Array[Option[Mat]]): Option[Mat] = {
-    /**
-     * returns size and type of Mat's contained int he digitLibrary
-     * @return
-     */
-    def determineMatParams(digitData: Array[Option[Mat]]): Option[(Size, Int)] = {
-      digitData.flatten.headOption.map {
-        case m => (m.size, m.`type`)
-      }
-    }
 
-    for ((size, matType) <- determineMatParams(digitData)) yield {
-      val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
-      Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
-      mat
-    }
-  }
 
 
   /**
@@ -368,32 +343,33 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
 
 }
 
-object SudokuCellDetector {
+object CornerDetector {
 
   val EmptyCorners = new MatOfPoint2f
 }
 
-case class SudokuCellDetector(frame: Mat, dilated: Mat) {
+case class CornerDetector(dilated: Mat) {
 
-  val frameCorners = mkCorners(dilated.size)
-
-  val sudokuCorners: MatOfPoint2f = detectSudokuCorners(dilated)
+  val corners: MatOfPoint2f = detectSudokuCorners(dilated)
 
   val foundCorners: Boolean = {
-    !sudokuCorners.empty
+    !corners.empty
   }
 
-  lazy val colorWarped = warp(frame, sudokuCorners, frameCorners)
-  lazy val warpedToFit = OpenCV.resize(colorWarped, Parameters.sudokuTemplateSize)
-  lazy val warpedToFitSize = mkCellSize(warpedToFit.size)
-  lazy val sudokuSize = mkCellSize(colorWarped.size)
-  lazy val rects: Seq[Rect] = cellRange.map(mkRect(_, sudokuSize))
-  lazy val warpedToFitRects: Seq[Rect] = cellRange.map(mkRect(_, warpedToFitSize))
-  lazy val cellMats: Seq[Mat] = rects.map(colorWarped.submat(_))
-  lazy val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell)
-  lazy val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
-
 }
+
+case class CellDetector(frame: Mat, sudokuCorners: MatOfPoint2f) {
+
+  val colorWarped = warp(frame, sudokuCorners, mkCorners(frame.size))
+  val sudokuSize = mkCellSize(colorWarped.size)
+  val rects: Seq[Rect] = cellRange.map(mkRect(_, sudokuSize))
+  val cellMats: Seq[Mat] = rects.map(colorWarped.submat)
+  val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell)
+
+  // 81 possibly detected cells, most of them probably filled with 0's
+  val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+}
+
 
 /**
  *
@@ -402,13 +378,13 @@ case class SudokuCellDetector(frame: Mat, dilated: Mat) {
  */
 case class SCandidate(nr: Int, frame: Mat) extends CanLog {
 
-
   val start = System.nanoTime()
 
-  val imageIoChain = ImageIOChain(frame)
+  private val imageIoChain: ImageIOChain = ImageIOChain(frame)
 
-  val sudokuCellDetector = SudokuCellDetector(frame, imageIoChain.dilated)
+  val cornerDetector: CornerDetector = CornerDetector(imageIoChain.dilated)
 
+  lazy val cellDetector: CellDetector = CellDetector(frame, cornerDetector.corners)
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
@@ -418,18 +394,22 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
-    if (sudokuCellDetector.foundCorners) {
+    if (cornerDetector.foundCorners) {
       for {
-        detectedCells <- sudokuCellDetector.futureDetectedCells
+        detectedCells <- cellDetector.futureDetectedCells
 
         _ <- currentState.updateLibrary(detectedCells)
 
         (someDigitSolution, someSolutionCells) <- currentState.computeSolution()
 
-        withSolution <- paintSolution(sudokuCellDetector.colorWarped, detectedCells.map(_.value), someSolutionCells)
-        annotatedSolution <- currentState.paintCorners(withSolution, sudokuCellDetector.rects, someSolutionCells, currentState.hCounts)
+        withSolution <- paintSolution(cellDetector.colorWarped,
+          detectedCells.map(_.value),
+          someSolutionCells,
+          currentState.digitData,
+          cellDetector.rects)
+        annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.rects, someSolutionCells, currentState.hCounts)
 
-        unwarped = warp(annotatedSolution, sudokuCellDetector.frameCorners, sudokuCellDetector.sudokuCorners)
+        unwarped = warp(annotatedSolution, mkCorners(frame.size), cornerDetector.corners)
         //blurry <- blur(frame)
         //solutionMat <- copySrcToDestWithMask(unwarped, imageIoChain.working, unwarped) // copy solution mat to input mat
         solutionMat <- copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
@@ -439,18 +419,18 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
             frame,
             start,
             imageIoChain,
-            sudokuCellDetector.foundCorners,
+            cornerDetector.foundCorners,
             detectedCells.toArray,
             someDigitSolution.get,
             solutionMat,
-            sudokuCellDetector.sudokuCorners.toList.toList)
+            cornerDetector.corners.toList.toList)
         } else {
           SCorners(nr,
             frame,
             start,
             imageIoChain,
             detectedCells.toArray,
-            sudokuCellDetector.sudokuCorners.toList.toList)
+            cornerDetector.corners.toList.toList)
         }
       }
     } else {
@@ -464,21 +444,53 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
    * paints the solution to the canvas.
    *
    * returns the modified canvas with the solution painted upon.
+   *
+   * detectedCells contains values from 0 to 9, with 0 being the cells which are 'empty' and thus have to be filled up
+   * with numbers.
+   *
+   * uses digitData as lookup table to paint onto the canvas, thus modifying the canvas.
    */
-  // potentially modifies canvas
   private def paintSolution(canvas: Mat,
                             detectedCells: Seq[Int],
-                            someSolution: Option[Cells]): Future[Mat] = {
-
-    def isValid(solution: Cells): Boolean = {
-      solution.foldLeft(0)((acc, s) => acc + s.value) == 405
-    }
+                            someSolution: Option[Cells],
+                            digitData: Array[Option[Mat]],
+                            rects: Seq[Rect]): Future[Mat] = {
 
     Future {
-      for (solution <- someSolution if isValid(solution)) {
-        time(traverseWithIndex(solution)((cell, i) => if (detectedCells(i) == 0) copyTo(cell.data, canvas, sudokuCellDetector.rects(i))), t => logInfo(s"copied in $t ms"))
+      for (solution <- someSolution) {
+        val values = solution.map(_.value)
+        for ((s, r) <- values zip rects if values.sum == 405) {
+          copyTo(digitData(s).getOrElse(mkFallback(s, digitData).get), canvas, r)
+        }
       }
       canvas
+    }
+  }
+
+  /**
+   * provides a fallback if there is no digit detected for this number.
+   *
+   * the size and type of the mat is calculated by looking at the other elements of the digit
+   * library. if none found there, just returns null
+   *
+   * @param number
+   * @return
+   */
+  private def mkFallback(number: Int, digitData: Array[Option[Mat]]): Option[Mat] = {
+    /**
+     * returns size and type of Mat's contained int he digitLibrary
+     * @return
+     */
+    def determineMatParams(digitData: Array[Option[Mat]]): Option[(Size, Int)] = {
+      digitData.flatten.headOption.map {
+        case m => (m.size, m.`type`)
+      }
+    }
+
+    for ((size, matType) <- determineMatParams(digitData)) yield {
+      val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
+      Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
+      mat
     }
   }
 
