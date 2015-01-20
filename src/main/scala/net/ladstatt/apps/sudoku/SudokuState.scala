@@ -361,9 +361,9 @@ case class CornerDetector(dilated: Mat) {
 case class CellDetector(frame: Mat, sudokuCorners: MatOfPoint2f) {
 
   val colorWarped = warp(frame, sudokuCorners, mkCorners(frame.size))
-  val sudokuSize = mkCellSize(colorWarped.size)
-  val rects: Seq[Rect] = cellRange.map(mkRect(_, sudokuSize))
-  val cellMats: Seq[Mat] = rects.map(colorWarped.submat)
+  val cellSize = mkCellSize(colorWarped.size)
+  val cellRects: Seq[Rect] = cellRange.map(mkRect(_, cellSize))
+  val cellMats: Seq[Mat] = cellRects.map(colorWarped.submat)
   val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell)
 
   // 81 possibly detected cells, most of them probably filled with 0's
@@ -406,8 +406,8 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
           detectedCells.map(_.value),
           someSolutionCells,
           currentState.digitData,
-          cellDetector.rects)
-        annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.rects, someSolutionCells, currentState.hCounts)
+          cellDetector.cellRects)
+        annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentState.hCounts)
 
         unwarped = warp(annotatedSolution, mkCorners(frame.size), cornerDetector.corners)
         //blurry <- blur(frame)
