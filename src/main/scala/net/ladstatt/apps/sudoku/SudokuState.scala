@@ -358,9 +358,14 @@ case class CornerDetector(dilated: Mat) {
 
 }
 
-case class CellDetector(frame: Mat, sudokuCorners: MatOfPoint2f) {
+case class Warper(frame : Mat, destCorners: MatOfPoint2f) {
 
-  val colorWarped = warp(frame, sudokuCorners, mkCorners(frame.size))
+  val colorWarped = warp(frame, destCorners, mkCorners(frame.size))
+
+}
+
+case class CellDetector(colorWarped: Mat) {
+
   val cellSize = mkCellSize(colorWarped.size)
   val cellRects: Seq[Rect] = cellRange.map(mkRect(_, cellSize))
   val cellMats: Seq[Mat] = cellRects.map(colorWarped.submat)
@@ -384,7 +389,9 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
 
   val cornerDetector: CornerDetector = CornerDetector(imageIoChain.dilated)
 
-  lazy val cellDetector: CellDetector = CellDetector(frame, cornerDetector.corners)
+  lazy val warper = Warper(frame, cornerDetector.corners)
+  
+  lazy val cellDetector: CellDetector = CellDetector(warper.colorWarped)
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
