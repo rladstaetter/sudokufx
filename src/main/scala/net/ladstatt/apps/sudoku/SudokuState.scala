@@ -157,25 +157,6 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     resetIfInvalidCellsDetected(digitLibrary, detectedValues)
   }
 
-  /**
-   * Returns a Sudoku State which is populated with the values delivered by the detected Cells
-   * if the quality of those cells is better than the already known cells.
-   *
-   * @param other
-   * @return
-   */
-  def mergeN(other: SudokuState): SudokuState = time({
-    /* val hits: Seq[SCell] = other.cells.filter(qualityFilter)
-     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(c => c.value)
-     val optimal: Map[Int, SCell] = grouped.map { case (i, cls) => i -> cls.maxBy(c => c.quality)}
-     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
-
-     val x: Map[SNum, (SHitQuality, Option[Mat])] =
-       (for ((i, c) <- optimal if digitQuality(c.value) > c.quality) yield (i, (c.quality, None))).toMap
-     copy(digitLibrary = digitLibrary ++ x, cells = other.cells)
-      */
-    null
-  }, t => logInfo(s"Merging took: ${t} micros"))
 
 
   def merge(sudokuCanvas: Mat,
