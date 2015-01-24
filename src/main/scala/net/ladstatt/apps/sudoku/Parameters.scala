@@ -10,6 +10,9 @@ import scala.io.Source
  */
 object Parameters {
 
+  val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
+
+
   val ssize = 9
   val cellCount = ssize * ssize
 

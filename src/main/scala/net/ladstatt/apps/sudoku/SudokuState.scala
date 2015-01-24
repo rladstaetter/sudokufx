@@ -95,9 +95,6 @@ object SudokuState {
 
   def apply(orig: SudokuState): SudokuState = {
     SudokuState(hCounts = duplicate(orig.hCounts),
-      digitQuality = duplicate(orig.digitQuality),
-      digitData = duplicate(orig.digitData),
-      dL = Map(),
       cap = orig.cap,
       minHits = orig.minHits,
       cells = orig.cells
@@ -110,29 +107,18 @@ object SudokuState {
  *                for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
  *                was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
  *                the "empty" cell)
- * @param digitQuality indicates the best hit for each number
- * @param digitData saves the picture information for the best hit
+
  * @param cap how often should a digit be detected before it is considered "stable enough"
  * @param minHits how many digits have to be detected before a solution attempt is executed
  */
 case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
-                       digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
-                       digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
-                       dL: DigitLibrary = Map(),
                        cap: Int = 8,
                        minHits: Int = 20,
                        cells: Seq[SCell] = Seq(),
                        digitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))) {
 
   def statsAsString(): String =
-    s"""$digitQualityAsString
-        |${hitCountsAsString(hCounts)}
-        |""".stripMargin
-
-  def digitQualityAsString: String =
-    s"""Quality:
-       |--------
-       |${digitQuality.map(q => q).mkString("\n")}
+    s"""|${hitCountsAsString(hCounts)}
         |""".stripMargin
 
   def hitCountsAsString(hitCounts: HitCounts): String = {
@@ -160,25 +146,16 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     })
   }
 
-  /**
-   * The filter returns only cells which contain 'better match' cells.
-   *
-   * If there are cells containing '0' detected they are ignored.
-   */
-  val qualityFilter: PartialFunction[SCell, Boolean] = {
-    case c => (c.value != 0) && (c.quality < digitQuality(c.value)) // lower means "better"
-  }
-
 
   /**
    * From a given list of cells, choose the ones which are the best hits
    * @param detectedCells
    * @return
    */
-  def updateLibrary(detectedCells: Seq[SCell]): Unit = {
+  def updateLibrary(digitLibrary: DigitLibrary, detectedCells: Seq[SCell]): DigitLibrary = {
     val detectedValues: Seq[SIndex] = detectedCells.map(_.value)
     countHits(detectedValues)
-    resetIfInvalidCellsDetected(detectedValues)
+    resetIfInvalidCellsDetected(digitLibrary, detectedValues)
   }
 
   /**
@@ -189,43 +166,52 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * @return
    */
   def mergeN(other: SudokuState): SudokuState = time({
-    val hits: Seq[SCell] = other.cells.filter(qualityFilter)
-    val grouped: Map[Int, Seq[SCell]] = hits.groupBy(c => c.value)
-    val optimal: Map[Int, SCell] = grouped.map { case (i, cls) => i -> cls.maxBy(c => c.quality)}
-    // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
+    /* val hits: Seq[SCell] = other.cells.filter(qualityFilter)
+     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(c => c.value)
+     val optimal: Map[Int, SCell] = grouped.map { case (i, cls) => i -> cls.maxBy(c => c.quality)}
+     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
 
-    val x: Map[SNum, (SHitQuality, Option[Mat])] =
-      (for ((i, c) <- optimal if digitQuality(c.value) > c.quality) yield (i, (c.quality, None))).toMap
-
-    copy(digitLibrary = digitLibrary ++ x, cells = other.cells)
+     val x: Map[SNum, (SHitQuality, Option[Mat])] =
+       (for ((i, c) <- optimal if digitQuality(c.value) > c.quality) yield (i, (c.quality, None))).toMap
+     copy(digitLibrary = digitLibrary ++ x, cells = other.cells)
+      */
+    null
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 
-  def merge(sudokuCanvas: Mat, detectedCells: Seq[SCell]): DigitLibrary = time({
+  def merge(sudokuCanvas: Mat,
+            digitLibrary: DigitLibrary,
+            detectedCells: Seq[SCell]): DigitLibrary = time({
+
+    /**
+     * The filter returns only cells which contain 'better match' cells.
+     *
+     * If there are cells containing '0' detected they are ignored.
+     */
+    val qualityFilter: PartialFunction[SCell, Boolean] = {
+      case c => (c.value != 0) && (c.quality < digitLibrary(c.value)._1) // lower means "better"
+    }
+
+
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
     val tDL: DigitLibrary =
-      (for (c <- optimal.values if digitQuality(c.value) > c.quality) yield {
+      (for (c <- optimal.values if digitLibrary(c.value)._1 > c.quality) yield {
         val newData = Some(copyMat(sudokuCanvas.submat(c.roi)))
-        digitData(c.value) = newData
-        digitQuality(c.value) = c.quality
         c.value -> ((c.quality, newData))
       }).toMap
     tDL
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 
-  def resetIfInvalidCellsDetected(cells: Seq[Int]): Unit = {
+  def resetIfInvalidCellsDetected(digitLibrary: DigitLibrary, cells: Seq[Int]): DigitLibrary = {
     if (!SCandidate.isValid(hCounts, cells, cap)) {
 
       hCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
-      digitData.transform(_ => None)
-      digitQuality.transform(_ => Double.MaxValue)
-      ()
-      ???
-    }
+      Parameters.defaultLibrary
+    } else digitLibrary
   }
 
   // search on all positions for potential hits (don't count the "empty"/"zero" fields
@@ -238,13 +224,13 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     }.flatten
   }
 
-  def computeSolution(): Future[(Option[SudokuDigitSolution], Option[Cells])] =
+  def computeSolution(digitLibrary: DigitLibrary): Future[(Option[SudokuDigitSolution], Option[Cells])] =
     Future {
       val someDigitSolution =
         (if (detectedNumbers(hCounts, cap).size > minHits)
           solve(mkSudokuMatrix(hCounts, cap))
         else Some(mkIntermediateSudokuMatrix(hCounts)))
-      val someCells = someDigitSolution.map(s => toSolutionCells(s))
+      val someCells = someDigitSolution.map(s => toSolutionCells(digitLibrary, s))
       (someDigitSolution, someCells)
     }
 
@@ -274,17 +260,17 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    *
    * @return
    */
-  def toSolutionCells(digitSolution: SudokuDigitSolution): Cells = {
+  def toSolutionCells(digitLibrary: DigitLibrary, digitSolution: SudokuDigitSolution): Cells = {
     val allCells: Cells =
       (for (pos <- cellRange) yield {
         val value = digitSolution(pos).asDigit
 
         val x: Option[SCell] =
           if (value != 0) {
-            val someM = digitData(value)
+            val someM = digitLibrary(value)._2
             (if (someM.isEmpty) {
               //              digitData(value) = mkFallback(value, digitData)
-              digitData(value)
+              digitLibrary(value)._2
             } else someM)
               .map(m => SCell(value, 0, new Rect))
           } else None
@@ -396,15 +382,15 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     if (cornerDetector.foundCorners) {
       for {
         detectedCells <- cellDetector.futureDetectedCells
-        currentDigitLibrary = lastDigitLibrary ++ currentState.merge(warper.sudokuCanvas, detectedCells)
-        _ = currentState.updateLibrary(detectedCells)
+        currentDigitLibrary0 = lastDigitLibrary ++ currentState.merge(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
+        currentDigitLibrary = currentState.updateLibrary(currentDigitLibrary0, detectedCells)
 
-        (someDigitSolution, someSolutionCells) <- currentState.computeSolution()
+        (someDigitSolution, someSolutionCells) <- currentState.computeSolution(currentDigitLibrary)
 
         withSolution <- paintSolution(cellDetector.sudokuCanvas,
           detectedCells.map(_.value),
           someSolutionCells,
-          currentState.digitData,
+          currentDigitLibrary,
           cellDetector.cellRects)
         annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentState.hCounts)
 
@@ -454,14 +440,14 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
   private def paintSolution(canvas: Mat,
                             detectedCells: Seq[Int],
                             someSolution: Option[Cells],
-                            digitData: Array[Option[Mat]],
+                            digitLibrary: DigitLibrary,
                             rects: Seq[Rect]): Future[Mat] = {
 
     Future {
       for (solution <- someSolution) {
         val values = solution.map(_.value)
         for ((s, r) <- values zip rects if values.sum == 405) {
-          copyTo(digitData(s).getOrElse(mkFallback(s, digitData).get), canvas, r)
+          copyTo(digitLibrary(s)._2.getOrElse(mkFallback(s, digitLibrary).get), canvas, r)
         }
       }
       canvas
@@ -477,18 +463,18 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
    * @param number
    * @return
    */
-  private def mkFallback(number: Int, digitData: Array[Option[Mat]]): Option[Mat] = {
+  private def mkFallback(number: Int, digitLibrary: DigitLibrary): Option[Mat] = {
     /**
      * returns size and type of Mat's contained int he digitLibrary
      * @return
      */
-    def determineMatParams(digitData: Array[Option[Mat]]): Option[(Size, Int)] = {
-      digitData.flatten.headOption.map {
+    def determineMatParams(): Option[(Size, Int)] = {
+      digitLibrary.values.map(_._2).flatten.headOption.map {
         case m => (m.size, m.`type`)
       }
     }
 
-    for ((size, matType) <- determineMatParams(digitData)) yield {
+    for ((size, matType) <- determineMatParams()) yield {
       val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
       Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
       mat

@@ -71,7 +71,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var modeButtons: ToggleGroup = _
 
 
-  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibrary", Map().withDefaultValue((Double.MaxValue, None)))
+  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibrary", Parameters.defaultLibrary)
 
   def getCurrentDigitLibrary = currentDigitLibraryProperty.get()
 
@@ -209,11 +209,11 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     statusLabel.setText(message)
   }
 
-  def updateBestMatch(currentState: SudokuState, nrViews: Seq[ImageView]): Unit = {
+  def updateDigitLibraryView(digitLibrary: DigitLibrary, nrViews: Seq[ImageView]): Unit = {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        currentState.digitData(i + 1).map { case m => nrViews(i).setImage(toImage(m))}
+        digitLibrary(i+1)._2.map { case m => nrViews(i).setImage(toImage(m))}
       })
   }
 
@@ -410,12 +410,12 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     }
 
     sudokuResult match {
-      case SSuccess(nr, frame, start, imageIoChain, foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
+      case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas,foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
         updateVideo(stage, frame, imageIoChain, solutionMat)
         displayResult(solution, as[Label](resultFlowPane.getChildren))
         displayHitCounts(getCurrentSudokuState.hCounts, as[FlowPane](statsFlowPane.getChildren))
       }
-      case SCorners(nr, frame, start, imageIoChain, detectedCells, solutionCells) => {
+      case SCorners(nr, frame, start, imageIoChain, sudokuCanvas, detectedCells, solutionCells) => {
         updateVideo(stage, frame, imageIoChain, frame)
       }
       case SFailure(nr, frame, start, imageIoChain) => {
@@ -434,7 +434,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       }
     }
     setAnalysisMouseTransparent(false)
-    updateBestMatch(getCurrentSudokuState, as[ImageView](numberFlowPane.getChildren))
+    updateDigitLibraryView(getCurrentDigitLibrary, as[ImageView](numberFlowPane.getChildren))
     result match {
       case success: SSuccess => {
         updateStatus(mkFps(success.start), Color.GREEN)
