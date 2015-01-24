@@ -114,8 +114,7 @@ object SudokuState {
 case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
                        cap: Int = 8,
                        minHits: Int = 20,
-                       cells: Seq[SCell] = Seq(),
-                       digitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))) {
+                       cells: Seq[SCell] = Seq()) {
 
   def statsAsString(): String =
     s"""|${hitCountsAsString(hCounts)}
@@ -382,6 +381,7 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     if (cornerDetector.foundCorners) {
       for {
         detectedCells <- cellDetector.futureDetectedCells
+      //
         currentDigitLibrary0 = lastDigitLibrary ++ currentState.merge(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
         currentDigitLibrary = currentState.updateLibrary(currentDigitLibrary0, detectedCells)
 

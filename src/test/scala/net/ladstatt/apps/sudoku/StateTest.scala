@@ -83,8 +83,4 @@ class StateTest {
     }
   }
 
-  @Test def testEquality(): Unit = {
-    assertEquals(112.1212, s0.mergeN(s0).digitLibrary(1)._1, 0.00001)
-    assertEquals((true, "OK"), compareMat(asMat(1), s0.mergeN(s0).digitLibrary(1)._2.get))
-  }
 }
