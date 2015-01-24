@@ -63,44 +63,8 @@ object SCandidate {
   }
 
 
-  def duplicate(origHCounts: HitCounts): HitCounts = {
-    for (cnts <- origHCounts) yield {
-      for (x <- cnts) yield x
-    }
-  }
-
-  def duplicate(origDigitQuality: Array[Double]): Array[Double] = origDigitQuality.clone()
-
-  def duplicate(origDigitData: Array[Option[Mat]]): Array[Option[Mat]] = origDigitData.clone()
-
-  def apply(orig: SCandidate): SCandidate = {
-    SCandidate(
-      nr = orig.nr,
-      frame = copyMat(orig.frame))
-  }
-
 }
 
-object SudokuState {
-
-  def duplicate(origHCounts: HitCounts): HitCounts = {
-    for (cnts <- origHCounts) yield {
-      for (x <- cnts) yield x
-    }
-  }
-
-  def duplicate(origDigitQuality: Array[Double]): Array[Double] = origDigitQuality.clone()
-
-  def duplicate(origDigitData: Array[Option[Mat]]): Array[Option[Mat]] = origDigitData.clone()
-
-  def apply(orig: SudokuState): SudokuState = {
-    SudokuState(hCounts = duplicate(orig.hCounts),
-      cap = orig.cap,
-      minHits = orig.minHits,
-      cells = orig.cells
-    )
-  }
-}
 
 /**
  * @param hCounts the individual detection numbers
