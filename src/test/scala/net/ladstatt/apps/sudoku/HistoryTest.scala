@@ -241,7 +241,7 @@ class HistoryTest extends OpenCvUnitTest with Utils {
   @Test
   def invalidSCell() = {
     Try {
-      SCell(-10, 0, null)
+      SCell(-10, 0,null)
     } match {
       case Failure(e: AssertionError) =>
       case _ => fail("should throw an AssertionError")

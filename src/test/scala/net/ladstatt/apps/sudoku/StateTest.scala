@@ -34,7 +34,7 @@ class StateTest {
   def asMat(i: Int): Mat = Parameters.templateLibrary(i)
 
   val cellData = new Mat
-  val cellz = Seq(SCell(1, 112.1212, asMat(1)), SCell(4, 80.1212, asMat(4)))
+  val cellz = Seq(SCell(1, 112.1212,null), SCell(4, 80.1212,null))
   val s0 = SudokuState(cells = cellz)
 
   /*

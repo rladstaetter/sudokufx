@@ -104,7 +104,7 @@ object SudokuState {
       digitData = duplicate(orig.digitData),
       cap = orig.cap,
       minHits = orig.minHits,
-      cells = orig.cells.map(_.duplicate())
+      cells = orig.cells
     )
   }
 }
@@ -129,21 +129,21 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
 
   def statsAsString(): String =
     s"""$digitQualityAsString
-       |${hitCountsAsString(hCounts)}
-       |""".stripMargin
+        |${hitCountsAsString(hCounts)}
+        |""".stripMargin
 
   def digitQualityAsString: String =
     s"""Quality:
-      |--------
-      |${digitQuality.map(q => q).mkString("\n")}
-      |""".stripMargin
+       |--------
+       |${digitQuality.map(q => q).mkString("\n")}
+        |""".stripMargin
 
   def hitCountsAsString(hitCounts: HitCounts): String = {
     s"""Hitcounts:
-      |----------
-      |
-      |${hitCounts.map(_.mkString(",")).mkString("\n")}
-      |""".stripMargin
+       |----------
+       |
+       |${hitCounts.map(_.mkString(",")).mkString("\n")}
+        |""".stripMargin
   }
 
   // TODO remove
@@ -178,8 +178,8 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * @param detectedCells
    * @return
    */
-  def updateLibrary(detectedCells: Seq[SCell]): Future[Unit] = execFuture {
-    merge(detectedCells)
+  def updateLibrary(sudokuPlane : Mat, detectedCells: Seq[SCell]): Future[Unit] = execFuture {
+    merge(sudokuPlane,detectedCells)
     val detectedValues: Seq[SIndex] = detectedCells.map(_.value)
     countHits(detectedValues)
     resetIfInvalidCellsDetected(detectedValues)
@@ -199,21 +199,20 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     val optimal: Map[Int, SCell] = grouped.map { case (i, cls) => i -> cls.maxBy(c => c.quality)}
     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
 
-    val x: Map[SNum, (SHitQuality, Some[Mat])] =
-      (for ((i, c) <- optimal if digitQuality(c.value) > c.quality) yield (i, (c.quality, Some(copyMat(c.data))))).toMap
+    val x: Map[SNum, (SHitQuality, Option[Mat])] =
+      (for ((i, c) <- optimal if digitQuality(c.value) > c.quality) yield (i, (c.quality, None))).toMap
 
-    copy(digitLibrary = digitLibrary ++ x,
-      cells = other.cells.map(_.duplicate))
+    copy(digitLibrary = digitLibrary ++ x, cells = other.cells)
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 
-  def merge(detectedCells: Seq[SCell]): SudokuState = time({
+  def merge(sudokuPane : Mat, detectedCells: Seq[SCell]): SudokuState = time({
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
     for (c <- optimal.values if (digitQuality(c.value) > c.quality)) {
-      digitData(c.value) = Some(copyMat(c.data))
+      digitData(c.value) = Some(copyMat(sudokuPane.submat(c.roi)))
       digitQuality(c.value) = c.quality
     }
     SudokuState(this)
@@ -234,12 +233,11 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
   // search on all positions for potential hits (don't count the "empty"/"zero" fields
   // TODO remove, see cellNumbers
   def detectedNumbers(hitCounts: HitCounts, cap: Int): Iterable[SCount] = {
-    (for {
-      hitcount <- hitCounts
-    } yield {
+    hitCounts.map { case hitcount => {
       val filtered = hitcount.drop(1).filter(_ >= cap)
       if (filtered.isEmpty) None else Some(filtered.max)
-    }).flatten
+    }
+    }.flatten
   }
 
   def computeSolution(): Future[(Option[SudokuDigitSolution], Option[Cells])] =
@@ -287,19 +285,16 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
           if (value != 0) {
             val someM = digitData(value)
             (if (someM.isEmpty) {
-//              digitData(value) = mkFallback(value, digitData)
+              //              digitData(value) = mkFallback(value, digitData)
               digitData(value)
             } else someM)
-              .map(SCell(value, 0, _))
+              .map(m => SCell(value, 0, new Rect))
           } else None
         x
       }).flatten.toArray
 
     allCells
   }
-
-
-
 
 
   /**
@@ -358,7 +353,7 @@ case class CornerDetector(dilated: Mat) {
 
 }
 
-case class Warper(frame : Mat, destCorners: MatOfPoint2f) {
+case class Warper(frame: Mat, destCorners: MatOfPoint2f) {
 
   val colorWarped = warp(frame, destCorners, mkCorners(frame.size))
 
@@ -368,8 +363,7 @@ case class CellDetector(colorWarped: Mat) {
 
   val cellSize = mkCellSize(colorWarped.size)
   val cellRects: Seq[Rect] = cellRange.map(mkRect(_, cellSize))
-  val cellMats: Seq[Mat] = cellRects.map(colorWarped.submat)
-  val futureSCells: Seq[Future[SCell]] = cellMats.map(detectCell)
+  val futureSCells: Seq[Future[SCell]] = cellRects .map(detectCell(colorWarped,_)       )
 
   // 81 possibly detected cells, most of them probably filled with 0's
   val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
@@ -390,7 +384,7 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
   val cornerDetector: CornerDetector = CornerDetector(imageIoChain.dilated)
 
   lazy val warper = Warper(frame, cornerDetector.corners)
-  
+
   lazy val cellDetector: CellDetector = CellDetector(warper.colorWarped)
 
   /**
@@ -405,7 +399,7 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
       for {
         detectedCells <- cellDetector.futureDetectedCells
 
-        _ <- currentState.updateLibrary(detectedCells)
+        _ <- currentState.updateLibrary(warper.colorWarped,detectedCells)
 
         (someDigitSolution, someSolutionCells) <- currentState.computeSolution()
 

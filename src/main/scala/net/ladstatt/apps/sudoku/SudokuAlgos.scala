@@ -183,13 +183,13 @@ object SudokuAlgos {
   }
 
 
-  def detectCell(cell: Mat): Future[SCell] = {
+  def detectCell(sudokuPlane: Mat, roi: Rect): Future[SCell] = {
     import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
     for {
-      contour <- extractContour(cell)
+      contour <- extractContour(sudokuPlane.submat(roi))
       (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
     } yield {
-      SCell(value, quality, cell)
+      SCell(value, quality, roi)
     }
   }
 
@@ -218,7 +218,7 @@ object SudokuAlgos {
   }
 
 
-  def persistFrame(frame : Mat, nr : Int, workingDirectory: File): Future[File] = {
+  def persistFrame(frame: Mat, nr: Int, workingDirectory: File): Future[File] = {
     // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
     Future.successful(null)
   }
