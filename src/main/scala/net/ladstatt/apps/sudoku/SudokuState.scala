@@ -16,7 +16,7 @@ case class SCorners(nr: Int,
                     frame: Mat,
                     start: Long,
                     imageIOChain: ImageIOChain,
-                    sudokuCanvas: Mat,
+                    sudokuCanvas: SudokuCanvas,
                     detectedCells: Cells,
                     sudokuCorners: List[Point]) extends SudokuResult
 
@@ -24,7 +24,7 @@ case class SSuccess(nr: Int,
                     frame: Mat,
                     start: Long,
                     imageIOChain: ImageIOChain,
-                    sudokuCanvas: Mat,
+                    sudokuCanvas: SudokuCanvas,
                     foundCorners: Boolean,
                     detectedCells: Cells,
                     solution: SudokuDigitSolution,
@@ -128,6 +128,8 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
         |""".stripMargin
   }
 
+
+
   // TODO remove
   def countHits(cells: Seq[Int]): Unit = {
 
@@ -151,15 +153,14 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * @param detectedCells
    * @return
    */
-  def updateLibrary(digitLibrary: DigitLibrary, detectedCells: Seq[SCell]): DigitLibrary = {
+  def updateLibrary(digitLibrary: DigitLibrary,
+                    detectedCells: Seq[SCell]): DigitLibrary = {
     val detectedValues: Seq[SIndex] = detectedCells.map(_.value)
     countHits(detectedValues)
     resetIfInvalidCellsDetected(digitLibrary, detectedValues)
   }
 
-
-
-  def merge(sudokuCanvas: Mat,
+  def merge(sudokuCanvas: SudokuCanvas,
             digitLibrary: DigitLibrary,
             detectedCells: Seq[SCell]): DigitLibrary = time({
 
@@ -171,7 +172,6 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
     val qualityFilter: PartialFunction[SCell, Boolean] = {
       case c => (c.value != 0) && (c.quality < digitLibrary(c.value)._1) // lower means "better"
     }
-
 
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
@@ -319,11 +319,11 @@ case class CornerDetector(dilated: Mat) {
 
 case class Warper(frame: Mat, destCorners: MatOfPoint2f) {
 
-  val sudokuCanvas = warp(frame, destCorners, mkCorners(frame.size))
+  val sudokuCanvas: SudokuCanvas = warp(frame, destCorners, mkCorners(frame.size))
 
 }
 
-case class CellDetector(sudokuCanvas: Mat) {
+case class CellDetector(sudokuCanvas: SudokuCanvas) {
 
   val cellSize = mkCellSize(sudokuCanvas.size)
   val cellRects: Seq[Rect] = cellRange.map(mkRect(_, cellSize))
@@ -351,10 +351,19 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
 
   lazy val cellDetector: CellDetector = CellDetector(warper.sudokuCanvas)
 
+
+  def mergeHits(currentHitCounts: HitCounds, detections: Seq[Int]): HitCounds = {
+    (for ((value, index) <- detections.zipWithIndex) yield {
+      val frequencies: Map[Int, Int] = currentHitCounts(index)
+      index -> (frequencies + (value -> (frequencies(value) + 1)))
+    }).toMap
+  }
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
    */
-  def calc(currentState: SudokuState, lastDigitLibrary: DigitLibrary): Future[(SudokuResult, DigitLibrary)] = {
+  def calc(currentState: SudokuState,
+           lastDigitLibrary: DigitLibrary,
+           lastHits : HitCounds): Future[(SudokuResult, DigitLibrary, HitCounds)] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
@@ -362,9 +371,10 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     if (cornerDetector.foundCorners) {
       for {
         detectedCells <- cellDetector.futureDetectedCells
-      //
+        //
         currentDigitLibrary0 = lastDigitLibrary ++ currentState.merge(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
         currentDigitLibrary = currentState.updateLibrary(currentDigitLibrary0, detectedCells)
+        currentHits = mergeHits(lastHits, detectedCells.map(_.value))
 
         (someDigitSolution, someSolutionCells) <- currentState.computeSolution(currentDigitLibrary)
 
@@ -390,7 +400,7 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
             detectedCells.toArray,
             someDigitSolution.get,
             solutionMat,
-            cornerDetector.corners.toList.toList), currentDigitLibrary)
+            cornerDetector.corners.toList.toList), currentDigitLibrary, currentHits)
         } else {
           (SCorners(nr,
             frame,
@@ -398,11 +408,11 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
             imageIoChain,
             warper.sudokuCanvas,
             detectedCells.toArray,
-            cornerDetector.corners.toList.toList), currentDigitLibrary)
+            cornerDetector.corners.toList.toList), currentDigitLibrary,currentHits)
         }
       }
     } else {
-      Future.successful((SFailure(nr, frame, start, imageIoChain), lastDigitLibrary))
+      Future.successful((SFailure(nr, frame, start, imageIoChain), lastDigitLibrary, lastHits))
     }
 
   }

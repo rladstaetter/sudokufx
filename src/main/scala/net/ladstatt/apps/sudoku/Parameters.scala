@@ -10,8 +10,6 @@ import scala.io.Source
  */
 object Parameters {
 
-  val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
-
 
   val ssize = 9
   val cellCount = ssize * ssize
@@ -33,6 +31,8 @@ object Parameters {
 
   lazy val templateCorners = OpenCV.mkCorners(sudokuTemplateSize)
 
+  val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
+  val defaultHitCounts : HitCounds = Map().withDefaultValue(Map[Int,Int]().withDefaultValue(0))
 
   lazy val templateLibrary: Map[Int, Mat] = {
     val digits: Seq[Array[Int]] =

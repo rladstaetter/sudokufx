@@ -70,8 +70,14 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
+  
+  val currentHitCountsProperty = new SimpleObjectProperty[HitCounds](this, "currentHitCountdsProperty", Parameters.defaultHitCounts)
 
-  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibrary", Parameters.defaultLibrary)
+  def getCurrentHitCounts = currentHitCountsProperty.get()
+
+  def setCurrentHitCounts(hitCounts : HitCounds) = currentHitCountsProperty.set(hitCounts)
+  
+  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibraryProperty", Parameters.defaultLibrary)
 
   def getCurrentDigitLibrary = currentDigitLibraryProperty.get()
 
@@ -123,9 +129,10 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     for {
       _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
-      (result,udl) <- candidate.calc(getCurrentSudokuState, getCurrentDigitLibrary)
+      (result,udl,updatedHitCounts) <- candidate.calc(getCurrentSudokuState, getCurrentDigitLibrary, getCurrentHitCounts)
     } {
       setCurrentDigitLibrary(udl)
+      setCurrentHitCounts(updatedHitCounts)
       display(result)
     }
   }

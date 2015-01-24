@@ -18,10 +18,14 @@ package object sudoku {
   // Array(0,0,2,0,0,0,0,0,0)
   type HitCount = Array[SCount]
   type HitCounts = Array[HitCount]
+  type HitCounds = Map[Int, Map[Int, Int]]
   type DetectionMethod = Option[Mat] => Future[(SNum, SHitQuality)]
+
+  type SudokuCanvas = Mat
   /**
    * records for each number from 0 to 9 the best hit (quality) along with its digital data
    */
+  // todo change to Map[SNum,(SHitQuality, Option[Rect]] and reference it to SudokuCanvas
   type DigitLibrary = Map[SNum, (SHitQuality, Option[Mat])]
   // TODO solution should be an array of Int or a string with 81 entries
   // the graphical representation should be a single mat with the matrixes edited inline
