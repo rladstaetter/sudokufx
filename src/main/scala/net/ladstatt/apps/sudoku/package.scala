@@ -1,6 +1,5 @@
 package net.ladstatt.apps
 
-import net.ladstatt.apps.sudoku.Parameters._
 import org.opencv.core.Mat
 
 import scala.concurrent.Future
@@ -20,7 +19,7 @@ package object sudoku {
   type HitCount = Array[SCount]
   type HitCounts = Array[HitCount]
   type DetectionMethod = Option[Mat] => Future[(SNum, SHitQuality)]
-
+  type DigitLibrary = Map[SNum, (SHitQuality, Option[Mat])]
   // TODO solution should be an array of Int or a string with 81 entries
   // the graphical representation should be a single mat with the matrixes edited inline
   // (meaning the matrix represents the whole canvas and the app is working with submatrixes

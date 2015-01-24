@@ -70,9 +70,16 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
+
+  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibrary", Map().withDefaultValue((Double.MaxValue, None)))
+
+  def getCurrentDigitLibrary = currentDigitLibraryProperty.get()
+
+  def setCurrentDigitLibrary(library: DigitLibrary) = currentDigitLibraryProperty.set(library)
+
   val currentSudokuStateProperty = new SimpleObjectProperty[SudokuState](SudokuState())
 
-  def getCurrentSudokuState() = currentSudokuStateProperty.get()
+  def getCurrentSudokuState = currentSudokuStateProperty.get()
 
   def setCurrentSudokuState(sudokuState: SudokuState) = currentSudokuStateProperty.set(sudokuState)
 
@@ -80,7 +87,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
   def setFrameNumber(i: Int) = frameNumberProperty.set(i)
 
-  def getFrameNumber() = frameNumberProperty.get()
+  def getFrameNumber = frameNumberProperty.get()
 
 
   val history = new File("runs/").listFiles()
@@ -109,15 +116,16 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   def processFrame(observableValue: ObservableValue[_ <: Mat],
                    oldFrame: Mat,
                    currentFrame: Mat): Unit = {
-    val currentFrameNumber = getFrameNumber()
+    val currentFrameNumber = getFrameNumber
     setFrameNumber(currentFrameNumber + 1)
 
     val candidate = SCandidate(nr = currentFrameNumber, frame = currentFrame)
 
     for {
       _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
-      result <- candidate.calc(getCurrentSudokuState())
+      (result,udl) <- candidate.calc(getCurrentSudokuState, getCurrentDigitLibrary)
     } {
+      setCurrentDigitLibrary(udl)
       display(result)
     }
   }

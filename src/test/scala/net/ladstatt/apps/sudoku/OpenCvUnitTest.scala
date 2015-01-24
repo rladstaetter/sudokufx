@@ -27,11 +27,11 @@ trait OpenCvUnitTest {
       |893174265""".stripMargin.replaceAll("\n", "").toCharArray
   lazy val sudoku69 = SCandidate(nr = 0, frame = frame69)
 
-  lazy val sudoku69Result = time(Await.result(sudoku69.calc(SudokuState(cap = 1, minHits = 17)), Duration.Inf), t => logInfo(s"emptyFrame: $t ms"))
+  lazy val (sudoku69Result,_) = time(Await.result(sudoku69.calc(SudokuState(cap = 1, minHits = 17),Map()), Duration.Inf), t => logInfo(s"emptyFrame: $t ms"))
 
   lazy val emptyFrame = new Mat(1280, 768, CvType.CV_8UC3)
   lazy val emptySudoku = SCandidate(nr = 0, frame = emptyFrame)
-  lazy val emptySudokuResult = time(Await.result(emptySudoku.calc(SudokuState(cap = 1, minHits = 1)), Duration.Inf), t => logInfo(s"emptyFrame: $t ms"))
+  lazy val (emptySudokuResult,_) = time(Await.result(emptySudoku.calc(SudokuState(cap = 1, minHits = 1),Map()), Duration.Inf), t => logInfo(s"emptyFrame: $t ms"))
 
 
 }

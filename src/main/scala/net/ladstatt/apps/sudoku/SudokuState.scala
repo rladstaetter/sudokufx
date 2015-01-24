@@ -10,19 +10,13 @@ import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-sealed trait SudokuResult {
-  /*def nr: Int
-
-  def frame: Mat
-
-  def start: Long
-  */
-}
+sealed trait SudokuResult
 
 case class SCorners(nr: Int,
                     frame: Mat,
                     start: Long,
                     imageIOChain: ImageIOChain,
+                    sudokuCanvas: Mat,
                     detectedCells: Cells,
                     sudokuCorners: List[Point]) extends SudokuResult
 
@@ -30,6 +24,7 @@ case class SSuccess(nr: Int,
                     frame: Mat,
                     start: Long,
                     imageIOChain: ImageIOChain,
+                    sudokuCanvas: Mat,
                     foundCorners: Boolean,
                     detectedCells: Cells,
                     solution: SudokuDigitSolution,
@@ -102,6 +97,7 @@ object SudokuState {
     SudokuState(hCounts = duplicate(orig.hCounts),
       digitQuality = duplicate(orig.digitQuality),
       digitData = duplicate(orig.digitData),
+      dL = Map(),
       cap = orig.cap,
       minHits = orig.minHits,
       cells = orig.cells
@@ -122,10 +118,11 @@ object SudokuState {
 case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
                        digitQuality: Array[Double] = Array.fill(digitRange.size)(Double.MaxValue),
                        digitData: Array[Option[Mat]] = Array.fill(digitRange.size)(None),
+                       dL: DigitLibrary = Map(),
                        cap: Int = 8,
                        minHits: Int = 20,
                        cells: Seq[SCell] = Seq(),
-                       digitLibrary: Map[SNum, (SHitQuality, Option[Mat])] = Map().withDefaultValue((Double.MaxValue, None))) {
+                       digitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))) {
 
   def statsAsString(): String =
     s"""$digitQualityAsString
@@ -178,12 +175,10 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
    * @param detectedCells
    * @return
    */
-  def updateLibrary(sudokuPlane : Mat, detectedCells: Seq[SCell]): Future[Unit] = execFuture {
-    merge(sudokuPlane,detectedCells)
+  def updateLibrary(detectedCells: Seq[SCell]): Unit = {
     val detectedValues: Seq[SIndex] = detectedCells.map(_.value)
     countHits(detectedValues)
     resetIfInvalidCellsDetected(detectedValues)
-    ()
   }
 
   /**
@@ -206,16 +201,19 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 
-  def merge(sudokuPane : Mat, detectedCells: Seq[SCell]): SudokuState = time({
+  def merge(sudokuCanvas: Mat, detectedCells: Seq[SCell]): DigitLibrary = time({
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
     // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
-    for (c <- optimal.values if (digitQuality(c.value) > c.quality)) {
-      digitData(c.value) = Some(copyMat(sudokuPane.submat(c.roi)))
-      digitQuality(c.value) = c.quality
-    }
-    SudokuState(this)
+    val tDL: DigitLibrary =
+      (for (c <- optimal.values if digitQuality(c.value) > c.quality) yield {
+        val newData = Some(copyMat(sudokuCanvas.submat(c.roi)))
+        digitData(c.value) = newData
+        digitQuality(c.value) = c.quality
+        c.value -> ((c.quality, newData))
+      }).toMap
+    tDL
   }, t => logInfo(s"Merging took: ${t} micros"))
 
 
@@ -355,15 +353,15 @@ case class CornerDetector(dilated: Mat) {
 
 case class Warper(frame: Mat, destCorners: MatOfPoint2f) {
 
-  val colorWarped = warp(frame, destCorners, mkCorners(frame.size))
+  val sudokuCanvas = warp(frame, destCorners, mkCorners(frame.size))
 
 }
 
-case class CellDetector(colorWarped: Mat) {
+case class CellDetector(sudokuCanvas: Mat) {
 
-  val cellSize = mkCellSize(colorWarped.size)
+  val cellSize = mkCellSize(sudokuCanvas.size)
   val cellRects: Seq[Rect] = cellRange.map(mkRect(_, cellSize))
-  val futureSCells: Seq[Future[SCell]] = cellRects .map(detectCell(colorWarped,_)       )
+  val futureSCells: Seq[Future[SCell]] = cellRects.map(detectCell(sudokuCanvas, _))
 
   // 81 possibly detected cells, most of them probably filled with 0's
   val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
@@ -385,12 +383,12 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
 
   lazy val warper = Warper(frame, cornerDetector.corners)
 
-  lazy val cellDetector: CellDetector = CellDetector(warper.colorWarped)
+  lazy val cellDetector: CellDetector = CellDetector(warper.sudokuCanvas)
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
    */
-  def calc(currentState: SudokuState): Future[SudokuResult] = {
+  def calc(currentState: SudokuState, lastDigitLibrary: DigitLibrary): Future[(SudokuResult, DigitLibrary)] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
@@ -398,12 +396,12 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     if (cornerDetector.foundCorners) {
       for {
         detectedCells <- cellDetector.futureDetectedCells
-
-        _ <- currentState.updateLibrary(warper.colorWarped,detectedCells)
+        currentDigitLibrary = lastDigitLibrary ++ currentState.merge(warper.sudokuCanvas, detectedCells)
+        _ = currentState.updateLibrary(detectedCells)
 
         (someDigitSolution, someSolutionCells) <- currentState.computeSolution()
 
-        withSolution <- paintSolution(cellDetector.colorWarped,
+        withSolution <- paintSolution(cellDetector.sudokuCanvas,
           detectedCells.map(_.value),
           someSolutionCells,
           currentState.digitData,
@@ -416,26 +414,28 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
         solutionMat <- copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
       } yield {
         if (someSolutionCells.isDefined) {
-          SSuccess(nr,
+          (SSuccess(nr,
             frame,
             start,
             imageIoChain,
+            warper.sudokuCanvas,
             cornerDetector.foundCorners,
             detectedCells.toArray,
             someDigitSolution.get,
             solutionMat,
-            cornerDetector.corners.toList.toList)
+            cornerDetector.corners.toList.toList), currentDigitLibrary)
         } else {
-          SCorners(nr,
+          (SCorners(nr,
             frame,
             start,
             imageIoChain,
+            warper.sudokuCanvas,
             detectedCells.toArray,
-            cornerDetector.corners.toList.toList)
+            cornerDetector.corners.toList.toList), currentDigitLibrary)
         }
       }
     } else {
-      Future.successful(SFailure(nr, frame, start, imageIoChain))
+      Future.successful((SFailure(nr, frame, start, imageIoChain), lastDigitLibrary))
     }
 
   }
