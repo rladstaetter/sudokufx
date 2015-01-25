@@ -258,22 +258,7 @@ class HistoryTest extends OpenCvUnitTest with Utils {
     }
   }
 
-  @Test def testDetectInvalidHitcounts(): Unit = {
-    val hCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0))
-    assertTrue(SCandidate.isValid(hCounts, Seq(0), 1))
-  }
 
-
-  @Test def testDetectInvalidHitcounts1(): Unit = {
-    val hCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0))
-    assertTrue(SCandidate.isValid(hCounts, Seq(1), 1))
-  }
-
-
-  @Test def testDetectInvalidHitcounts2(): Unit = {
-    val hCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(5))
-    assertTrue(!SCandidate.isValid(hCounts, Seq(1), 1))
-  }
 
 
 }

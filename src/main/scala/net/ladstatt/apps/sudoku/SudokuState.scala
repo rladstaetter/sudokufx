@@ -9,6 +9,7 @@ import org.opencv.core._
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Random
 
 sealed trait SudokuResult
 
@@ -36,7 +37,8 @@ case class SSuccess(nr: Int,
 
 case class SFailure(nr: Int, frame: Mat, start: Long, imageIoChain: ImageIOChain) extends SudokuResult
 
-object SCandidate {
+ /*
+object NewCandidate {
 
   def sectorIndizes(i: Int): Set[Int] = {
     val rowSector: Seq[Int] = sectors(row(i) / 3)
@@ -45,152 +47,79 @@ object SCandidate {
           c <- colSector} yield r * 9 + c).toSet -- Set(i)
   }
 
-  def isValid(hitCounts: HitCounts, values: Seq[Int], cap: Int): Boolean =
+  def isValid(hitCounts: HitCounters, values: Seq[Int], cap: Int): Boolean =
     values.zipWithIndex.forall {
-      case (c, i) => SCandidate.posWellFormed(hitCounts, i, c, cap)
+      case (c, i) => posWellFormed(hitCounts, i, c, cap)
     }
 
   // searches rows and cols if there exist already the value in the same row or column
-  private def rowColWellFormed(hitCounts: HitCounts, i: Int, value: Int, cap: Int): Boolean = {
+  private def rowColWellFormed(hitCounts: HitCounters, i: Int, value: Int, cap: Int): Boolean = {
     // val otherCells = cellRange.filter(u => u != i && ((row(u) == row(i) || col(u) == col(i)) || sectorIndizes(i).contains(u)))
     val otherCells = cellRange.filter(u => u != i && (row(u) == row(i) || col(u) == col(i)))
     !otherCells.exists(i => hitCounts(i).contains(value) && hitCounts(i)(value) == cap)
     // !otherCells.exists(i => hitCounts(i).contains(value))
   }
 
-  def posWellFormed(hitCounts: HitCounts, i: SIndex, value: Int, cap: Int): Boolean = {
+  def posWellFormed(hitCounts: HitCounters, i: SIndex, value: Int, cap: Int): Boolean = {
     value == 0 || rowColWellFormed(hitCounts, i, value, cap) //&& sectorWellFormed(hitCounts, i, value)
   }
 
 
 }
+     */
 
-
-/**
- * @param hCounts the individual detection numbers
- *                for each of the 81 sudoku cells, there exists a list which depicts how often a certain number
- *                was found in the sudoku, where the index in the list is the number (from 0 to 9, with 0 being
- *                the "empty" cell)
-
- * @param cap how often should a digit be detected before it is considered "stable enough"
- * @param minHits how many digits have to be detected before a solution attempt is executed
- */
-case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fill[SCount](digitRange.size)(0)),
-                       cap: Int = 8,
-                       minHits: Int = 20,
-                       cells: Seq[SCell] = Seq()) {
-
-  def statsAsString(): String =
-    s"""|${hitCountsAsString(hCounts)}
-        |""".stripMargin
-
-  def hitCountsAsString(hitCounts: HitCounts): String = {
-    s"""Hitcounts:
-       |----------
-       |
-       |${hitCounts.map(_.mkString(",")).mkString("\n")}
-        |""".stripMargin
-  }
-
-
-
-  // TODO remove
-  def countHits(cells: Seq[Int]): Unit = {
-
-    def updateHitCounts(i: SIndex, value: Int): Unit = {
-      val hitCountAtPos = hCounts(i)
-      if (hitCountAtPos.max < cap) {
-        hitCountAtPos(value) = 1 + hitCountAtPos(value)
-      }
-    }
-
-    traverseWithIndex(cells)((c, i) => {
-      if (SCandidate.posWellFormed(hCounts, i, c, cap)) {
-        updateHitCounts(i, c)
-      }
-    })
-  }
-
+case class SudokuState(cells: Seq[SCell] = Seq()) {
 
   /**
-   * From a given list of cells, choose the ones which are the best hits
-   * @param detectedCells
+   * given a frequency table, returns a number which exceed a certain threshold randomly
+   *
+   * @param freqs
+   * @param threshold
    * @return
    */
-  def updateLibrary(digitLibrary: DigitLibrary,
-                    detectedCells: Seq[SCell]): DigitLibrary = {
-    val detectedValues: Seq[SIndex] = detectedCells.map(_.value)
-    countHits(detectedValues)
-    resetIfInvalidCellsDetected(digitLibrary, detectedValues)
+  def filterHits(freqs: Map[Int, Int], threshold: Int): Option[(Int, Int)] = {
+    freqs.find { case (value, f) => value != 0 && f >= threshold}
   }
 
-  def merge(sudokuCanvas: SudokuCanvas,
-            digitLibrary: DigitLibrary,
-            detectedCells: Seq[SCell]): DigitLibrary = time({
-
-    /**
-     * The filter returns only cells which contain 'better match' cells.
-     *
-     * If there are cells containing '0' detected they are ignored.
-     */
-    val qualityFilter: PartialFunction[SCell, Boolean] = {
-      case c => (c.value != 0) && (c.quality < digitLibrary(c.value)._1) // lower means "better"
-    }
-
-    val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
-    val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
-    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
-    // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
-    val tDL: DigitLibrary =
-      (for (c <- optimal.values if digitLibrary(c.value)._1 > c.quality) yield {
-        val newData = Some(copyMat(sudokuCanvas.submat(c.roi)))
-        c.value -> ((c.quality, newData))
-      }).toMap
-    tDL
-  }, t => logInfo(s"Merging took: ${t} micros"))
-
-
-  def resetIfInvalidCellsDetected(digitLibrary: DigitLibrary, cells: Seq[Int]): DigitLibrary = {
-    if (!SCandidate.isValid(hCounts, cells, cap)) {
-
-      hCounts.transform(_ => Array.fill[SCount](Parameters.digitRange.size)(0))
-      Parameters.defaultLibrary
-    } else digitLibrary
+  def nrDetections(hitCounts: HitCounters, cap: Int): Int = {
+    hitCounts.values.flatMap(filterHits(_, cap)).size
   }
 
-  // search on all positions for potential hits (don't count the "empty"/"zero" fields
-  // TODO remove, see cellNumbers
-  def detectedNumbers(hitCounts: HitCounts, cap: Int): Iterable[SCount] = {
-    hitCounts.map { case hitcount => {
-      val filtered = hitcount.drop(1).filter(_ >= cap)
-      if (filtered.isEmpty) None else Some(filtered.max)
-    }
-    }.flatten
-  }
 
-  def computeSolution(digitLibrary: DigitLibrary): Future[(Option[SudokuDigitSolution], Option[Cells])] =
+  def computeSolution(hitCounters: HitCounters,
+                      digitLibrary: DigitLibrary,
+                      cap: Int,
+                      minHits: Int): Future[(Option[SudokuDigitSolution], Option[Cells], HitCounters, DigitLibrary)] =
     Future {
-      val someDigitSolution =
-        (if (detectedNumbers(hCounts, cap).size > minHits)
-          solve(mkSudokuMatrix(hCounts, cap))
-        else Some(mkIntermediateSudokuMatrix(hCounts)))
-      val someCells = someDigitSolution.map(s => toSolutionCells(digitLibrary, s))
-      (someDigitSolution, someCells)
+      val (someDigitSolution, currentHits, currentDigitLibrary) =
+        if (nrDetections(hitCounters, cap) >= minHits) {
+          logInfo("Trying to solve with detectednumbers: " + nrDetections(hitCounters, cap) + ", minHits: " + minHits)
+          val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounters, cap)
+          val someResult = solve(sudoku2Solve)
+          (someResult,
+            if (someResult.isDefined) hitCounters else Parameters.defaultHitCounts,
+            if (someResult.isDefined) digitLibrary else Parameters.defaultLibrary) // reset if no valid solution was found
+        }
+        else
+        //  (Some(mkIntermediateSudokuMatrix(hitCounters)), hitCounters, digitLibrary)
+          (None, hitCounters, digitLibrary)
+
+      val someCells = someDigitSolution.map(toSolutionCells(digitLibrary, _))
+      (someDigitSolution, someCells, currentHits, currentDigitLibrary)
     }
 
-  private def solve(solutionCandidate: SudokuDigitSolution) = BruteForceSolver.solve(solutionCandidate)
+  private def solve(solutionCandidate: SudokuDigitSolution): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate)
 
-  def withCap(cap: Int)(v: Int) = v == cap
+  def withCap(cap: Int)(v: Int) = v >= cap
 
-  def mkSudokuMatrix(hitCounts: HitCounts, cap: Int): SudokuDigitSolution = mkVM(hitCounts)(withCap(cap)(_))
+  def mkSudokuMatrix(hitCounts: HitCounters, cap: Int): SudokuDigitSolution = mkVM(hitCounts)(withCap(cap)(_))
 
-  def mkIntermediateSudokuMatrix(hitCounts: HitCounts): SudokuDigitSolution = mkVM(hitCounts)(_ => true)
+  def mkIntermediateSudokuMatrix(hitCounts: HitCounters): SudokuDigitSolution = mkVM(hitCounts)(_ => true)
 
-  // returns the sudoku matrix by analyzing the hitcounts array
-  def mkVM(hitCounts: HitCounts)(p: Int => Boolean): SudokuDigitSolution = {
+  def mkVM(hitCounts: HitCounters)(p: Int => Boolean): SudokuDigitSolution = {
     val h =
       for (i <- cellRange) yield {
-        ((for ((v, i) <- hitCounts(i).zipWithIndex if p(v)) yield i).headOption.getOrElse(0) + 48).toChar
+        (Random.shuffle(for ((value, frequency) <- hitCounts(i) if p(frequency)) yield value).headOption.getOrElse(0) + 48).toChar
       }
     h.toArray
   }
@@ -236,25 +165,20 @@ case class SudokuState(hCounts: HitCounts = Array.fill(cellRange.size)(Array.fil
   def paintCorners(canvas: Mat,
                    rects: Seq[Rect],
                    someSolution: Option[Cells],
-                   hitCounts: HitCounts
-                    ): Future[Mat] = {
+                   hitCounts: HitCounters,
+                   cap: Int): Future[Mat] = {
 
 
     // TODO update colors
-    def color(hitCounts: HitCounts, i: Int, cap: Int): Scalar = {
-      val vals = hitCounts(i)
-      val n = vals.max.toDouble
+    def color(hitCounts: HitCounters, i: Int, cap: Int): Scalar = {
+      val freq4Index = hitCounts(i)
+      val n = freq4Index.values.max.toDouble
       val s = new Scalar(0, n * 256 / cap, 256 - n * 256 / cap)
       s
     }
 
-    def isValid(solution: Cells): Boolean = {
-      solution.foldLeft(0)((acc, s) => acc + s.value) == 405
-    }
-
-
     Future {
-      for (solution <- someSolution if isValid(solution)) {
+      for (solution <- someSolution) {
         traverseWithIndex(rects)((cell, i) =>
           paintRect(canvas, rects(i), color(hitCounts, i, cap), 1)
         )
@@ -316,18 +240,67 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
   lazy val cellDetector: CellDetector = CellDetector(warper.sudokuCanvas)
 
 
-  def mergeHits(currentHitCounts: HitCounds, detections: Seq[Int]): HitCounds = {
-    (for ((value, index) <- detections.zipWithIndex) yield {
-      val frequencies: Map[Int, Int] = currentHitCounts(index)
-      index -> (frequencies + (value -> (frequencies(value) + 1)))
-    }).toMap
+  def mergeHits(currentHitCounts: HitCounters, detections: Seq[Int], cap: Int): HitCounters = {
+    val hits =
+      (for ((value, index) <- detections.zipWithIndex) yield {
+        val frequencies: Map[Int, Int] = currentHitCounts(index)
+        index -> (frequencies + (value -> (frequencies(value) + 1)))
+      }).toMap
+
+                                                   /*
+    if (!NewCandidate.isValid(hits, detections, cap)) {
+      logError("An invalid hitcount distribution found, resetting ...")
+      Parameters.defaultHitCounts
+    } else {
+      resetHitsIfThereAreTooMuchAmbiguities(hits)
+    }                                            */
+    resetHitsIfThereAreTooMuchAmbiguities(hits)
   }
+
+  // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
+  // TODO remove sudokuCanvas from signature: just save roi's and calculate Mats on demand
+  def mergeDigitLibrary(sudokuCanvas: SudokuCanvas,
+                        digitLibrary: DigitLibrary,
+                        detectedCells: Seq[SCell]): DigitLibrary = time({
+
+    /**
+     * The filter returns only cells which contain 'better match' cells.
+     *
+     * If there are cells containing '0' detected they are ignored.
+     */
+    val qualityFilter: PartialFunction[SCell, Boolean] = {
+      case c => (c.value != 0) && (c.quality < digitLibrary(c.value)._1) // lower means "better"
+    }
+
+    val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
+    val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
+    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
+
+    digitLibrary ++
+      (for (c <- optimal.values if digitLibrary(c.value)._1 > c.quality) yield {
+        val newData = Some(copyMat(sudokuCanvas.submat(c.roi)))
+        c.value -> ((c.quality, newData))
+      }).toMap
+  }, t => logInfo(s"Merging took: ${t} micros"))
+
+
+  def resetHitsIfThereAreTooMuchAmbiguities(counters: HitCounters): HitCounters = {
+    val cellAmbiguities = counters.values.map(m => m.size).count(_ > Parameters.ambiguitiesCount)
+    if (cellAmbiguities > Parameters.ambiCount) {
+      logError(s"Too many ambiguities ($cellAmbiguities), resetting .. ")
+      Parameters.defaultHitCounts
+    }
+    else counters
+  }
+
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
    */
   def calc(currentState: SudokuState,
            lastDigitLibrary: DigitLibrary,
-           lastHits : HitCounds): Future[(SudokuResult, DigitLibrary, HitCounds)] = {
+           lastHits: HitCounters,
+           cap: Int,
+           minHits: Int): Future[(SudokuResult, DigitLibrary, HitCounters)] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
@@ -335,19 +308,17 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     if (cornerDetector.foundCorners) {
       for {
         detectedCells <- cellDetector.futureDetectedCells
-        //
-        currentDigitLibrary0 = lastDigitLibrary ++ currentState.merge(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
-        currentDigitLibrary = currentState.updateLibrary(currentDigitLibrary0, detectedCells)
-        currentHits = mergeHits(lastHits, detectedCells.map(_.value))
+        mergedLibrary = mergeDigitLibrary(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
+        hitsToCompute = mergeHits(lastHits, detectedCells.map(_.value), cap)
 
-        (someDigitSolution, someSolutionCells) <- currentState.computeSolution(currentDigitLibrary)
+        (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- currentState.computeSolution(hitsToCompute, mergedLibrary, cap, minHits)
 
         withSolution <- paintSolution(cellDetector.sudokuCanvas,
           detectedCells.map(_.value),
           someSolutionCells,
           currentDigitLibrary,
           cellDetector.cellRects)
-        annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentState.hCounts)
+        annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentHits, cap)
 
         unwarped = warp(annotatedSolution, mkCorners(frame.size), cornerDetector.corners)
         //blurry <- blur(frame)
@@ -372,7 +343,7 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
             imageIoChain,
             warper.sudokuCanvas,
             detectedCells.toArray,
-            cornerDetector.corners.toList.toList), currentDigitLibrary,currentHits)
+            cornerDetector.corners.toList.toList), currentDigitLibrary, currentHits)
         }
       }
     } else {

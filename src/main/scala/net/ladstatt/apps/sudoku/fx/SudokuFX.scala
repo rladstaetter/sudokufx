@@ -70,13 +70,13 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
-  
-  val currentHitCountsProperty = new SimpleObjectProperty[HitCounds](this, "currentHitCountdsProperty", Parameters.defaultHitCounts)
+
+  val currentHitCountsProperty = new SimpleObjectProperty[HitCounters](this, "currentHitCountdsProperty", Parameters.defaultHitCounts)
 
   def getCurrentHitCounts = currentHitCountsProperty.get()
 
-  def setCurrentHitCounts(hitCounts : HitCounds) = currentHitCountsProperty.set(hitCounts)
-  
+  def setCurrentHitCounts(hitCounts: HitCounters) = currentHitCountsProperty.set(hitCounts)
+
   val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibraryProperty", Parameters.defaultLibrary)
 
   def getCurrentDigitLibrary = currentDigitLibraryProperty.get()
@@ -129,10 +129,10 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     for {
       _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
-      (result,udl,updatedHitCounts) <- candidate.calc(getCurrentSudokuState, getCurrentDigitLibrary, getCurrentHitCounts)
+      (result, udl, currentHits) <- candidate.calc(getCurrentSudokuState, getCurrentDigitLibrary, getCurrentHitCounts, Parameters.cap, Parameters.minHits)
     } {
       setCurrentDigitLibrary(udl)
-      setCurrentHitCounts(updatedHitCounts)
+      setCurrentHitCounts(currentHits)
       display(result)
     }
   }
@@ -220,7 +220,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        digitLibrary(i+1)._2.map { case m => nrViews(i).setImage(toImage(m))}
+        digitLibrary(i + 1)._2.map { case m => nrViews(i).setImage(toImage(m))}
       })
   }
 
@@ -416,11 +416,13 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       }
     }
 
+    displayHitCounts(getCurrentHitCounts, as[FlowPane](statsFlowPane.getChildren))
+
     sudokuResult match {
-      case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas,foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
+      case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas, foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
         updateVideo(stage, frame, imageIoChain, solutionMat)
         displayResult(solution, as[Label](resultFlowPane.getChildren))
-        displayHitCounts(getCurrentSudokuState.hCounts, as[FlowPane](statsFlowPane.getChildren))
+
       }
       case SCorners(nr, frame, start, imageIoChain, sudokuCanvas, detectedCells, solutionCells) => {
         updateVideo(stage, frame, imageIoChain, frame)
@@ -539,26 +541,29 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
    * @param hitCounts
    * @param displayItems
    */
-  def displayHitCounts(hitCounts: HitCounts, displayItems: Seq[FlowPane]): Unit = {
+  def displayHitCounts(hitCounts: HitCounters, displayItems: Seq[FlowPane]): Unit = {
 
     // change colors of flowpanes such that if there are more than one hits it
     // the pane should change to a orange color
     def colory(count: Int): String = {
       count match {
-        case 0 => "-fx-background-color:yellow;"
         case 1 => "-fx-background-color:green;"
         case 2 => "-fx-background-color:orange;"
         case _ => "-fx-background-color:red;"
       }
     }
 
-    for {(cellDisplay, cellContent) <- displayItems zip hitCounts
-         (nDisplay, distribution) <- as[Label](cellDisplay.getChildren) zip cellContent if (distribution != 0)} {
-      nDisplay.setStyle(s"-fx-font-size:${distribution}px;")
+    val sortedHitCountValues = hitCounts.toSeq.sortWith { case (a, b) => a._1 < b._1}.map(_._2)
+
+    for {(cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
+         (v, distribution) <- cellContent.toSeq } {
+      val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
+      cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${fontSize}px;")
     }
 
-    for ((cellDisplay, cellContent) <- displayItems zip hitCounts) {
-      val cssColor = colory(cellContent.foldLeft(0)((acc, c) => acc + (if (c > 0) 1 else 0)))
+    // if there are ambiguities, display them in red
+    for ((cellDisplay, cellContent) <- displayItems zip sortedHitCountValues) {
+      val cssColor = colory(cellContent.size)
       cellDisplay.setStyle(s"$cssColor;-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
     }
 

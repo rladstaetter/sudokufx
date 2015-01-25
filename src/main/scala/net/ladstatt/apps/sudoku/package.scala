@@ -13,12 +13,10 @@ package object sudoku {
   type SNum = Int
   type SCount = Int
   type SHitQuality = Double
-  // contains 9 elements, on each position the number of hits for the digit is counted
-  // this means if for a cell 2 times a 3 is counted, the array looks like this:
-  // Array(0,0,2,0,0,0,0,0,0)
-  type HitCount = Array[SCount]
-  type HitCounts = Array[HitCount]
-  type HitCounds = Map[Int, Map[Int, Int]]
+  // contains 81 elements, on each position the number of hits for the digit is counted
+  // this means if for a cell 2 times a 3 is counted, the Map looks like this:
+  // Map(... PosAtSudoku -> Map(3 -> 2) ...)
+  type HitCounters = Map[Int, Map[Int, Int]]
   type DetectionMethod = Option[Mat] => Future[(SNum, SHitQuality)]
 
   type SudokuCanvas = Mat

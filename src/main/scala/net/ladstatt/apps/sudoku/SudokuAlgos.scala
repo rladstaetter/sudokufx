@@ -49,7 +49,7 @@ object SudokuAlgos {
      * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
      *
      */
-    def solve(mmx: SudokuDigitSolution, maxDuration: Long = 1000l): Option[SudokuDigitSolution] = time({
+    def solve(mmx: SudokuDigitSolution, maxDuration: Long = 50l): Option[SudokuDigitSolution] = time({
       val before = System.currentTimeMillis()
       var cnt = 0
       val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
@@ -124,7 +124,14 @@ object SudokuAlgos {
         }, 0)
         solution
       } match {
-        case Success(s) => Some(s)
+        case Success(s) => {
+          if (405 == s.map(_.asDigit).sum.toLong)
+            Some(s)
+          else {
+            logWarn("Found solution, but is invalid.")
+            None
+          }
+        }
         case Failure(e) => {
           logError(e.getMessage)
           None

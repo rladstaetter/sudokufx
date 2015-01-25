@@ -17,9 +17,6 @@ class StateTest {
   }
 
   def compare(a: SudokuState, b: SudokuState): Boolean = {
-    (a.hCounts.deep == b.hCounts.deep) &&
-      (a.cap == b.cap) &&
-      (a.minHits == b.minHits) &&
       (a.cells.size == b.cells.size) &&
       (a.cells zip b.cells).forall { case x => x._1.equals(x._2)}
     // && (a.digitLibrary == b.digitLibrary)

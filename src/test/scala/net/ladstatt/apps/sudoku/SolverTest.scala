@@ -25,12 +25,16 @@ class SolverTest extends Utils {
     assertEquals(405, solved.toArray.map(_.asDigit).sum.toLong)
   }
 
+  def solveReadableSudoku(sudokuWithNewLines: String): Option[SudokuDigitSolution] = {
+    solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray)
+  }
+
   @Test
   def testSolving(): Unit = {
     Try {
       val solvedSudokus: Array[Option[SudokuDigitSolution]] =
         for (sudokuAsString <- easySudokus.split("========"))
-        yield solve(sudokuAsString.replaceAll("\n", "").toCharArray)
+        yield solveReadableSudoku(sudokuAsString)
 
       for (fs <- solvedSudokus.flatten) {
         assertEquals(405, fs.map(_.asDigit).sum.toLong)
@@ -40,6 +44,27 @@ class SolverTest extends Utils {
       case Failure(e) => fail(e.getMessage)
     }
 
+  }
+
+  /**
+   * Test shows what happenes if we try to solve an malformed input
+   */
+  @Test
+  def testSolveWrongInput(): Unit = {
+    val sudokuInput = """003020601
+                        |900305001
+                        |001806400
+                        |008102900
+                        |700000008
+                        |006708200
+                        |002609500
+                        |800203009
+                        |005010300""".stripMargin
+
+    solveReadableSudoku(sudokuInput) match {
+      case Some(s) => assert(405 != s.map(_.asDigit).sum.toLong)
+      case None => fail("Could not solve")
+    }
   }
 
   // see http://norvig.com/easy50.txt

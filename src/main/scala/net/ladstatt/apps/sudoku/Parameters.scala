@@ -11,6 +11,23 @@ import scala.io.Source
 object Parameters {
 
 
+  // number of different values a cell can have before the cell is label 'ambiguous'
+  val ambiguitiesCount = 5
+
+  // how many cells are allowed to have ambiguous information before number detection process is restarted
+  val ambiCount = 5
+
+  // numbers won't get any larger in the status matrix than this number
+  val topCap = 15
+
+  // least number of matches necessary to identify one number
+  // if you have a good camera, take 1 to get fast response
+  val cap = 8
+
+  assert(topCap - cap > 0)
+
+  val minHits = 22
+
   val ssize = 9
   val cellCount = ssize * ssize
 
@@ -32,7 +49,7 @@ object Parameters {
   lazy val templateCorners = OpenCV.mkCorners(sudokuTemplateSize)
 
   val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
-  val defaultHitCounts : HitCounds = Map().withDefaultValue(Map[Int,Int]().withDefaultValue(0))
+  val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
   lazy val templateLibrary: Map[Int, Mat] = {
     val digits: Seq[Array[Int]] =
