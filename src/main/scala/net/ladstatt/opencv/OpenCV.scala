@@ -20,16 +20,6 @@ object OpenCV extends CanLog {
 
   import net.ladstatt.apps.sudoku.Parameters._
 
-  case class OpenCVException(mat: Mat, message: String) extends RuntimeException(message)
-
-  case class CRange(hue: (Double, Double),
-                    saturation: (Double, Double),
-                    value: (Double, Double)) {
-    def lb = new Scalar(Array(hue._1, saturation._1, value._1))
-
-    def ub = new Scalar(Array(hue._2, saturation._2, value._2))
-  }
-
   def copyMat(orig: Mat): Mat = {
     val dest = new Mat()
     orig.copyTo(dest)
@@ -129,7 +119,7 @@ object OpenCV extends CanLog {
     execFuture {
       logWithTimer(s"Wrote ${file.getAbsolutePath}", {
         if (!Highgui.imwrite(file.getAbsolutePath, mat)) {
-          throw new OpenCVException(mat, s"Could not save to file $file")
+          throw new RuntimeException(s"Could not save to file $file")
         } else {
           file
         }
@@ -218,11 +208,7 @@ object OpenCV extends CanLog {
 
   def resizeFuture(source: Mat, size: Size): Future[Mat] = execFuture(resize(source, size))
 
-  def restrain(input: Mat, range: CRange): Mat = {
-    val dest = new Mat
-    Core.inRange(input, range.lb, range.ub, dest)
-    dest
-  }
+
 
   /**
    * copies source to destination Mat with given mask and returns the destination mat.
