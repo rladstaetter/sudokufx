@@ -1,7 +1,5 @@
 package net.ladstatt.apps.sudoku
 
-import net.ladstatt.core.HasDescription
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -9,8 +7,7 @@ import scala.concurrent.Future
  * Created by lad on 26.10.14.
  */
 
-object MockSolver extends HasDescription {
-  val description = "mock test solver"
+object MockSolver  {
 
   def solve(s: String)(log: String => Unit): String = {
     """245981376

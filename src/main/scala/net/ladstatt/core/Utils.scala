@@ -7,10 +7,6 @@ import java.util.UUID
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-trait HasDescription {
-  def description: String
-}
-
 trait CanLog extends Utils {
 
   def logInfo(msg: String) = println("INFO: " + msg)

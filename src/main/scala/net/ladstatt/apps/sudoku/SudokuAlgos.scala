@@ -2,7 +2,7 @@ package net.ladstatt.apps.sudoku
 
 import java.io.File
 
-import net.ladstatt.core.{HasDescription, Utils}
+import net.ladstatt.core.Utils
 import org.opencv.core._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,7 +27,7 @@ object SudokuAlgos {
    * http://norvig.com/net.ladstatt.apps.sudoku.html
    *
    */
-  object BruteForceSolver extends HasDescription with Utils {
+  object BruteForceSolver extends Utils {
 
     val description = "default"
 
