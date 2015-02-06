@@ -20,7 +20,7 @@ object TemplateDetectionStrategy {
     val matchHaystack = OpenCV.matchTemplate(resizedCandidate, _: Mat, _: Int)
 
     val result =
-      for {s <- Future.sequence(for {(number, needle) <- Parameters.templateLibrary} yield
+      for {s <- Future.sequence(for {(number, needle) <- TemplateLoader.templateLibrary} yield
         for {(number, quality) <- matchHaystack(needle, number)} yield (number, quality))
       } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
 

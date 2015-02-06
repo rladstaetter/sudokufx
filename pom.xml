@@ -14,7 +14,8 @@
 
     <modules>
         <module>sudoku-core</module>
-        <module>sudoku-javafx</module>
+        <module>sudoku-android</module>
+<!--        <module>sudoku-javafx</module> -->
     </modules>
 
     <dependencyManagement>
@@ -24,8 +25,6 @@
                 <artifactId>scala-library</artifactId>
                 <version>${scala.version}</version>
             </dependency>
-            <!-- you have to install opencv in your local repository -->
-            <!-- for this project, i named the opencv.jar to be a org.opencv opencv-java7 artifact -->
             <dependency>
                 <groupId>org.opencv</groupId>
                 <artifactId>opencv-java7</artifactId>
@@ -38,16 +37,6 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>org.controlsfx</groupId>
-                <artifactId>controlsfx</artifactId>
-                <version>8.20.7</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>1.0.9</version>
-            </dependency>
-            <dependency>
                 <groupId>org.scalacheck</groupId>
                 <artifactId>scalacheck_2.11</artifactId>
                 <version>1.11.6</version>
@@ -57,6 +46,7 @@
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest_2.11</artifactId>
                 <version>2.2.2</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

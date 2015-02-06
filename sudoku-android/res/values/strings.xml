@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sudoku Capturer</string>
+    <string name="button_rescan">rescan</string>
+
+
+    <string name="prefs_runtime_preferences">runtime preferences</string>
+    <string name="prefs_show_intermediate_result_title">intermediate result</string>
+    <string name="prefs_show_intermediate_result_summary">display intermediate result</string>
+
+</resources>

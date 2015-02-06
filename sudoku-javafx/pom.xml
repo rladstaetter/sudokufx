@@ -13,6 +13,9 @@
     <packaging>jar</packaging>
 
     <dependencies>
+        <!-- you have to install opencv in your local repository -->
+        <!-- for this project, i named the opencv.jar to be a org.opencv opencv-java7 artifact -->
+
         <dependency>
             <groupId>net.ladstatt.apps.sudoku</groupId>
             <artifactId>sudoku-core</artifactId>
@@ -25,22 +28,17 @@
         <!-- you have to install opencv in your local repository -->
         <!-- for this project, i named the opencv.jar to be a org.opencv opencv-java7 artifact -->
         <dependency>
-            <groupId>org.opencv</groupId>
-            <artifactId>opencv-java7</artifactId>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.controlsfx</groupId>
             <artifactId>controlsfx</artifactId>
+            <version>8.20.7</version>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_2.11</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>

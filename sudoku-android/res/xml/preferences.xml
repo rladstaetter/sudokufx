@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+            android:title="@string/prefs_runtime_preferences">
+
+        <CheckBoxPreference
+                android:key="pref_show_intermediate_result"
+                android:title="@string/prefs_show_intermediate_result_title"
+                android:summary="@string/prefs_show_intermediate_result_summary"
+                android:defaultValue="true"/>
+    </PreferenceCategory>
+
+</PreferenceScreen>

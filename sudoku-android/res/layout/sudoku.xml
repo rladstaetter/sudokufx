@@ -1,0 +1,133 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+             xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent"
+             android:id="@+id/mainLayout">
+    <!--
+<com.google.ads.AdView
+android:id="@+id/adView"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:layout_gravity="center_horizontal|top"
+ads:adUnitId="ca-app-pub-1727389366588084/4496274256"
+ads:adSize="BANNER"/>
+        -->
+    <org.opencv.android.JavaCameraView
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:id="@+id/sudoku"/>
+
+    <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="rescan"
+            android:id="@+id/button_rescan"
+            android:layout_gravity="center_horizontal|bottom"
+            android:paddingBottom="10dp"/>
+
+    <NumberPicker
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/number_picker"
+            android:layout_gravity="center_horizontal|center"/>
+
+    <GridLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="right|center_vertical"
+            android:columnCount="9"
+            android:rowCount="9">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_0" android:layout_column="0" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_1" android:layout_column="1" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_2" android:layout_column="2" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_3" android:layout_column="3" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_4" android:layout_column="4" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_5" android:layout_column="5" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_6" android:layout_column="6" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_7" android:layout_column="7" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_0_8" android:layout_column="8" android:layout_row="0"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_0" android:layout_column="0" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_1" android:layout_column="1" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_2" android:layout_column="2" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_3" android:layout_column="3" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_4" android:layout_column="4" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_5" android:layout_column="5" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_6" android:layout_column="6" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_7" android:layout_column="7" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_1_8" android:layout_column="8" android:layout_row="1"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_0" android:layout_column="0" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_1" android:layout_column="1" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_2" android:layout_column="2" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_3" android:layout_column="3" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_4" android:layout_column="4" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_5" android:layout_column="5" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_6" android:layout_column="6" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_7" android:layout_column="7" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_2_8" android:layout_column="8" android:layout_row="2"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_0" android:layout_column="0" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_1" android:layout_column="1" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_2" android:layout_column="2" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_3" android:layout_column="3" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_4" android:layout_column="4" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_5" android:layout_column="5" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_6" android:layout_column="6" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_7" android:layout_column="7" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_3_8" android:layout_column="8" android:layout_row="3"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_0" android:layout_column="0" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_1" android:layout_column="1" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_2" android:layout_column="2" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_3" android:layout_column="3" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_4" android:layout_column="4" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_5" android:layout_column="5" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_6" android:layout_column="6" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_7" android:layout_column="7" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_4_8" android:layout_column="8" android:layout_row="4"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_0" android:layout_column="0" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_1" android:layout_column="1" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_2" android:layout_column="2" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_3" android:layout_column="3" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_4" android:layout_column="4" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_5" android:layout_column="5" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_6" android:layout_column="6" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_7" android:layout_column="7" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_5_8" android:layout_column="8" android:layout_row="5"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_0" android:layout_column="0" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_1" android:layout_column="1" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_2" android:layout_column="2" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_3" android:layout_column="3" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_4" android:layout_column="4" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_5" android:layout_column="5" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_6" android:layout_column="6" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_7" android:layout_column="7" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_6_8" android:layout_column="8" android:layout_row="6"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_0" android:layout_column="0" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_1" android:layout_column="1" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_2" android:layout_column="2" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_3" android:layout_column="3" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_4" android:layout_column="4" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_5" android:layout_column="5" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_6" android:layout_column="6" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_7" android:layout_column="7" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_7_8" android:layout_column="8" android:layout_row="7"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_0" android:layout_column="0" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_1" android:layout_column="1" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_2" android:layout_column="2" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_3" android:layout_column="3" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_4" android:layout_column="4" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_5" android:layout_column="5" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_6" android:layout_column="6" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_7" android:layout_column="7" android:layout_row="8"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="." android:id="@+id/t_8_8" android:layout_column="8" android:layout_row="8"/>
+    </GridLayout>
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:text="X"
+            android:id="@+id/nrDetections"
+            android:layout_gravity="left|center_vertical"
+            android:layout_marginLeft="10dp"/>
+
+</FrameLayout>

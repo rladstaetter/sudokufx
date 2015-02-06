@@ -28,10 +28,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.controlsfx</groupId>
-            <artifactId>controlsfx</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_2.11</artifactId>
             <scope>test</scope>
