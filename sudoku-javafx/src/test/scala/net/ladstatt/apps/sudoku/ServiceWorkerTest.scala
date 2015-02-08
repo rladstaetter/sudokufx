@@ -59,7 +59,7 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils with Can
       new Task[SudokuDigitSolution] {
         override def call(): SudokuDigitSolution = {
           logInfo("entering")
-          val someResult: Option[SudokuDigitSolution] = BruteForceSolver.solve(sudoku)
+          val someResult: Option[SudokuDigitSolution] = BruteForceSolver.solve(sudoku,5000L)
           if (isCancelled) {
             logInfo("i was cancelled")
             Thread.currentThread().interrupt()

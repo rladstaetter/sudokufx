@@ -27,12 +27,9 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
   var cameraView: CameraBridgeViewBase = _
   var rescanButton: Button = _
   var handler: Handler = _
-  var adView: AdView = _
-  var nrDetections: TextView = _
   var frameNr: Int = 0
   var solution: Mat = _
   var calculationInProgress = false
-
 
   val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
   val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
@@ -82,7 +79,6 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
     cameraView = findViewById(R.id.sudoku).asInstanceOf[CameraBridgeViewBase]
     cameraView.setCvCameraViewListener(this)
     rescanButton = findViewById(R.id.button_rescan).asInstanceOf[Button]
-    nrDetections = findViewById(R.id.nrDetections).asInstanceOf[TextView]
 
     rescanButton.setOnClickListener(new OnClickListener {
       override def onClick(v: View): Unit = {
@@ -90,12 +86,13 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         digitLibrary = defaultLibrary
         hitCounts = defaultHitCounts
         currentState = new SudokuState()
+        rescanButton.setVisibility(View.GONE)
         solution = null
 
       }
     })
 
-    adView = new AdView(this, AdSize.BANNER, "ca-app-pub-1727389366588084/4496274256")
+    val adView = new AdView(this, AdSize.BANNER, "ca-app-pub-1727389366588084/4496274256")
     adView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
     findViewById(R.id.mainLayout).asInstanceOf[FrameLayout].addView(adView)
 
@@ -103,7 +100,8 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
     adView.loadAd(r)
 
     handler = new Handler()
-    //  rescanButton.setVisibility(View.GONE)
+    rescanButton.setVisibility(View.GONE)
+    rescanButton.setVisibility(View.GONE)
   }
 
   override def onBackPressed(): Unit = {
@@ -140,7 +138,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
     val input = inputFrame.rgba()
     frameNr = frameNr + 1
     val (sudokuResult, currentDigitLibrary, currentHitCounters) =
-      Await.result(new SCandidate(frameNr, input).calc(currentState, digitLibrary, hitCounts, 8, 20), Duration.Inf)
+      Await.result(new SCandidate(frameNr, input).calc(currentState, digitLibrary, hitCounts, 8, 20, 5000L), Duration.Inf)
     digitLibrary = currentDigitLibrary
     hitCounts = currentHitCounters
     sudokuResult
@@ -171,6 +169,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         val result: SudokuCanvas =
           detectSudoku(inputFrame) match {
             case s: SSuccess => {
+              execOnUIThread(rescanButton.setVisibility(View.VISIBLE))
               solution = s.solutionMat
               solution
             }

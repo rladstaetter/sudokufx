@@ -40,7 +40,7 @@ class SudokuTest extends OpenCvUnitTest with Utils {
   }
 
   @Test def solveSudoku69(): Unit = {
-    Await.result(sudoku69.calc(SudokuState(),Map(),Map(),8,20), Duration.Inf) match {
+    Await.result(sudoku69.calc(SudokuState(),Map(),Map(),8,20,5000L), Duration.Inf) match {
       case (s: SSuccess,_,_) => {
         //assertTrue(h.detectedNumbers.size > h.minHits)
         assertEquals(new String(solution69), new String(s.solution))

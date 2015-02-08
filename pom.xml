@@ -9,13 +9,13 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scala.version>2.11.2</scala.version>
+        <scala.version>2.11.5</scala.version>
     </properties>
 
     <modules>
         <module>sudoku-core</module>
         <module>sudoku-android</module>
-<!--        <module>sudoku-javafx</module> -->
+        <module>sudoku-javafx</module>
     </modules>
 
     <dependencyManagement>

@@ -3,6 +3,7 @@ package net.ladstatt.apps.sudoku
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
+
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -32,13 +33,13 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
         index -> (frequencies + (value -> (frequencies(value) + 1)))
       }).toMap
 
-                                                   /*
-    if (!NewCandidate.isValid(hits, detections, cap)) {
-      logError("An invalid hitcount distribution found, resetting ...")
-      Parameters.defaultHitCounts
-    } else {
-      resetHitsIfThereAreTooMuchAmbiguities(hits)
-    }                                            */
+    /*
+if (!NewCandidate.isValid(hits, detections, cap)) {
+logError("An invalid hitcount distribution found, resetting ...")
+Parameters.defaultHitCounts
+} else {
+resetHitsIfThereAreTooMuchAmbiguities(hits)
+}                                            */
     resetHitsIfThereAreTooMuchAmbiguities(hits)
   }
 
@@ -80,12 +81,17 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
 
   /**
    * This function uses an input image and a detection method to calculate the sudoku.
+   *
+   * @param cap number of detections for a certain number until it is regarded as "stable enough"
+   * @param minHits minimal number of numbers before a the solving is attempted
+   * @param maxSolvingDuration number of milliseconds which the solver is given before he gives up
    */
   def calc(currentState: SudokuState,
            lastDigitLibrary: DigitLibrary,
            lastHits: HitCounters,
            cap: Int,
-           minHits: Int): Future[(SudokuResult, DigitLibrary, HitCounters)] = {
+           minHits: Int,
+           maxSolvingDuration: Long): Future[(SudokuResult, DigitLibrary, HitCounters)] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
@@ -96,7 +102,7 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
         mergedLibrary = mergeDigitLibrary(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
         hitsToCompute = mergeHits(lastHits, detectedCells.map(_.value), cap)
 
-        (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- currentState.computeSolution(hitsToCompute, mergedLibrary, cap, minHits)
+        (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- currentState.computeSolution(hitsToCompute, mergedLibrary, cap, minHits, maxSolvingDuration)
 
         withSolution <- paintSolution(cellDetector.sudokuCanvas,
           detectedCells.map(_.value),

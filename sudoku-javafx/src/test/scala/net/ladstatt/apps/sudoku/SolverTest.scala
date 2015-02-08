@@ -26,7 +26,7 @@ class SolverTest extends Utils {
   }
 
   def solveReadableSudoku(sudokuWithNewLines: String): Option[SudokuDigitSolution] = {
-    solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray)
+    solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray,5000L)
   }
 
   @Test

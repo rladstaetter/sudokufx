@@ -24,7 +24,7 @@ class StateTest {
 
 
 
-  def asMat(i: Int): Mat = Parameters.templateLibrary(i)
+  def asMat(i: Int): Mat = TemplateLoader.templateLibrary(i)
 
   val cellData = new Mat
   val cellz = Seq(SCell(1, 112.1212,null), SCell(4, 80.1212,null))
@@ -54,14 +54,14 @@ class StateTest {
 
   // should test we can compare two non empty mats succesfully
   @Test def testTwoNonEmptyMats(): Unit = {
-    for (m <- Parameters.templateLibrary.values) {
+    for (m <- TemplateLoader.templateLibrary.values) {
       assertEquals(m.dump, m.dump)
     }
   }
 
   // should test we can compare two non empty mats succesfully
   @Test def testDifferingMats(): Unit = {
-    for (m <- Parameters.templateLibrary.values) {
+    for (m <- TemplateLoader.templateLibrary.values) {
       assertEquals((false, "(1/0/0) != (1/25/50)"), compareMat(new Mat, m))
     }
   }

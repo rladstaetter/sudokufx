@@ -14,7 +14,7 @@ import java.text.SimpleDateFormat
 import java.util.{Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
-import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
+import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
 import javafx.beans.value.ObservableValue
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
@@ -115,6 +115,26 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   def getFrameNumber = frameNumberProperty.get()
 
 
+  val capProperty = new SimpleIntegerProperty(this, "cap", Parameters.cap)
+
+  def setCap(cap: Integer): Unit = capProperty.set(cap)
+
+  def getCap: Integer = capProperty.get()
+
+
+  val minHitsProperty = new SimpleIntegerProperty(this, "minhits", Parameters.minHits)
+
+  def setMinHits(minHits: Integer): Unit = minHitsProperty.set(minHits)
+
+  def getMinHits: Integer = minHitsProperty.get()
+
+
+  val maxSolvingTimeProperty = new SimpleLongProperty(this, "maxSolvingTime", 5000L)
+
+  def setMaxSolvingTime(maxSolvingTime: Long): Unit = maxSolvingTimeProperty.set(maxSolvingTime)
+
+  def getMaxSolvingTime: Long = maxSolvingTimeProperty.get()
+
   val history = new File("runs/").listFiles()
 
   val historyMenu: Menu = {
@@ -129,7 +149,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     historyMenu
   }
 
-  lazy val imageTemplates: Map[Int, Image] = Parameters.templateLibrary.map { case (i, m) => i -> toImage(m)}
+  lazy val imageTemplates: Map[Int, Image] = TemplateLoader.templateLibrary.map { case (i, m) => i -> toImage(m)}
 
 
   loadNativeLib()
@@ -153,7 +173,13 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     for {
       _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
-      (result, udl, currentHits) <- candidate.calc(getCurrentSudokuState, getCurrentDigitLibrary, getCurrentHitCounts, Parameters.cap, Parameters.minHits)
+      (result, udl, currentHits) <-
+      candidate.calc(getCurrentSudokuState,
+        getCurrentDigitLibrary,
+        getCurrentHitCounts,
+        getCap,
+        getMinHits,
+        getMaxSolvingTime)
     } {
       setCurrentDigitLibrary(udl)
       setCurrentHitCounts(currentHits)
@@ -580,7 +606,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     val sortedHitCountValues = hitCounts.toSeq.sortWith { case (a, b) => a._1 < b._1}.map(_._2)
 
     for {(cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
-         (v, distribution) <- cellContent.toSeq } {
+         (v, distribution) <- cellContent.toSeq} {
       val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
       cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${fontSize}px;")
     }
