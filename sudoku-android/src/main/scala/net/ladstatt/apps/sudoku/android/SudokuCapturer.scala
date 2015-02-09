@@ -5,7 +5,7 @@ import _root_.android.os.{Bundle, Handler, Process}
 import _root_.android.util.Log
 import _root_.android.view.View.OnClickListener
 import _root_.android.view.{Gravity, View, WindowManager}
-import _root_.android.widget.{Button, FrameLayout, TextView}
+import _root_.android.widget.{Button, FrameLayout}
 import com.google.ads.{AdRequest, AdSize, AdView}
 import net.ladstatt.apps.sudoku._
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
@@ -30,7 +30,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
   var frameNr: Int = 0
   var solution: Mat = _
   var calculationInProgress = false
-
+  var adView: AdView = _
   val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
   val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
@@ -87,12 +87,13 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         hitCounts = defaultHitCounts
         currentState = new SudokuState()
         rescanButton.setVisibility(View.GONE)
+        adView.setVisibility(View.GONE)
         solution = null
 
       }
     })
 
-    val adView = new AdView(this, AdSize.BANNER, "ca-app-pub-1727389366588084/4496274256")
+    adView = new AdView(this, AdSize.BANNER, "ca-app-pub-1727389366588084/4496274256")
     adView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
     findViewById(R.id.mainLayout).asInstanceOf[FrameLayout].addView(adView)
 
@@ -101,7 +102,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
 
     handler = new Handler()
     rescanButton.setVisibility(View.GONE)
-    rescanButton.setVisibility(View.GONE)
+    adView.setVisibility(View.GONE)
   }
 
   override def onBackPressed(): Unit = {
@@ -169,7 +170,10 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         val result: SudokuCanvas =
           detectSudoku(inputFrame) match {
             case s: SSuccess => {
-              execOnUIThread(rescanButton.setVisibility(View.VISIBLE))
+              execOnUIThread({
+                rescanButton.setVisibility(View.VISIBLE)
+                adView.setVisibility(View.VISIBLE)
+              })
               solution = s.solutionMat
               solution
             }

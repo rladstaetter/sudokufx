@@ -1,6 +1,6 @@
 <resources>
 
     <string name="app_name">Sudoku Capturer</string>
-    <string name="button_rescan">neues Sudoku</string>
+    <string name="button_rescan">neues Sudoku lösen</string>
 
 </resources>
