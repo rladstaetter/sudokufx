@@ -24,123 +24,11 @@ import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
 
 
-case class FrameGrabberTask(processFrame: (ObservableValue[_ <: Mat], Mat, Mat) => Unit) extends TimerTask
-with JfxUtils with Utils {
-
-  val mainLoop: ChangeListener[Mat] = mkChangeListener(processFrame)
-  val videoCapture = new VideoCapture(0)
-
-  lazy val sudokuProperty = {
-    val sop = new SimpleObjectProperty[Mat]
-    sop.addListener(mainLoop)
-    sop
-  }
-
-  override def cancel(): Boolean = {
-    super.cancel
-    sudokuProperty.removeListener(mainLoop)
-    true
-  }
-
-  override def run(): Unit = {
-    sudokuProperty.set(aquireMat)
-  }
 
 
-  //  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_WIDTH,800)
-  //  videoCapture.set(Highgui.CV_CAP_PROP_FRAME_HEIGHT,600)
 
 
-  def aquireMat() = {
-    val image = new Mat()
-    if (videoCapture.isOpened) {
-      videoCapture.read(image)
-      isNull(image)(throw new RuntimeException("videoCapture.read(...) returned null"), image => image)
-    } else {
-      throw new RuntimeException("Video capture device is closed.")
-    }
-  }
 
-}
-
-class FrameTimer extends Timer {
-
-  def schedule(task: FrameGrabberTask, delay: Long = 0, period: Long = 1) = {
-    super.schedule(task, delay, period)
-  }
-}
-
-trait OpenCVJfxUtils extends Utils {
-
-  /**
-   * runtime:
-   *
-   * Benchmark                                  Mode   Samples         Mean   Mean error    Units
-   * n.l.a.s.SudokuBenchmark.measureToImage     avgt        10       17.138        0.386    ms/op
-   * n.l.a.s.SudokuBenchmark.measureToImage     avgt        10       17.084        0.314    ms/op
-   * n.l.a.s.SudokuBenchmark.measureToImage     avgt        10       16.232        0.250    ms/op  (while loops)
-   * @param matrix
-   * @return
-   */
-  def toImage(matrix: Mat): Image = {
-    val cols = matrix.cols()
-    val rows = matrix.rows()
-    val elemSize = matrix.elemSize()
-    val data: Array[Byte] = new Array[Byte](cols * rows * elemSize.toInt)
-    matrix.get(0, 0, data)
-
-    val lType = matrix.channels() match {
-      case 1 => BufferedImage.TYPE_BYTE_GRAY
-      case 3 => BufferedImage.TYPE_3BYTE_BGR
-      case 4 => BufferedImage.TYPE_4BYTE_ABGR
-      case _ => {
-        BufferedImage.TYPE_BYTE_GRAY
-      }
-    }
-
-    matrix.channels() match {
-      case 3 => {
-        var i = 0
-        while (i < data.length) {
-          val b = data(i)
-          data(i) = data(i + 2)
-          data(i + 2) = b
-          i = i + 3
-        }
-      }
-      case 4 => {
-        var i = 0
-        while (i < data.length) {
-          val b = data(i)
-          data(i) = data(i + 2)
-          data(i + 2) = b
-          i = i + 4
-        }
-      }
-      case _ => {}
-    }
-
-    val image = new BufferedImage(cols, rows, lType)
-    image.getRaster().setDataElements(0, 0, cols, rows, data)
-    SwingFXUtils.toFXImage(image, null)
-  }
-
-
-  def convert2PolyLinePoints(points: Iterable[Point]): List[java.lang.Double] = {
-    if (points.isEmpty)
-      List()
-    else {
-      val ps = points.map(p => List[java.lang.Double](p.x, p.y)).flatten.toList
-      ps ++ List(ps(0), ps(1))
-    }
-  }
-
-  def loadImage(implicit ec: ExecutionContext, file: File): Future[Mat] =
-    FutureUtils.execFuture {
-      Highgui.imread(file.getAbsolutePath)
-    }
-
-}
 
 trait JfxUtils {
 
@@ -195,19 +83,13 @@ trait JfxUtils {
     def handle(e: E) = f(e)
   }
 
-  def mkFxmlLoader(cpResource: String) = {
-    val location = getClass.getResource(cpResource)
-    require(location != null, s"Could not resolve $cpResource: Location was null.")
+  def mkFxmlLoader(fxmlResource: String): FXMLLoader = {
+    val location = getClass.getResource(fxmlResource)
+    require(location != null, s"Could not resolve $fxmlResource: Location was null.")
     val fxmlLoader = new FXMLLoader()
     fxmlLoader.setLocation(location)
     fxmlLoader.setBuilderFactory(new JavaFXBuilderFactory())
     fxmlLoader
-  }
-
-  def mkFxmlLoader(fxmlResource: String, controller: AnyRef): FXMLLoader = {
-    val loader = mkFxmlLoader(fxmlResource)
-    loader.setController(controller)
-    loader
   }
 
   def mk[A](fxmlLoader: FXMLLoader): A = {

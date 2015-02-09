@@ -10,38 +10,7 @@ import scala.concurrent.Future
 import scala.util.Random
 
 
-/*
-object NewCandidate {
-
- def sectorIndizes(i: Int): Set[Int] = {
-   val rowSector: Seq[Int] = sectors(row(i) / 3)
-   val colSector: Seq[Int] = sectors(col(i) / 3)
-   (for {r <- rowSector
-         c <- colSector} yield r * 9 + c).toSet -- Set(i)
- }
-
- def isValid(hitCounts: HitCounters, values: Seq[Int], cap: Int): Boolean =
-   values.zipWithIndex.forall {
-     case (c, i) => posWellFormed(hitCounts, i, c, cap)
-   }
-
- // searches rows and cols if there exist already the value in the same row or column
- private def rowColWellFormed(hitCounts: HitCounters, i: Int, value: Int, cap: Int): Boolean = {
-   // val otherCells = cellRange.filter(u => u != i && ((row(u) == row(i) || col(u) == col(i)) || sectorIndizes(i).contains(u)))
-   val otherCells = cellRange.filter(u => u != i && (row(u) == row(i) || col(u) == col(i)))
-   !otherCells.exists(i => hitCounts(i).contains(value) && hitCounts(i)(value) == cap)
-   // !otherCells.exists(i => hitCounts(i).contains(value))
- }
-
- def posWellFormed(hitCounts: HitCounters, i: SIndex, value: Int, cap: Int): Boolean = {
-   value == 0 || rowColWellFormed(hitCounts, i, value, cap) //&& sectorWellFormed(hitCounts, i, value)
- }
-
-
-}
-    */
-
-case class SudokuState(cells: Seq[SCell] = Seq()) {
+object SudokuUtils {
 
   /**
    * given a frequency table, returns a number which exceed a certain threshold randomly
@@ -71,8 +40,8 @@ case class SudokuState(cells: Seq[SCell] = Seq()) {
           val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounters, cap)
           val someResult = solve(sudoku2Solve, maxDuration)
           (someResult,
-            if (someResult.isDefined) hitCounters else Parameters.defaultHitCounts,
-            if (someResult.isDefined) digitLibrary else Parameters.defaultLibrary) // reset if no valid solution was found
+            if (someResult.isDefined) hitCounters else Parameters.defaultHitCounters,
+            if (someResult.isDefined) digitLibrary else Parameters.defaultDigitLibrary) // reset if no valid solution was found
         }
         else
         //  (Some(mkIntermediateSudokuMatrix(hitCounters)), hitCounters, digitLibrary)
@@ -153,8 +122,10 @@ case class SudokuState(cells: Seq[SCell] = Seq()) {
 
     Future {
       for (solution <- someSolution) {
-        CollectionUtils.traverseWithIndex(rects)((cell, i) =>
+        CollectionUtils.traverseWithIndex(rects)((cell, i) => {
+          println("painting")
           paintRect(canvas, rects(i), color(hitCounts, i, cap), 1)
+        }
         )
       }
 

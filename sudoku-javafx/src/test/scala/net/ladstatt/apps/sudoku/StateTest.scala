@@ -16,19 +16,10 @@ class StateTest {
     false
   }
 
-  def compare(a: SudokuState, b: SudokuState): Boolean = {
-      (a.cells.size == b.cells.size) &&
-      (a.cells zip b.cells).forall { case x => x._1.equals(x._2)}
-    // && (a.digitLibrary == b.digitLibrary)
-  }
-
-
-
   def asMat(i: Int): Mat = TemplateLoader.templateLibrary(i)
 
   val cellData = new Mat
   val cellz = Seq(SCell(1, 112.1212,null), SCell(4, 80.1212,null))
-  val s0 = SudokuState(cells = cellz)
 
 
 

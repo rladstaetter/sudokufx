@@ -7,7 +7,7 @@
 <?import javafx.scene.text.*?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="810.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1">
+<VBox prefHeight="810.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ladstatt.apps.sudoku.fx.SudokuFXController">
     <children>
         <MenuBar VBox.vgrow="NEVER" fx:id="mainMenuBar">
             <menus>
@@ -29,6 +29,7 @@
                         <Font name="Alpha Echo" size="20.0"/>
                     </font>
                 </Label>
+                <Button fx:id="resetButton" onAction="#resetState" text="reset"/>
             </children>
         </HBox>
         <AnchorPane id="AnchorPane" fx:id="canvas" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"

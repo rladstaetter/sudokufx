@@ -74,7 +74,7 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
     val cellAmbiguities = counters.values.map(m => m.size).count(_ > Parameters.ambiguitiesCount)
     if (cellAmbiguities > Parameters.ambiCount) {
       logError(s"Too many ambiguities ($cellAmbiguities), resetting .. ")
-      Parameters.defaultHitCounts
+      Parameters.defaultHitCounters
     }
     else counters
   }
@@ -86,8 +86,7 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
    * @param minHits minimal number of numbers before a the solving is attempted
    * @param maxSolvingDuration number of milliseconds which the solver is given before he gives up
    */
-  def calc(currentState: SudokuState,
-           lastDigitLibrary: DigitLibrary,
+  def calc(lastDigitLibrary: DigitLibrary,
            lastHits: HitCounters,
            cap: Int,
            minHits: Int,
@@ -102,14 +101,14 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
         mergedLibrary = mergeDigitLibrary(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
         hitsToCompute = mergeHits(lastHits, detectedCells.map(_.value), cap)
 
-        (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- currentState.computeSolution(hitsToCompute, mergedLibrary, cap, minHits, maxSolvingDuration)
+        (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- SudokuUtils.computeSolution(hitsToCompute, mergedLibrary, cap, minHits, maxSolvingDuration)
 
         withSolution <- paintSolution(cellDetector.sudokuCanvas,
           detectedCells.map(_.value),
           someSolutionCells,
           currentDigitLibrary,
           cellDetector.cellRects)
-        annotatedSolution <- currentState.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentHits, cap)
+        annotatedSolution <- SudokuUtils.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentHits, cap)
 
         unwarped = warp(annotatedSolution, mkCorners(frame.size), cornerDetector.corners)
         //blurry <- blur(frame)

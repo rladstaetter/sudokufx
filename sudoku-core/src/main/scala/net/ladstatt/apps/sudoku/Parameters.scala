@@ -68,9 +68,8 @@ object Parameters {
 
   lazy val templateCorners = OpenCV.mkCorners(sudokuTemplateSize)
 
-  val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
-  val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
-
+  val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
+  val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
 
   def row(i: SIndex): Int = i / 9

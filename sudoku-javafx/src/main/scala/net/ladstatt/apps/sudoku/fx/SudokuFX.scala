@@ -19,7 +19,7 @@ import javafx.beans.value.ObservableValue
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image.{Image, ImageView}
-import javafx.scene.layout.{AnchorPane, BorderPane, FlowPane}
+import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polyline, Rectangle}
 
@@ -34,6 +34,7 @@ import org.opencv.core.{Mat, Point}
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 
 sealed trait ProcessingStage
@@ -60,11 +61,39 @@ case object SolutionStage extends ProcessingStage
  */
 object SudokuFX {
   def main(args: Array[String]): Unit = {
-    Application.launch(classOf[SudokuFX], args: _*)
+    Application.launch(classOf[SudokuFXApplication], args: _*)
   }
 }
 
-class SudokuFX extends Application with Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
+class SudokuFXApplication extends Application with JfxUtils {
+
+  override def start(stage: Stage): Unit =
+    Try {
+      stage.setTitle("SudokuFX")
+
+      val fxmlLoader = mkFxmlLoader("/net/ladstatt/apps/sudokufx.fxml")
+      val parent = fxmlLoader.load[VBox]()
+      val controller = fxmlLoader.getController[SudokuFXController]
+      val scene = new Scene(parent)
+      controller.setPerformanceTracker(PerformanceTracker.getSceneTracker(scene))
+      stage.setScene(scene)
+
+      stage.setOnCloseRequest(mkEventHandler(e => {
+        controller.shutdown()
+        stage.close()
+      }))
+      stage.show()
+
+    } match {
+      case Success(_) =>
+      case Failure(e) => {
+        System.err.println("Could not initialize SudokuFX application.")
+      }
+    }
+
+}
+
+class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
 
   @FXML var captureButton: ToggleButton = _
   @FXML var inputButton: ToggleButton = _
@@ -90,50 +119,58 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   @FXML var modeButtons: ToggleGroup = _
 
 
-  val currentHitCountsProperty = new SimpleObjectProperty[HitCounters](this, "currentHitCountdsProperty", Parameters.defaultHitCounts)
+  val performanceTrackerProperty = new SimpleObjectProperty[PerformanceTracker]()
 
-  def getCurrentHitCounts = currentHitCountsProperty.get()
+  def getPerformanceTracker = performanceTrackerProperty.get()
 
-  def setCurrentHitCounts(hitCounts: HitCounters) = currentHitCountsProperty.set(hitCounts)
+  def setPerformanceTracker(performanceTracker: PerformanceTracker) = performanceTrackerProperty.set(performanceTracker)
 
-  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibraryProperty", Parameters.defaultLibrary)
+  val currentHitCountersProperty = new SimpleObjectProperty[HitCounters](this, "currentHitCountdsProperty", Parameters.defaultHitCounters)
+
+  def getCurrentHitCounters = currentHitCountersProperty.get()
+
+  def setCurrentHitCounters(hitCounters: HitCounters) = currentHitCountersProperty.set(hitCounters)
+
+  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibraryProperty", Parameters.defaultDigitLibrary)
 
   def getCurrentDigitLibrary = currentDigitLibraryProperty.get()
 
   def setCurrentDigitLibrary(library: DigitLibrary) = currentDigitLibraryProperty.set(library)
 
-  val currentSudokuStateProperty = new SimpleObjectProperty[SudokuState](SudokuState())
-
-  def getCurrentSudokuState = currentSudokuStateProperty.get()
-
-  def setCurrentSudokuState(sudokuState: SudokuState) = currentSudokuStateProperty.set(sudokuState)
-
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
-  def setFrameNumber(i: Int) = frameNumberProperty.set(i)
-
   def getFrameNumber = frameNumberProperty.get()
+
+  def setFrameNumber(i: Int) = frameNumberProperty.set(i)
 
 
   val capProperty = new SimpleIntegerProperty(this, "cap", Parameters.cap)
 
-  def setCap(cap: Integer): Unit = capProperty.set(cap)
-
   def getCap: Integer = capProperty.get()
+
+  def setCap(cap: Integer): Unit = capProperty.set(cap)
 
 
   val minHitsProperty = new SimpleIntegerProperty(this, "minhits", Parameters.minHits)
 
-  def setMinHits(minHits: Integer): Unit = minHitsProperty.set(minHits)
-
   def getMinHits: Integer = minHitsProperty.get()
+
+  def setMinHits(minHits: Integer): Unit = minHitsProperty.set(minHits)
 
 
   val maxSolvingTimeProperty = new SimpleLongProperty(this, "maxSolvingTime", 5000L)
 
+  def getMaxSolvingTime: Long = maxSolvingTimeProperty.get()
+
   def setMaxSolvingTime(maxSolvingTime: Long): Unit = maxSolvingTimeProperty.set(maxSolvingTime)
 
-  def getMaxSolvingTime: Long = maxSolvingTimeProperty.get()
+
+  val cameraActiveProperty = new SimpleBooleanProperty(false)
+
+  def setCameraActive(isActive: Boolean): Unit = cameraActiveProperty.set(isActive)
+
+  def getCameraActive: Boolean = cameraActiveProperty.get
+
 
   val history = new File("runs/").listFiles()
 
@@ -174,15 +211,15 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     for {
       _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
       (result, udl, currentHits) <-
-      candidate.calc(getCurrentSudokuState,
+      candidate.calc(
         getCurrentDigitLibrary,
-        getCurrentHitCounts,
+        getCurrentHitCounters,
         getCap,
         getMinHits,
         getMaxSolvingTime)
     } {
       setCurrentDigitLibrary(udl)
-      setCurrentHitCounts(currentHits)
+      setCurrentHitCounters(currentHits)
       display(result)
     }
   }
@@ -196,23 +233,23 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
   def setCurrentFrameGrabberTask(task: FrameGrabberTask) = {
     if (getCurrentFrameGrabberTask != null) {
-      getCurrentFrameGrabberTask.cancel
+      getCurrentFrameGrabberTask.cancel()
     }
     currentFrameGrabberTaskProperty.set(task)
   }
 
   val frameTimer = new FrameTimer
 
-  val cameraActiveProperty = new SimpleBooleanProperty(false)
-
-  def setCameraActive(isActive: Boolean): Unit = cameraActiveProperty.set(isActive)
-
-  def getCameraActive(): Boolean = cameraActiveProperty.get
 
   def stopCapture(): Unit = {
     setCameraActive(false)
     logInfo("Stopping camera, no new persist jobs should be triggered.")
     setCurrentFrameGrabberTask(null)
+  }
+
+  def resetState(): Unit = {
+    setCurrentDigitLibrary(Parameters.defaultDigitLibrary)
+    setCurrentHitCounters(Parameters.defaultHitCounters)
   }
 
   def startCapture(): Unit = {
@@ -223,7 +260,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   }
 
 
-  def exitCapturingMode(): Unit = {
+  def shutdown(): Unit = {
     stopCapture()
     frameTimer.cancel()
     frameTimer.purge()
@@ -255,11 +292,6 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
     ()
   }
 
-  val performanceTrackerProperty = new SimpleObjectProperty[PerformanceTracker]()
-
-  def getPerformanceTracker() = performanceTrackerProperty.get()
-
-  def setPerformanceTracker(performanceTracker: PerformanceTracker) = performanceTrackerProperty.set(performanceTracker)
 
   def updateStatus(message: String, color: Color): Unit = {
     statusLabel.setTextFill(color)
@@ -466,7 +498,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
       }
     }
 
-    displayHitCounts(getCurrentHitCounts, as[FlowPane](statsFlowPane.getChildren))
+    displayHitCounts(getCurrentHitCounters, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
       case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas, foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
@@ -508,19 +540,18 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   }
 
 
-  def mkFps(start: Long) = {
+  def mkFps(start: Long): String = {
     def mkDuration = {
       val after = System.nanoTime
       (after - start) / 1000000
     }
-
-    s"FPS " + f"${getPerformanceTracker().getAverageFPS}%3.2f" + s" Frame: ${mkDuration} ms"
+    s"FPS " + f"${getPerformanceTracker.getAverageFPS}%3.2f" + s" Frame: $mkDuration ms"
   }
 
   def showAbout(): Unit = {
     Dialogs.create()
       .title("About SudokuFx")
-      .masthead("Solve Sudokus (c) @rladstaetter 2013/2014/2015")
+      .masthead("Solve Sudokus (c) @rladstaetter 2013 - 2015")
       .message("Use this application to solve Sudokus.")
       .showInformation()
     ()
@@ -631,6 +662,7 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
 
     initializeSharedState(location, resources)
     initializeCapturing(location, resources)
+
     // toggleButtons
     require(inputButton != null)
     require(grayedButton != null)
@@ -664,22 +696,4 @@ class SudokuFX extends Application with Initializable with OpenCVJfxUtils with C
   }
 
 
-  override def start(stage: Stage): Unit = {
-    stage.setTitle("SudokuFX")
-
-    val scene = new Scene(mk[BorderPane](mkFxmlLoader("/net/ladstatt/apps/sudokufx.fxml", this)))
-    setPerformanceTracker(PerformanceTracker.getSceneTracker(scene))
-    stage.setScene(scene)
-    stage.setOnCloseRequest(mkEventHandler(e => exitApp(stage)))
-
-    stage.show
-  }
-
-  def exitApp(stage: Stage): Unit = {
-    exitCapturingMode()
-    stage.close()
-  }
-
 }
-
-
