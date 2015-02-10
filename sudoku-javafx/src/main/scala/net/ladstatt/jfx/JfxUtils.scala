@@ -100,5 +100,7 @@ trait JfxUtils {
     override def call(): X = callFn
   }
 
+  def as[A](xs: Seq[_]): Seq[A] = xs.map(_.asInstanceOf[A])
+
 }
 

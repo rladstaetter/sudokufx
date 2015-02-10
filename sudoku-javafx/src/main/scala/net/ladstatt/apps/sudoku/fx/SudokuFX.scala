@@ -11,11 +11,10 @@ import _root_.javafx.stage.Stage
 import java.io.File
 import java.net.URL
 import java.text.SimpleDateFormat
-import java.util.{Timer, Date, ResourceBundle}
+import java.util.{Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
-import javafx.beans.value.ObservableValue
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image.{Image, ImageView}
@@ -26,10 +25,13 @@ import javafx.scene.shape.{Circle, Polyline, Rectangle}
 import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
-import net.ladstatt.jfx.{FrameGrabberTask, JfxUtils, OpenCVJfxUtils}
+import net.ladstatt.jfx.{JfxUtils, OpenCVJfxUtils}
+import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.controlsfx.dialog.Dialogs
 import org.opencv.core.{Mat, Point}
+import org.opencv.highgui.VideoCapture
+import rx.lang.scala.{Observable, Subscription}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,35 +39,21 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 
-sealed trait ProcessingStage
-
-case object InputStage extends ProcessingStage
-
-case object GrayedStage extends ProcessingStage
-
-case object BlurredStage extends ProcessingStage
-
-case object ThresholdedStage extends ProcessingStage
-
-case object InvertedStage extends ProcessingStage
-
-case object DilatedStage extends ProcessingStage
-
-case object ErodedStage extends ProcessingStage
-
-case object SolutionStage extends ProcessingStage
-
-
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
  */
 object SudokuFX {
+
   def main(args: Array[String]): Unit = {
     Application.launch(classOf[SudokuFXApplication], args: _*)
   }
 }
 
 class SudokuFXApplication extends Application with JfxUtils {
+
+  override def init(): Unit = {
+    OpenCV.loadNativeLib()
+  }
 
   override def start(stage: Stage): Unit =
     Try {
@@ -87,6 +75,7 @@ class SudokuFXApplication extends Application with JfxUtils {
     } match {
       case Success(_) =>
       case Failure(e) => {
+        e.printStackTrace()
         System.err.println("Could not initialize SudokuFX application.")
       }
     }
@@ -165,7 +154,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   def setMaxSolvingTime(maxSolvingTime: Long): Unit = maxSolvingTimeProperty.set(maxSolvingTime)
 
 
-  val cameraActiveProperty = new SimpleBooleanProperty(false)
+  val cameraActiveProperty = new SimpleBooleanProperty(true)
 
   def setCameraActive(isActive: Boolean): Unit = cameraActiveProperty.set(isActive)
 
@@ -189,20 +178,42 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   lazy val imageTemplates: Map[Int, Image] = TemplateLoader.templateLibrary.map { case (i, m) => i -> toImage(m)}
 
 
-  loadNativeLib()
-
-
   def persistFrame(frame: Mat, nr: Int, workingDirectory: File): Future[File] = {
     // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
     Future.successful(null)
   }
 
-  /**
-   * main event loop in capturing mode
-   */
-  def processFrame(observableValue: ObservableValue[_ <: Mat],
-                   oldFrame: Mat,
-                   currentFrame: Mat): Unit = {
+  val videoCapture = new VideoCapture(0)
+
+  def aquireMat(): Mat = {
+    val image = new Mat()
+    if (videoCapture.isOpened) videoCapture.read(image)
+    image
+  }
+
+  val videoObservable: Observable[SudokuCanvas] =
+    Observable.create[Mat](o => {
+      new Thread(
+        new Runnable {
+          override def run(): Unit = {
+            while (getCameraActive) {
+              Try {
+                aquireMat()
+              } match {
+                case Success(m) => o.onNext(m)
+                case Failure(e) => o.onError(e)
+              }
+            }
+            println("Shutting down video service ... ")
+            videoCapture.release()
+            o.onCompleted()
+          }
+        }).start()
+      new Subscription {}
+    })
+
+
+  def processFrame(currentFrame: Mat): Unit = time({
     val currentFrameNumber = getFrameNumber
     setFrameNumber(currentFrameNumber + 1)
 
@@ -222,49 +233,15 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       setCurrentHitCounters(currentHits)
       display(result)
     }
-  }
-
-
-  def mkCaptureTask = new FrameGrabberTask(processFrame)
-
-  val currentFrameGrabberTaskProperty = new SimpleObjectProperty[FrameGrabberTask]()
-
-  def getCurrentFrameGrabberTask = currentFrameGrabberTaskProperty.get
-
-  def setCurrentFrameGrabberTask(task: FrameGrabberTask) = {
-    if (getCurrentFrameGrabberTask != null) {
-      getCurrentFrameGrabberTask.cancel()
-    }
-    currentFrameGrabberTaskProperty.set(task)
-  }
-
-  val frameTimer = new Timer
-
-
-  def stopCapture(): Unit = {
-    setCameraActive(false)
-    logInfo("Stopping camera, no new persist jobs should be triggered.")
-    setCurrentFrameGrabberTask(null)
-  }
+  }, t => logInfo(s"Processed frame in $t ms"))
 
   def resetState(): Unit = {
     setCurrentDigitLibrary(Parameters.defaultDigitLibrary)
     setCurrentHitCounters(Parameters.defaultHitCounters)
   }
 
-  def startCapture(): Unit = {
-    setCurrentFrameGrabberTask(mkCaptureTask)
-    frameTimer.schedule(getCurrentFrameGrabberTask, 0, 50)
-    setCameraActive(true)
-    templateToolBar.setVisible(false)
-  }
-
-
   def shutdown(): Unit = {
-    stopCapture()
-    frameTimer.cancel()
-    frameTimer.purge()
-    ()
+    setCameraActive(false)
   }
 
   def initializeCapturing(location: URL, resources: ResourceBundle): Unit = {
@@ -366,6 +343,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   val borderFadeTransition: FadeTransition = mkFadeTransition(500, sudokuBorder, 1.0, 0.0)
   val basedir = new File("/Users/lad/Documents/sudokufx/runs/")
   val sessionName = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date())
+
   val workingDirectory = new File(basedir, sessionName)
   workingDirectory.mkdirs()
 
@@ -613,7 +591,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     }
   }
 
-  def as[A](xs: Seq[_]): Seq[A] = xs.map(_.asInstanceOf[A])
 
   /**
    * updates UI to show for each cell (there are 81 of them) which number was detected how often
@@ -691,8 +668,11 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     solutionButton.setUserData(SolutionStage)
     erodedButton.setUserData(ErodedStage)
 
+    // startCapture
+    videoObservable.subscribe(processFrame(_),
+      t => t.printStackTrace(),
+      () => logInfo("Videostream stopped..."))
 
-    startCapture
   }
 
 
