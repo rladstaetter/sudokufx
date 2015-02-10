@@ -11,7 +11,7 @@ import _root_.javafx.stage.Stage
 import java.io.File
 import java.net.URL
 import java.text.SimpleDateFormat
-import java.util.{Date, ResourceBundle}
+import java.util.{Timer, Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
@@ -26,7 +26,7 @@ import javafx.scene.shape.{Circle, Polyline, Rectangle}
 import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
-import net.ladstatt.jfx.{FrameGrabberTask, FrameTimer, JfxUtils, OpenCVJfxUtils}
+import net.ladstatt.jfx.{FrameGrabberTask, JfxUtils, OpenCVJfxUtils}
 import net.ladstatt.opencv.OpenCV._
 import org.controlsfx.dialog.Dialogs
 import org.opencv.core.{Mat, Point}
@@ -238,7 +238,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     currentFrameGrabberTaskProperty.set(task)
   }
 
-  val frameTimer = new FrameTimer
+  val frameTimer = new Timer
 
 
   def stopCapture(): Unit = {
@@ -550,7 +550,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def showAbout(): Unit = {
     Dialogs.create()
-      .title("About SudokuFx")
+      .title("About SudokuFX")
       .masthead("Solve Sudokus (c) @rladstaetter 2013 - 2015")
       .message("Use this application to solve Sudokus.")
       .showInformation()
