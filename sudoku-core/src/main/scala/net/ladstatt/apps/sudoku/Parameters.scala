@@ -38,11 +38,11 @@ object Parameters {
   val ambiCount = 5
 
   // numbers won't get any larger in the status matrix than this number
-  val topCap = 55
+  val topCap = 5
 
   // least number of matches necessary to identify one number
   // if you have a good camera, take 1 to get fast response
-  val cap = 40
+  val cap = 3
 
   assert(topCap - cap > 0)
 

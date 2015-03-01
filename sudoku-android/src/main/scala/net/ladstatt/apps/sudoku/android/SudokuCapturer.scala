@@ -35,7 +35,6 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
   val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
 
-  var currentState: SudokuState = new SudokuState()
   var digitLibrary: DigitLibrary = defaultLibrary
   var hitCounts: HitCounters = defaultHitCounts
 
@@ -85,7 +84,6 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         //  rescanButton.setVisibility(View.GONE)
         digitLibrary = defaultLibrary
         hitCounts = defaultHitCounts
-        currentState = new SudokuState()
         rescanButton.setVisibility(View.GONE)
         adView.setVisibility(View.GONE)
         solution = null
@@ -139,7 +137,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
     val input = inputFrame.rgba()
     frameNr = frameNr + 1
     val (sudokuResult, currentDigitLibrary, currentHitCounters) =
-      Await.result(new SCandidate(frameNr, input).calc(currentState, digitLibrary, hitCounts, 8, 20, 5000L), Duration.Inf)
+      Await.result(new SCandidate(frameNr, input).calc(digitLibrary, hitCounts, 8, 20, 5000L), Duration.Inf)
     digitLibrary = currentDigitLibrary
     hitCounts = currentHitCounters
     sudokuResult

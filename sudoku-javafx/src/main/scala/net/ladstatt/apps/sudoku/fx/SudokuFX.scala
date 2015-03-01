@@ -27,7 +27,6 @@ import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.jfx.{JfxUtils, OpenCVJfxUtils}
 import net.ladstatt.opencv.OpenCV
-import net.ladstatt.opencv.OpenCV._
 import org.controlsfx.dialog.Dialogs
 import org.opencv.core.{Mat, Point}
 import org.opencv.highgui.VideoCapture
@@ -160,7 +159,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def getCameraActive: Boolean = cameraActiveProperty.get
 
-
   val history = new File("runs/").listFiles()
 
   val historyMenu: Menu = {
@@ -197,14 +195,14 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         new Runnable {
           override def run(): Unit = {
             while (getCameraActive) {
-              Try {
+              time(Try {
                 aquireMat()
               } match {
                 case Success(m) => o.onNext(m)
                 case Failure(e) => o.onError(e)
-              }
+              }, t => logInfo(s"AcquireMat: $t ms"))
             }
-            println("Shutting down video service ... ")
+            logInfo("Shutting down video service ... ")
             videoCapture.release()
             o.onCompleted()
           }
@@ -669,7 +667,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     erodedButton.setUserData(ErodedStage)
 
     // startCapture
-    videoObservable.subscribe(processFrame(_),
+    videoObservable.subscribe(processFrame,
       t => t.printStackTrace(),
       () => logInfo("Videostream stopped..."))
 

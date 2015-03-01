@@ -47,7 +47,7 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
   // TODO remove sudokuCanvas from signature: just save roi's and calculate Mats on demand
   def mergeDigitLibrary(sudokuCanvas: SudokuCanvas,
                         digitLibrary: DigitLibrary,
-                        detectedCells: Seq[SCell]): DigitLibrary = time({
+                        detectedCells: Seq[SCell]): DigitLibrary = {
 
     /**
      * The filter returns only cells which contain 'better match' cells.
@@ -67,7 +67,7 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
         val newData = Some(copyMat(sudokuCanvas.submat(c.roi)))
         c.value -> ((c.quality, newData))
       }).toMap
-  }, t => logInfo(s"Merging took: ${t} micros"))
+  }
 
 
   def resetHitsIfThereAreTooMuchAmbiguities(counters: HitCounters): HitCounters = {

@@ -123,7 +123,6 @@ object SudokuUtils {
     Future {
       for (solution <- someSolution) {
         CollectionUtils.traverseWithIndex(rects)((cell, i) => {
-          println("painting")
           paintRect(canvas, rects(i), color(hitCounts, i, cap), 1)
         }
         )
