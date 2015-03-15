@@ -173,7 +173,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     historyMenu
   }
 
-  lazy val imageTemplates: Map[Int, Image] = TemplateLoader.templateLibrary.map { case (i, m) => i -> toImage(m)}
+  lazy val imageTemplates: Seq[Image] = TemplateLoader.templateLibrary.map(toImage(_))
 
 
   def persistFrame(frame: Mat, nr: Int, workingDirectory: File): Future[File] = {
@@ -255,12 +255,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     require(mainMenuBar != null)
 
     mainMenuBar.getMenus.add(historyMenu)
-    imageTemplates.foldLeft(templateToolBar) {
-      case (acc, (i, image)) => {
-        templateToolBar.getItems.add(new ImageView(image))
-        templateToolBar
-      }
-    }
+    val imageViews = imageTemplates.map(new ImageView(_))
+    templateToolBar.getItems.addAll(imageViews)
     canvas.getChildren.add(sudokuBorder)
     canvas.getChildren.addAll(analysisCellBounds.toList)
     canvas.getChildren.addAll(analysisCellCorners.toList)
@@ -277,7 +273,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        digitLibrary(i + 1)._2.map { case m => nrViews(i).setImage(toImage(m))}
+        digitLibrary(i + 1)._2.map { case m => nrViews(i).setImage(toImage(m)) }
       })
   }
 
@@ -609,7 +605,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     }
 
-    val sortedHitCountValues = hitCounts.toSeq.sortWith { case (a, b) => a._1 < b._1}.map(_._2)
+    val sortedHitCountValues = hitCounts.toSeq.sortWith { case (a, b) => a._1 < b._1 }.map(_._2)
 
     for {(cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
          (v, distribution) <- cellContent.toSeq} {

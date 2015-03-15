@@ -2,7 +2,6 @@ package net.ladstatt.apps.sudoku
 
 import java.io.InputStream
 
-import net.ladstatt.apps.sudoku.Parameters._
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, Size}
 
@@ -11,23 +10,19 @@ import scala.io.Source
 
 object TemplateLoader {
 
-  var getResourceAsStream : String => InputStream = getClass.getResourceAsStream
-  var templateResource : String = "/net/ladstatt/apps/sudokufx/templates.csv"
+  var getResourceAsStream: String => InputStream = getClass.getResourceAsStream
+  var templateResource: String = "/net/ladstatt/apps/sudokufx/templates.csv"
 
-  lazy val templateLibrary: Map[Int, Mat] = {
+  lazy val templateLibrary: Seq[Mat] = {
     val digits: Seq[Array[Int]] =
-      (Source.fromInputStream(getResourceAsStream(templateResource)).getLines.map(l => l.split(",").map(e => if (e == "0") 0 else 255))).toSeq
+      Source.fromInputStream(getResourceAsStream(templateResource)).getLines().map(l => l.split(",").map(e => if (e == "0") 0 else 255)).toSeq
 
-    (1 to 9).map {
-      case i => i -> OpenCV.toMat(digits(i - 1), Parameters.templateSize)
-    }.toMap
+    digits.map(OpenCV.toMat(_, Parameters.templateSize))
   }
 
 }
 
-/**
- * Created by lad on 26.10.14.
- */
+
 object Parameters {
 
 

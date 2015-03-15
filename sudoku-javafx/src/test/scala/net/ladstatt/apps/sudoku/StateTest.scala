@@ -45,14 +45,14 @@ class StateTest {
 
   // should test we can compare two non empty mats succesfully
   @Test def testTwoNonEmptyMats(): Unit = {
-    for (m <- TemplateLoader.templateLibrary.values) {
+    for (m <- TemplateLoader.templateLibrary) {
       assertEquals(m.dump, m.dump)
     }
   }
 
   // should test we can compare two non empty mats succesfully
   @Test def testDifferingMats(): Unit = {
-    for (m <- TemplateLoader.templateLibrary.values) {
+    for (m <- TemplateLoader.templateLibrary) {
       assertEquals((false, "(1/0/0) != (1/25/50)"), compareMat(new Mat, m))
     }
   }

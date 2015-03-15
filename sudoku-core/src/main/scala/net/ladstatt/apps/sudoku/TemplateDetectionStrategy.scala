@@ -17,10 +17,11 @@ object TemplateDetectionStrategy {
    */
   def detectNumber(candidate: Mat): Future[(SNum, SHitQuality)] = {
     val resizedCandidate = OpenCV.resize(candidate, Parameters.templateSize) // since templates are 25 x 50
-    val matchHaystack = OpenCV.matchTemplate(resizedCandidate, _: Mat, _: Int)
+    val matchHaystack: (SudokuCanvas, SIndex) => Future[(SIndex, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Mat, _: Int)
+
 
     val result =
-      for {s <- Future.sequence(for {(number, needle) <- TemplateLoader.templateLibrary} yield
+      for {s <- Future.sequence(for {(needle, number) <- TemplateLoader.templateLibrary.zipWithIndex} yield
         for {(number, quality) <- matchHaystack(needle, number)} yield (number, quality))
       } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
 
