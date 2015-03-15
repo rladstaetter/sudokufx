@@ -173,7 +173,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     historyMenu
   }
 
-  lazy val imageTemplates: Seq[Image] = TemplateLoader.templateLibrary.map(toImage(_))
+  lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage(_))
 
 
   def persistFrame(frame: Mat, nr: Int, workingDirectory: File): Future[File] = {

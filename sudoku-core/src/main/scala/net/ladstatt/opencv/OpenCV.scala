@@ -3,7 +3,7 @@ package net.ladstatt.opencv
 import java.io.File
 
 import net.ladstatt.apps.sudoku._
-import net.ladstatt.core.{SystemEnv, FutureUtils, CanLog}
+import net.ladstatt.core.{CanLog, FutureUtils, SystemEnv}
 import org.opencv.core._
 import org.opencv.highgui.Highgui
 import org.opencv.imgproc.Imgproc
@@ -18,8 +18,8 @@ import scala.concurrent.Future
  */
 object OpenCV extends CanLog {
 
-  import Parameters._
   import FutureUtils._
+  import Parameters._
 
   def copyMat(orig: Mat): Mat = {
     val dest = new Mat()
@@ -178,7 +178,7 @@ object OpenCV extends CanLog {
    *
    * @return
    */
-  def matchTemplate(candidate: Mat, withNeedle: Mat, number: Int): Future[(Int, Double)] = {
+  def matchTemplate(candidate: Mat, number: Int, withNeedle: Mat): Future[(Int, Double)] = {
 
     val normedCandidateF = norm(candidate)
     val normedNeedleF = norm(withNeedle)
@@ -188,16 +188,16 @@ object OpenCV extends CanLog {
         c <- normedCandidateF
         needle <- normedNeedleF
       }
-      yield {
-        val width = candidate.cols - withNeedle.cols + 1
-        val height = candidate.rows - withNeedle.rows + 1
-        val resultImage = new Mat(width, height, CvType.CV_32FC1)
-        Imgproc.matchTemplate(c, needle, resultImage, Imgproc.TM_SQDIFF)
-        val minMaxResult = Core.minMaxLoc(resultImage)
-        //        OpenCV.persist(c, new File(s"target/${number}_${minMaxResult.minVal}_candidate_.png"))
-        //        OpenCV.persist(needle, new File(s"target/${number}_${minMaxResult.minVal}_needle_.png"))
-        (number, minMaxResult.minVal)
-      }
+        yield {
+          val width = candidate.cols - withNeedle.cols + 1
+          val height = candidate.rows - withNeedle.rows + 1
+          val resultImage = new Mat(width, height, CvType.CV_32FC1)
+          Imgproc.matchTemplate(c, needle, resultImage, Imgproc.TM_SQDIFF)
+          val minMaxResult = Core.minMaxLoc(resultImage)
+          //        OpenCV.persist(c, new File(s"target/${number}_${minMaxResult.minVal}_candidate_.png"))
+          //        OpenCV.persist(needle, new File(s"target/${number}_${minMaxResult.minVal}_needle_.png"))
+          (number, minMaxResult.minVal)
+        }
     result
   }
 
@@ -208,7 +208,6 @@ object OpenCV extends CanLog {
   }
 
   def resizeFuture(source: Mat, size: Size): Future[Mat] = execFuture(resize(source, size))
-
 
 
   /**
@@ -426,8 +425,7 @@ object OpenCV extends CanLog {
     } yield inverted
   }
 
-  def detectCell(sudokuPlane: Mat, roi: Rect): Future[SCell] = {
-    import net.ladstatt.apps.sudoku.TemplateDetectionStrategy.detectNumber
+  def detectCell(detectNumber: Mat => Future[(SNum, SHitQuality)], sudokuPlane: Mat, roi: Rect): Future[SCell] = {
     for {
       contour <- extractContour(sudokuPlane.submat(roi))
       (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
@@ -448,7 +446,7 @@ object OpenCV extends CanLog {
       (cellData, center, minArea, maxArea) <- specialize(cell)
       a <- preprocess2(cellData)
     } yield
-      findCellContour(a, center, minArea, maxArea)
+    findCellContour(a, center, minArea, maxArea)
   }
 
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)

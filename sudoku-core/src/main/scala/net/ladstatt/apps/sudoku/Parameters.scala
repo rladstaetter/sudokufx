@@ -5,20 +5,46 @@ import java.io.InputStream
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, Size}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.io.Source
 
+object TemplateLibrary {
+  val (templateWidth, templateHeight) = (25.0, 50.0)
+  val templateSize = new Size(templateWidth, templateHeight)
+  lazy val sudokuTemplateSize = new Size(templateWidth * Parameters.ssize, templateHeight * Parameters.ssize)
 
-object TemplateLoader {
-
+  lazy val templateCorners = OpenCV.mkCorners(sudokuTemplateSize)
   var getResourceAsStream: String => InputStream = getClass.getResourceAsStream
   var templateResource: String = "/net/ladstatt/apps/sudokufx/templates.csv"
 
-  lazy val templateLibrary: Seq[Mat] = {
+  lazy val asSeq: Seq[Mat] = {
     val digits: Seq[Array[Int]] =
       Source.fromInputStream(getResourceAsStream(templateResource)).getLines().map(l => l.split(",").map(e => if (e == "0") 0 else 255)).toSeq
 
-    digits.map(OpenCV.toMat(_, Parameters.templateSize))
+    digits.map(OpenCV.toMat(_, templateSize))
   }
+
+
+  /**
+   * given a template library, match the given contour to find the best match. this function takes around 1 ms
+   *
+   * @return
+   */
+  def detectNumber(candidate: Mat): Future[(SNum, SHitQuality)] = {
+    val resizedCandidate = OpenCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
+    val matchHaystack: (SIndex, SudokuCanvas) => Future[(SIndex, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
+
+
+    val result: Future[(SIndex, SHitQuality)] =
+      for {s <- Future.sequence(for {(needle, number) <- TemplateLibrary.asSeq.zipWithIndex} yield
+      for {(number, quality) <- matchHaystack(number + 1, needle)} yield (number, quality))
+      } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
+
+
+    result
+  }
+
 
 }
 
@@ -57,11 +83,6 @@ object Parameters {
   private val rightRange: Seq[Int] = Seq(6, 7, 8)
   val sectors: Seq[Seq[Int]] = Seq(leftRange, middleRange, rightRange)
 
-  val (templateWidth, templateHeight) = (25.0, 50.0)
-  val templateSize = new Size(templateWidth, templateHeight)
-  lazy val sudokuTemplateSize = new Size(templateWidth * ssize, templateHeight * ssize)
-
-  lazy val templateCorners = OpenCV.mkCorners(sudokuTemplateSize)
 
   val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
   val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))

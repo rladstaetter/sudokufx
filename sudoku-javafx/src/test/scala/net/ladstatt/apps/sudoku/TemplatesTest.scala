@@ -9,7 +9,7 @@ import org.junit.Assert._
 class TemplatesTest {
 
   @Test def doWeLoadTemplatesCorrectly(): Unit = {
-    assertEquals(9L, TemplateLoader.templateLibrary.size.toLong)
+    assertEquals(9L, TemplateLibrary.asSeq.size.toLong)
   }
 
 }

@@ -62,8 +62,8 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
 
 
   def initAssets(): Unit = {
-    TemplateLoader.getResourceAsStream = getAssets().open
-    TemplateLoader.templateResource = "templates.csv"
+    TemplateLibrary.getResourceAsStream = getAssets().open
+    TemplateLibrary.templateResource = "templates.csv"
   }
 
   /** Called when the activity is first created. */
