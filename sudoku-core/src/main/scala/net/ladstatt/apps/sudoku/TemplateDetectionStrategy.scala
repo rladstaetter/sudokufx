@@ -20,9 +20,9 @@ object TemplateDetectionStrategy {
     val matchHaystack: (SudokuCanvas, SIndex) => Future[(SIndex, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Mat, _: Int)
 
 
-    val result =
+    val result: Future[(SIndex, SHitQuality)] =
       for {s <- Future.sequence(for {(needle, number) <- TemplateLoader.templateLibrary.zipWithIndex} yield
-        for {(number, quality) <- matchHaystack(needle, number)} yield (number, quality))
+        for {(number, quality) <- matchHaystack(needle, number +1 )} yield (number, quality))
       } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
 
     result
