@@ -11,18 +11,15 @@ discussion of the used concepts.
 
 First, you have to make sure that openCV jar is in your local maven repository:
 
-'''
-# mvn install:install-file -Dfile=<path-to-file> -DgroupId=<group-id> -DartifactId=<artifact-id> -Dversion=<version> -Dpackaging=<packaging>
-mvn install:install-file -Dfile=/opt/local/share/OpenCV/java/opencv-246.jar -DgroupId=org.opencv -DartifactId=opencv-java -Dversion=2.4.6 -Dpackaging=jar
-'''
+    mvn install:install-file -Dfile=<path-to-file> -DgroupId=<group-id> -DartifactId=<artifact-id> -Dversion=<version> -Dpackaging=<packaging>
+    mvn install:install-file -Dfile=/opt/local/share/OpenCV/java/opencv-246.jar -DgroupId=org.opencv -DartifactId=opencv-java -Dversion=2.4.6 -Dpackaging=jar
 
 Then, you have to make sure that the call to loadNativeLib points to the dll / dylib on your system. The newest
 opencv dll's can be downloaded from http://opencv.org/.
 
 Finally, you should be able to run the app by issuing
 
-'''
-mvn jfx:run
-'''
+    mvn jfx:run
+
 
 

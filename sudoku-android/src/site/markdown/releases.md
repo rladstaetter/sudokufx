@@ -1,12 +1,35 @@
-# Releases 
+# Sudoku Capturer Release Plan
 
-## Sudoku Capturer Release 1.5 (not yet published)
+## Release 2.5 (unreleased)
 
-- Fixed a bug in the number detection: the dection of empty cells was not taken into account in the
-algorithm for weighting the number detections - this was reason for many wrongly detected numbers in
-the recognition phase. Now the algorithm also weights empty cells which rendered the algorithm to be
-more stable than before.
-- Introduced Preferences Dialog
+- UX for solving Sudoku manually
+
+## Release 2.4 (unreleased)
+
+- Social media integration
+- post twitter photo
+- post facebook photo
+
+## Release 2.3 (unreleased)
+
+- Improved UX features
+- Preferences Dialog
+
+## Release 2.2 (unreleased)
+
+- Major improvements in image processing pipeline, better detection results
+- Integration of RxAndroid for better Application Architecture
+
+## Release 2.1 (unreleased)
+
+- Included OpenCV libraries in the apk, now OpenCV Manager Download necessary anymore
+
+## Release 2.0 (unreleased)
+
+- Rewrite of most of the application
+- More stable and responsive User experience
+- Showing ads only if there is a solution found for a sudoku
+- Translations to chinese
 
 ## Sudoku Capturer Release 1.4 (15. May 2014)
 
