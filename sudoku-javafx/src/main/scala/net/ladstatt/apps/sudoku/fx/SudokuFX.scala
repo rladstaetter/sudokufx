@@ -73,10 +73,10 @@ class SudokuFXApplication extends Application with JfxUtils {
 
     } match {
       case Success(_) =>
-      case Failure(e) => {
+      case Failure(e) =>
         e.printStackTrace()
         System.err.println("Could not initialize SudokuFX application.")
-      }
+
     }
 
 }
@@ -173,7 +173,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     historyMenu
   }
 
-  lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage(_))
+  lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage)
 
 
   def persistFrame(frame: Mat, nr: Int, workingDirectory: File): Future[File] = {
@@ -273,7 +273,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        digitLibrary(i + 1)._2.map { case m => nrViews(i).setImage(toImage(m)) }
+        digitLibrary(i + 1)._2.foreach { case m => nrViews(i).setImage(toImage(m)) }
       })
   }
 
@@ -302,11 +302,11 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     line.setEffect(new DropShadow())
     line.setLayoutY(layoutY)
     line.setOnMouseEntered(mkEventHandler(e => {
-      analysisFadeIn.play
+      analysisFadeIn.play()
       logInfo(s"entered box $idx")
     }))
     line.setOnMouseExited(mkEventHandler(e => {
-      analysisFadeOut.play
+      analysisFadeOut.play()
       logInfo(s"left box $idx")
     }))
     line
@@ -322,7 +322,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       line.setOpacity(1.0)
     }))
     line.setOnMouseExited(mkEventHandler(e => {
-      borderFadeTransition.play
+      borderFadeTransition.play()
     }))
     line
   }
@@ -359,7 +359,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     if (a == b) {
       List.fill(10)(a)
     } else {
-      val r = (a to b by ((b - a) / nrCells))
+      val r = a to b by ((b - a) / nrCells)
       if (r.size == 9) List.concat(r, List(b)) else r
     }
   }
@@ -380,8 +380,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   /**
    * returns coordinates of the 100 cell corners
-   * @param corners
-   * @return
    */
   def mkCellCorners(corners: List[Point]): Seq[(Double, Double)] = {
     val List(ul, ur, lr, ll) = corners
@@ -404,8 +402,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   /**
    * reduces 100 corners to 81 boundaries
-   * @param cellCorners
-   * @return
    */
   def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
 
@@ -417,7 +413,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         cellCorners(index)._1, cellCorners(index)._2)
     }
     val exclusions = 9 to 79 by 10
-    for (i <- 0 to 88 if (!exclusions.contains(i))) yield extractBound(i)
+    for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
   }
 
   def updateCellBounds(border: List[Point], cellBounds: Array[Polyline]): Unit = {
@@ -440,18 +436,17 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def updateCellCorners(corners: List[Point], cellCorners: Array[Circle]): Unit = {
     mkCellCorners(corners).zipWithIndex.foreach {
-      case ((x, y), index) => {
+      case ((x, y), index) =>
         cellCorners(index).setCenterX(x)
         cellCorners(index).setCenterY(y)
-        mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play
-      }
+        mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play()
     }
   }
 
   def updateBorder(corners: List[Point]): Unit = {
     sudokuBorder.getPoints.clear()
     sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners))
-    borderFadeTransition.play
+    borderFadeTransition.play()
   }
 
   def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
@@ -473,17 +468,13 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     displayHitCounts(getCurrentHitCounters, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
-      case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas, foundCorners, detectedCells, solution, solutionMat, solutionCells) => {
+      case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas, foundCorners, detectedCells, solution, solutionMat, solutionCells) =>
         updateVideo(stage, frame, imageIoChain, solutionMat)
         displayResult(solution, as[Label](resultFlowPane.getChildren))
-
-      }
-      case SCorners(nr, frame, start, imageIoChain, sudokuCanvas, detectedCells, solutionCells) => {
+      case SCorners(nr, frame, start, imageIoChain, sudokuCanvas, detectedCells, solutionCells) =>
         updateVideo(stage, frame, imageIoChain, frame)
-      }
-      case SFailure(nr, frame, start, imageIoChain) => {
+      case SFailure(nr, frame, start, imageIoChain) =>
         updateVideo(stage, frame, imageIoChain, frame)
-      }
     }
 
   }
@@ -499,14 +490,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     setAnalysisMouseTransparent(false)
     updateDigitLibraryView(getCurrentDigitLibrary, as[ImageView](numberFlowPane.getChildren))
     result match {
-      case success: SSuccess => {
+      case success: SSuccess =>
         updateStatus(mkFps(success.start), Color.GREEN)
-      }
-      case onlyCornersDetected: SCorners => {
+      case onlyCornersDetected: SCorners =>
         updateStatus(mkFps(onlyCornersDetected.start), Color.ORANGE)
         updateCellBounds(onlyCornersDetected.sudokuCorners, analysisCellBounds)
         updateCellCorners(onlyCornersDetected.sudokuCorners, analysisCellCorners)
-      }
       case SFailure(nr, frame, start, imageIoChain) => updateStatus(mkFps(start), Color.AQUA)
     }
   }
@@ -589,9 +578,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   /**
    * updates UI to show for each cell (there are 81 of them) which number was detected how often
    * In each flowpane there are 9 labels (representing each number)
-   *
-   * @param hitCounts
-   * @param displayItems
    */
   def displayHitCounts(hitCounts: HitCounters, displayItems: Seq[FlowPane]): Unit = {
 
@@ -666,7 +652,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     videoObservable.subscribe(processFrame,
       t => t.printStackTrace(),
       () => logInfo("Videostream stopped..."))
-
+    ()
   }
 
 
