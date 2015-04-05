@@ -1,34 +1,16 @@
-package net.ladstatt.jfx
+package net.ladstatt.apps.sudoku.fx
 
-import java.awt.image.BufferedImage
-import java.io.File
-import java.util.{Timer, TimerTask}
 import javafx.application.Platform
-import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.{ChangeListener, ObservableValue}
 import javafx.collections.{FXCollections, ListChangeListener, ObservableList}
 import javafx.concurrent.Task
-import javafx.embed.swing.SwingFXUtils
 import javafx.event.{Event, EventHandler}
 import javafx.fxml.{FXMLLoader, JavaFXBuilderFactory}
 import javafx.geometry.Orientation
 import javafx.scene.control._
-import javafx.scene.image.Image
 import javafx.util.Callback
 
-import net.ladstatt.core.{FutureUtils, Utils}
-import org.opencv.core.{Mat, Point}
-import org.opencv.highgui.{Highgui, VideoCapture}
-
 import scala.collection.JavaConversions._
-import scala.concurrent.{ExecutionContext, Future}
-
-
-
-
-
-
-
 
 trait JfxUtils {
 

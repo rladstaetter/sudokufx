@@ -1,11 +1,8 @@
 package net.ladstatt.core
 
-import java.io.{File, InputStream, OutputStream}
+import java.io.{InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
-import java.util.UUID
-
-import scala.concurrent.{ExecutionContext, Future, Promise}
 
 trait Utils extends Timed {
 
@@ -38,7 +35,7 @@ trait Utils extends Timed {
     // EOF will leave buffer in fill state
     buffer.flip()
     // make sure the buffer is fully drained.
-    while (buffer.hasRemaining()) {
+    while (buffer.hasRemaining) {
       dest.write(buffer)
     }
   }

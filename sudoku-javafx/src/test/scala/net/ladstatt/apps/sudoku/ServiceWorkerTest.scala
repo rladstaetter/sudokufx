@@ -4,14 +4,11 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.concurrent.{Service, Task, WorkerStateEvent}
 
 import net.ladstatt.JavaFXUnitTest
+import net.ladstatt.apps.sudoku.fx.JfxUtils
 import net.ladstatt.core.{CanLog, Utils}
-import net.ladstatt.jfx.JfxUtils
 import org.junit.Test
 import org.opencv.core.Mat
 
-/**
- * Created by lad on 21.09.14.
- */
 class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils with CanLog {
 
   val solverService = new SolverService
@@ -66,14 +63,12 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils with Can
             Array()
           } else {
             someResult match {
-              case None => {
+              case None =>
                 logInfo("not found valid solution")
                 Array()
-              }
-              case Some(s) => {
+              case Some(s) =>
                 logInfo("task finished successfully")
                 s
-              }
             }
           }
         }

@@ -25,7 +25,6 @@ import javafx.scene.shape.{Circle, Polyline, Rectangle}
 import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
-import net.ladstatt.jfx.{JfxUtils, OpenCVJfxUtils}
 import net.ladstatt.opencv.OpenCV
 import org.controlsfx.dialog.Dialogs
 import org.opencv.core.{Mat, Point}
