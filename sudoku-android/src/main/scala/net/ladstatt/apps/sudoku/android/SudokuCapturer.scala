@@ -151,7 +151,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
   }
 
   def onCameraViewStarted(width: Int, height: Int) {
-    logInfo("onCameraViewStarted called")
+    logInfo(s"onCameraViewStarted (width: $width, height: $height)")
   }
 
   def onCameraViewStopped() {

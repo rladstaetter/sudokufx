@@ -8,8 +8,8 @@
         <artifactId>apps</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-    <groupId>net.ladstatt.apps.sudoku</groupId>
     <artifactId>sudoku-android</artifactId>
+    <name>nxs.ladstatt.apps.sudoku.sudoku-android</name>
 
     <packaging>apk</packaging>
 
@@ -29,6 +29,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- this are just the opencv android classes packaged via maven -->
         <dependency>
             <groupId>net.ladstatt.android</groupId>
             <artifactId>opencv</artifactId>

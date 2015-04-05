@@ -9,6 +9,7 @@
 
     <groupId>net.ladstatt.apps.sudoku</groupId>
     <artifactId>sudoku-javafx</artifactId>
+    <name>net.ladstatt.apps.sudoku.sudoku-javafx</name>
 
     <packaging>jar</packaging>
 
@@ -51,7 +52,7 @@
         </dependency>
     </dependencies>
     <build>
-       <!-- <sourceDirectory>src/main/scala</sourceDirectory> -->
+        <!-- <sourceDirectory>src/main/scala</sourceDirectory> -->
         <plugins>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>

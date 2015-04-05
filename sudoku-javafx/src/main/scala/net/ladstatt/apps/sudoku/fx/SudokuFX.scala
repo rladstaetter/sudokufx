@@ -158,7 +158,10 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def getCameraActive: Boolean = cameraActiveProperty.get
 
-  val history = new File("runs/").listFiles()
+  val basedir: File = new File("./runs/")
+  val workingDirectory = new File(basedir, new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date()))
+  val history: Array[File] = basedir.listFiles()
+
 
   val historyMenu: Menu = {
     val historyMenu = new Menu("Previous runs")
@@ -334,10 +337,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   val borderFadeTransition: FadeTransition = mkFadeTransition(500, sudokuBorder, 1.0, 0.0)
-  val basedir = new File("/Users/lad/Documents/sudokufx/runs/")
-  val sessionName = new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date())
 
-  val workingDirectory = new File(basedir, sessionName)
+
   workingDirectory.mkdirs()
 
   /**

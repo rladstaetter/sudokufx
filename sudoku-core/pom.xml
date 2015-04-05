@@ -8,6 +8,7 @@
     </parent>
     <groupId>net.ladstatt.apps.sudoku</groupId>
     <artifactId>sudoku-core</artifactId>
+    <name>nxs.ladstatt.apps.sudoku.sudoku-core</name>
 
     <packaging>jar</packaging>
 
