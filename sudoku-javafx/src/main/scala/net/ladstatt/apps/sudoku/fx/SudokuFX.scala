@@ -16,6 +16,7 @@ import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
 import javafx.geometry.Pos
+import javafx.scene.control.Alert.AlertType
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
@@ -26,7 +27,6 @@ import com.sun.javafx.perf.PerformanceTracker
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
-import org.controlsfx.dialog.Dialogs
 import org.opencv.core.{Mat, Point}
 import org.opencv.highgui.VideoCapture
 import rx.lang.scala.{Observable, Subscription}
@@ -509,11 +509,11 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   def showAbout(): Unit = {
-    Dialogs.create()
-      .title("About SudokuFX")
-      .masthead("Solve Sudokus (c) @rladstaetter 2013 - 2015")
-      .message("Use this application to solve Sudokus.")
-      .showInformation()
+    val d = new Alert(AlertType.INFORMATION)
+    d.setTitle("About SudokuFX")
+    d.setHeaderText("SudokuFX (c) @rladstaetter 2013 - 2015")
+    d.setContentText("Use this application to solve Sudokus.")
+    d.showAndWait()
     ()
   }
 
