@@ -24,14 +24,13 @@
 
 - Included OpenCV libraries in the apk, now OpenCV Manager Download necessary anymore
 
-## Release 2.0 (unreleased)
+## Release 1.5 (6. April 2015) [VersionCode 7, Version Name 1.5]
 
-- Rewrite of most of the application
-- More stable and responsive User experience
-- Showing ads only if there is a solution found for a sudoku
-- Translations to chinese
+- application is more responsive
+- ads are shown only when Sudoku was successfully solved
+- various bug fixes
 
-## Sudoku Capturer Release 1.4 (15. May 2014)
+## Release 1.4 (15. May 2014)
 
 - use color coded rectangles around recognized cells in order to improve visual feedback (good for slow devices)
 - implemented back button
