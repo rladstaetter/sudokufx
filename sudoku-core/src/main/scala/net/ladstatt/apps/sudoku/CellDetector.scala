@@ -9,7 +9,7 @@ import scala.concurrent.Future
 /**
  * Created by lad on 02.02.15.
  */
-case class CellDetector(sudokuCanvas: SudokuCanvas) {
+case class CellDetector(sudokuCanvas: VideoInput) {
 
   val cellSize = mkCellSize(sudokuCanvas.size)
   val cellRects: Seq[Rect] = cellRange.map(mkRect(_, cellSize))

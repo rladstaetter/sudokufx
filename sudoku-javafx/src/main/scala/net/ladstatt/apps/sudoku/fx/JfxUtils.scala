@@ -11,6 +11,9 @@ import javafx.scene.control._
 import javafx.util.Callback
 
 import scala.collection.JavaConversions._
+import scala.concurrent.Future
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 trait JfxUtils {
 
@@ -20,7 +23,7 @@ trait JfxUtils {
     FXCollections.observableList(mutableList)
   }
 
-  def execOnUIThread(f: => Unit) {
+  def execOnUIThread(f: => Unit) : Future[Unit] = Future {
     Platform.runLater(new Runnable {
       override def run() = f
     })

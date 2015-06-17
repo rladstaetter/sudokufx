@@ -1,12 +1,16 @@
 package net.ladstatt.apps.sudoku
 
+import java.io.File
+
 import net.ladstatt.core.CanLog
+import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Try
 
 /**
  *
@@ -14,6 +18,12 @@ import scala.concurrent.Future
  * @param frame the frame information itself
  */
 case class SCandidate(nr: Int, frame: Mat) extends CanLog {
+
+
+  def persist(file: File): Try[File] = {
+    Try(file)
+//    OpenCV.persist(frame, file)
+  }
 
   val start = System.nanoTime()
 
@@ -45,7 +55,7 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
 
   // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
   // TODO remove sudokuCanvas from signature: just save roi's and calculate Mats on demand
-  def mergeDigitLibrary(sudokuCanvas: SudokuCanvas,
+  def mergeDigitLibrary(sudokuCanvas: VideoInput,
                         digitLibrary: DigitLibrary,
                         detectedCells: Seq[SCell]): DigitLibrary = {
 
@@ -60,7 +70,7 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
 
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
-    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)}
+    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality) }
 
     digitLibrary ++
       (for (c <- optimal.values if digitLibrary(c.value)._1 > c.quality) yield {

@@ -8,6 +8,6 @@ import org.opencv.core.{Mat, MatOfPoint2f}
  */
 case class Warper(frame: Mat, destCorners: MatOfPoint2f) {
 
-  val sudokuCanvas: SudokuCanvas = warp(frame, destCorners, mkCorners(frame.size))
+  val sudokuCanvas: VideoInput = warp(frame, destCorners, mkCorners(frame.size))
 
 }

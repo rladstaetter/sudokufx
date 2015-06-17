@@ -165,7 +165,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
       if (!calculationInProgress) {
         calculationInProgress = true
         logInfo("starting to find sudoku ...")
-        val result: SudokuCanvas =
+        val result: VideoInput =
           detectSudoku(inputFrame) match {
             case s: SSuccess => {
               execOnUIThread({

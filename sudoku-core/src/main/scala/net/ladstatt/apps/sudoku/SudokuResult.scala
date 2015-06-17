@@ -8,7 +8,7 @@ case class SCorners(nr: Int,
                     frame: Mat,
                     start: Long,
                     imageIOChain: ImageIOChain,
-                    sudokuCanvas: SudokuCanvas,
+                    sudokuCanvas: VideoInput,
                     detectedCells: Cells,
                     sudokuCorners: List[Point]) extends SudokuResult
 
@@ -18,12 +18,14 @@ case class SSuccess(nr: Int,
                     frame: Mat,
                     start: Long,
                     imageIOChain: ImageIOChain,
-                    sudokuCanvas: SudokuCanvas,
+                    sudokuCanvas: VideoInput,
                     foundCorners: Boolean,
-                    detectedCells: Cells,
+                    cells: Cells,
                     solution: SudokuDigitSolution,
                     solutionMat: Mat,
                     sudokuCorners: List[Point]) extends SudokuResult {
+
+  lazy val detectedCells = cells.filter(_.value != 0)
 
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
 }

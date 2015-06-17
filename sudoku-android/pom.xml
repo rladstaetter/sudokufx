@@ -74,7 +74,7 @@
                         <groupId>net.sf.proguard</groupId>
                         <artifactId>proguard-base</artifactId>
                         <version>5.2</version>
-                       <!-- <version>4.8</version> -->
+                        <!-- <version>4.8</version> -->
                     </dependency>
                 </dependencies>
                 <configuration>

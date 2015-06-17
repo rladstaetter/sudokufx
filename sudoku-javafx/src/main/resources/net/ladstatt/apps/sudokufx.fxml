@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.*?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.*?>
 <?import javafx.scene.text.Font?>
-
-<VBox prefHeight="810.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ladstatt.apps.sudoku.fx.SudokuFXController">
+<?import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge?>
+<VBox prefHeight="810.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="net.ladstatt.apps.sudoku.fx.SudokuFXController">
     <children>
         <MenuBar VBox.vgrow="NEVER" fx:id="mainMenuBar">
             <menus>
@@ -18,20 +17,76 @@
                 </Menu>
             </menus>
         </MenuBar>
-        <HBox>
-            <children>
-                <FlowPane fx:id="statsFlowPane"/>
-                <FlowPane fx:id="resultFlowPane"/>
-                <FlowPane fx:id="numberFlowPane"/>
-                <Label fx:id="statusLabel" ellipsisString="" layoutX="11.0" layoutY="713.0"
-                       text="State of the application" textFill="BLACK" textOverrun="ELLIPSIS" underline="false">
-                    <font>
-                        <Font name="Alpha Echo" size="20.0"/>
-                    </font>
-                </Label>
-                <Button fx:id="resetButton" onAction="#resetState" text="reset"/>
-            </children>
-        </HBox>
+        <Accordion>
+            <panes>
+                <TitledPane text="Statistics">
+                    <content>
+                        <HBox>
+                            <children>
+                                <TitledPane text="Frame number">
+                                    <content>
+                                        <SimpleMetroArcGauge fx:id="frameNumberGauge" minHeight="130" maxHeight="130"
+                                                             minWidth="130"
+                                                             maxWidth="130"/>
+
+                                    </content>
+                                </TitledPane>
+                                <TitledPane text="Detected Sudokus">
+                                    <content>
+                                        <SimpleMetroArcGauge fx:id="detectionGauge" minHeight="130" maxHeight="130"
+                                                             minWidth="130"
+                                                             maxWidth="130"/>
+                                    </content>
+                                </TitledPane>
+                                <TitledPane text="Last detection numbers">
+                                    <content>
+                                        <SimpleMetroArcGauge fx:id="lastDetectionGauge" minHeight="130" maxHeight="130"
+                                                             minWidth="130"
+                                                             maxWidth="130"/>
+                                    </content>
+                                </TitledPane>
+                                <TitledPane text="Frame rate">
+                                    <content>
+                                        <SimpleMetroArcGauge fx:id="frameRateGauge" minHeight="130" maxHeight="130"
+                                                             minWidth="130"
+                                                             maxWidth="130"/>
+                                    </content>
+                                </TitledPane>
+                            </children>
+                        </HBox>
+                    </content>
+                </TitledPane>
+
+                <TitledPane text="Moar Statistics">
+                    <content>
+                        <HBox>
+                            <children>
+                                <FlowPane fx:id="statsFlowPane"/>
+                                <FlowPane fx:id="resultFlowPane"/>
+                                <FlowPane fx:id="numberFlowPane"/>
+                                <Label fx:id="statusLabel" ellipsisString="" layoutX="11.0" layoutY="713.0"
+                                       text="State of the application" textFill="BLACK" textOverrun="ELLIPSIS"
+                                       underline="false">
+                                    <font>
+                                        <Font name="Alpha Echo" size="20.0"/>
+                                    </font>
+                                </Label>
+                                <Button fx:id="resetButton" onAction="#resetState" text="reset"/>
+                                <ToolBar fx:id="templateToolBar" layoutY="135.0"
+                                         style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
+                                    <items/>
+                                </ToolBar>
+                            </children>
+                        </HBox>
+                    </content>
+                </TitledPane>
+            </panes>
+        </Accordion>
+        <!-- <HBox>
+             <children>
+
+             </children>
+         </HBox> -->
         <AnchorPane id="AnchorPane" fx:id="canvas" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
                     minWidth="-Infinity" prefHeight="750.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8"
                     xmlns:fx="http://javafx.com/fxml/1">
@@ -39,10 +94,6 @@
                 <ImageView id="solutionView" fx:id="videoView" fitHeight="720.0" fitWidth="1280.0" layoutX="0.0"
                            layoutY="30.0" mouseTransparent="false" pickOnBounds="true" preserveRatio="true"
                            smooth="true"/>
-
-                <ToolBar fx:id="templateToolBar" layoutY="135.0" style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
-                    <items/>
-                </ToolBar>
                 <ToolBar layoutX="0.0" layoutY="0.0" prefWidth="1280.0">
                     <fx:define>
                         <ToggleGroup fx:id="viewButtons"/>

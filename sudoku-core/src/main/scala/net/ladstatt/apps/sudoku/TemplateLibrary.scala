@@ -34,7 +34,7 @@ object TemplateLibrary extends CanLog {
    */
   def detectNumber(candidate: Mat): Future[(SNum, SHitQuality)] = {
     val resizedCandidate = OpenCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
-    val matchHaystack: (SIndex, SudokuCanvas) => Future[(SIndex, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
+    val matchHaystack: (SIndex, VideoInput) => Future[(SIndex, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
 
     val result: Future[(SIndex, SHitQuality)] =
       for {s <- Future.sequence(for {(needle, number) <- TemplateLibrary.asSeq.zipWithIndex} yield

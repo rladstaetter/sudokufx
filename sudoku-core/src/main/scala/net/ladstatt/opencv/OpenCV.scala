@@ -12,6 +12,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Try
 
 /**
  * various opencv related stuff
@@ -44,11 +45,10 @@ object OpenCV extends CanLog {
 
   def detectSudokuCorners(input: Mat, ratio: Int = 30): MatOfPoint2f = {
     extractCurveWithMaxArea(coreFindContours(input)) match {
-      case None => {
+      case None =>
         logWarn("Could not detect any curve ... ")
         CornerDetector.EmptyCorners
-      }
-      case Some((maxArea, c)) => {
+      case Some((maxArea, c)) =>
         val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / ratio
         if (maxArea > expectedMaxArea) {
           val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
@@ -68,7 +68,6 @@ object OpenCV extends CanLog {
           logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
           CornerDetector.EmptyCorners
         }
-      }
     }
 
   }
@@ -116,8 +115,8 @@ object OpenCV extends CanLog {
     m
   }
 
-  def persist(mat: Mat, file: File): Future[File] =
-    execFuture {
+  def persist(mat: Mat, file: File): Try[File] =
+    Try {
       logWithTimer(s"Wrote ${file.getAbsolutePath}", {
         if (!Highgui.imwrite(file.getAbsolutePath, mat)) {
           throw new RuntimeException(s"Could not save to file $file")

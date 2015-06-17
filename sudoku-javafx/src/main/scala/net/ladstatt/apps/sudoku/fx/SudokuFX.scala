@@ -11,6 +11,7 @@ import _root_.javafx.stage.Stage
 import java.io.File
 import java.net.URL
 import java.text.SimpleDateFormat
+import java.util.concurrent.TimeUnit
 import java.util.{Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
@@ -18,25 +19,27 @@ import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, Simp
 import javafx.geometry.Pos
 import javafx.scene.control.Alert.AlertType
 import javafx.scene.effect.{BlendMode, DropShadow}
-import javafx.scene.image.{Image, ImageView}
+import javafx.scene.image.ImageView
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
-import javafx.scene.shape.{Circle, Polyline, Rectangle}
+import javafx.scene.shape.{Rectangle, Polyline, Circle}
 
 import com.sun.javafx.perf.PerformanceTracker
+import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, Point}
 import org.opencv.highgui.VideoCapture
-import rx.lang.scala.{Observable, Subscription}
+import rx.lang.scala.{JavaConversions, Observable, Subscription}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-
+import javafx.scene.image.Image
 /**
  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
  */
@@ -105,6 +108,10 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
 
+  @FXML var frameNumberGauge: SimpleMetroArcGauge = _
+  @FXML var detectionGauge: SimpleMetroArcGauge = _
+  @FXML var frameRateGauge: SimpleMetroArcGauge = _
+  @FXML var lastDetectionGauge: SimpleMetroArcGauge = _
 
   val performanceTrackerProperty = new SimpleObjectProperty[PerformanceTracker]()
 
@@ -178,21 +185,17 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage)
 
 
-  def persistFrame(frame: Mat, nr: Int, workingDirectory: File): Future[File] = {
-    // persist(frame, new File(workingDirectory, s"frame${nr}.png"))
-    Future.successful(null)
-  }
-
   val videoCapture = new VideoCapture(0)
 
-  def aquireMat(): Mat = {
-    val image = new Mat()
+  def aquireMat(): VideoInput = {
+    val image: VideoInput = new Mat()
     if (videoCapture.isOpened) videoCapture.read(image)
     image
   }
 
-  val videoObservable: Observable[SudokuCanvas] =
-    Observable.create[Mat](o => {
+
+  val videoObservable: Observable[SCandidate] =
+    Observable.create[VideoInput](o => {
       new Thread(
         new Runnable {
           override def run(): Unit = {
@@ -210,17 +213,15 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
           }
         }).start()
       new Subscription {}
-    })
+    }).zipWithIndex.map { case (frame, index) => SCandidate(index, frame) }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
-  def processFrame(currentFrame: Mat): Unit = time({
-    val currentFrameNumber = getFrameNumber
-    setFrameNumber(currentFrameNumber + 1)
-
-    val candidate = SCandidate(nr = currentFrameNumber, frame = currentFrame)
-
+  def process(candidate: SCandidate): Unit = time({
     for {
-      _ <- persistFrame(candidate.frame, candidate.nr, getWorkingDirectory)
+      _ <- execOnUIThread({
+        frameNumberGauge.setValue(Int.int2double(candidate.nr))
+      })
+      _ <- candidate.persist(new File(getWorkingDirectory, s"frame${candidate.nr}.png"))
       (result, udl, currentHits) <-
       candidate.calc(
         getCurrentDigitLibrary,
@@ -228,6 +229,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         getCap,
         getMinHits,
         getMaxSolvingTime)
+
     } {
       setCurrentDigitLibrary(udl)
       setCurrentHitCounters(currentHits)
@@ -262,6 +264,15 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     canvas.getChildren.add(sudokuBorder)
     canvas.getChildren.addAll(analysisCellBounds.toList)
     canvas.getChildren.addAll(analysisCellCorners.toList)
+    frameNumberGauge.setMaxValue(5000)
+    frameNumberGauge.setMinValue(0)
+    detectionGauge.setMinValue(0)
+    detectionGauge.setMaxValue(500)
+    frameRateGauge.setMinValue(0)
+    frameRateGauge.setMaxValue(60)
+    lastDetectionGauge.setMinValue(0)
+    lastDetectionGauge.setMaxValue(81)
+
     ()
   }
 
@@ -271,7 +282,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     statusLabel.setText(message)
   }
 
-  def updateDigitLibraryView(digitLibrary: DigitLibrary, nrViews: Seq[ImageView]): Unit = {
+  def updateDigitLibraryView(digitLibrary: DigitLibrary, nrViews: Seq[ImageView]): Future[Unit] = {
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
@@ -489,8 +500,15 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     }
     setAnalysisMouseTransparent(false)
     updateDigitLibraryView(getCurrentDigitLibrary, as[ImageView](numberFlowPane.getChildren))
+    execOnUIThread({
+      frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
+    })
     result match {
       case success: SSuccess =>
+        execOnUIThread({
+          detectionGauge.setValue(detectionGauge.getValue + 1)
+          lastDetectionGauge.setValue(Int.int2double(success.detectedCells.length))
+        })
         updateStatus(mkFps(success.start), Color.GREEN)
       case onlyCornersDetected: SCorners =>
         updateStatus(mkFps(onlyCornersDetected.start), Color.ORANGE)
@@ -648,8 +666,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     solutionButton.setUserData(SolutionStage)
     erodedButton.setUserData(ErodedStage)
 
+
     // startCapture
-    videoObservable.subscribe(processFrame,
+    videoObservable.subscribe(process,
       t => t.printStackTrace(),
       () => logInfo("Videostream stopped..."))
     ()
