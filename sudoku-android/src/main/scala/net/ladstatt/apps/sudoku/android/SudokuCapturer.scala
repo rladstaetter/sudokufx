@@ -85,7 +85,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         digitLibrary = defaultLibrary
         hitCounts = defaultHitCounts
         rescanButton.setVisibility(View.GONE)
-        adView.setVisibility(View.GONE)
+      //  adView.setVisibility(View.GONE)
         solution = null
 
       }
@@ -100,7 +100,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
 
     handler = new Handler()
     rescanButton.setVisibility(View.GONE)
-    adView.setVisibility(View.GONE)
+    adView.setVisibility(View.VISIBLE)
   }
 
   override def onBackPressed(): Unit = {
@@ -170,7 +170,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
             case s: SSuccess => {
               execOnUIThread({
                 rescanButton.setVisibility(View.VISIBLE)
-                adView.setVisibility(View.VISIBLE)
+               // adView.setVisibility(View.VISIBLE)
               })
               solution = s.solutionMat
               solution
