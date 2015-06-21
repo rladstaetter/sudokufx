@@ -13,6 +13,9 @@ To install the application on your device, type:
 
     mvn clean install android:deploy
 
+
+## For App Store upload
+
 For signing and releasing it for the app store:
 
     mvn clean install -Pandroid,sign
@@ -24,13 +27,16 @@ Make sure you've defined the necessary properties in your settings.xml, namely
     android.storepass
     
 Of course, you have to create a corresponding keystore and use your own storepass.
-    
+ 
+For upload to app store use 
 
+    target/sudoku-android-aligned.apk.    
+
+via the web interface of googles play store.
 
 ## TODOS
 
 - create a HUD with a frame so the user knows where to place the sudoku
-- show ads only when solution is shown
 - translate to chinese
 - improvement of detection algorithm for the sudoku corners
 - parameter dialog / preferences
@@ -40,6 +46,4 @@ Of course, you have to create a corresponding keystore and use your own storepas
 - progress bar implementieren: entlang dem bild unten einen bar der von rot auf grün wechselt,
 und je nach anzahl der erkannten nummern sich langsam füllt
 - mini thumb matrix links oben anzeigen von erkannten zahlen
-- integrate opencv correctly (maybe even without opencv manager)
-
 

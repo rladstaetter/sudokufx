@@ -22,7 +22,10 @@
 
 ## Release 2.1 (unreleased)
 
-- Included OpenCV libraries in the apk, now OpenCV Manager Download necessary anymore
+## Release 1.6 (21. 6 2015)
+
+- Included OpenCV libraries in the apk, no separate OpenCV Manager Download necessary anymore
+- Ads are shown again permanently
 
 ## Release 1.5 (6. April 2015) [VersionCode 7, Version Name 1.5]
 

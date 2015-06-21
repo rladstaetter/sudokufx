@@ -9,20 +9,42 @@ import _root_.android.widget.{Button, FrameLayout}
 import com.google.ads.{AdRequest, AdSize, AdView}
 import net.ladstatt.apps.sudoku._
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
-import org.opencv.android.{BaseLoaderCallback, CameraBridgeViewBase, LoaderCallbackInterface, OpenCVLoader}
+import org.opencv.android.{CameraBridgeViewBase, OpenCVLoader}
 import org.opencv.core._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-object SudokuCapturer {
+
+trait CanLog {
+
   val TAG = "SudokuCapturer"
+
+  def logInfo(message: String): Unit = {
+    Log.i(TAG, message)
+    ()
+  }
+
+  def logError(message: String): Unit = {
+    Log.e(TAG, message)
+    ()
+  }
+
+  def loadOpenCV(): Unit = {
+    if (OpenCVLoader.initDebug()) {
+      logInfo("OpenCV initialized successfully.")
+    } else {
+      logError("Could not initialize OpenCV properly.")
+    }
+  }
+}
+
+object SudokuCapturer extends CanLog {
+  loadOpenCV()
 }
 
 
-class SudokuCapturer extends Activity with CvCameraViewListener2 {
-
-  import net.ladstatt.apps.sudoku.android.SudokuCapturer._
+class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
   var cameraView: CameraBridgeViewBase = _
   var rescanButton: Button = _
@@ -38,28 +60,20 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
   var digitLibrary: DigitLibrary = defaultLibrary
   var hitCounts: HitCounters = defaultHitCounts
 
-  def logInfo(message: String): Unit = {
-    Log.i(TAG, message)
-    ()
-  }
 
-  def logError(message: String): Unit = {
-    Log.e(TAG, message)
-    ()
-  }
-
-  val mLoaderCallback: BaseLoaderCallback = new BaseLoaderCallback(this) {
-    override def onManagerConnected(status: Int) {
-      status match {
-        case LoaderCallbackInterface.SUCCESS => {
-          Log.i(TAG, "OpenCV loaded successfully")
-          cameraView.enableView()
+  /*
+    val mLoaderCallback: BaseLoaderCallback = new BaseLoaderCallback(this) {
+      override def onManagerConnected(status: Int) {
+        status match {
+          case LoaderCallbackInterface.SUCCESS => {
+            Log.i(TAG, "OpenCV loaded successfully")
+            cameraView.enableView()
+          }
+          case _ => super.onManagerConnected(status)
         }
-        case _ => super.onManagerConnected(status)
       }
     }
-  }
-
+                  */
 
   def initAssets(): Unit = {
     TemplateLibrary.getResourceAsStream = getAssets().open
@@ -85,7 +99,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
         digitLibrary = defaultLibrary
         hitCounts = defaultHitCounts
         rescanButton.setVisibility(View.GONE)
-      //  adView.setVisibility(View.GONE)
+        //  adView.setVisibility(View.GONE)
         solution = null
 
       }
@@ -101,6 +115,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
     handler = new Handler()
     rescanButton.setVisibility(View.GONE)
     adView.setVisibility(View.VISIBLE)
+    cameraView.enableView()
   }
 
   override def onBackPressed(): Unit = {
@@ -122,7 +137,8 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
   override def onResume(): Unit = {
     super.onResume()
     logInfo("onResume called")
-    OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, this, mLoaderCallback)
+    loadOpenCV()
+    //OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, this, mLoaderCallback)
     ()
   }
 
@@ -170,7 +186,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 {
             case s: SSuccess => {
               execOnUIThread({
                 rescanButton.setVisibility(View.VISIBLE)
-               // adView.setVisibility(View.VISIBLE)
+                // adView.setVisibility(View.VISIBLE)
               })
               solution = s.solutionMat
               solution
