@@ -5,20 +5,18 @@
 If you want to deploy the app to the appstore, you have to make sure you have a keystore
 created. A keystore is necessary for signing the application. There are several tutorials for this on the web.
 
-
-
 ## Build instructions
 
 To install the application on your device, type:
 
-    mvn clean install android:deploy
+    mvn clean android:generate-sources package android:deploy
 
 
 ## For App Store upload
 
 For signing and releasing it for the app store:
 
-    mvn clean install -Pandroid,sign
+    mvn clean android:generate-sources install -Pandroid,sign
     
 Make sure you've defined the necessary properties in your settings.xml, namely
     
