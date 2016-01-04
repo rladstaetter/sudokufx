@@ -23,7 +23,7 @@ package object sudoku {
   /**
    * records for each number from 0 to 9 the best hit (quality) along with its digital data
    */
-  // todo change to Map[SNum,(SHitQuality, Option[Rect]] and reference it to SudokuCanvas
+  // TODO change to Map[SNum,(SHitQuality, Option[Rect]] and reference it to SudokuCanvas
   type DigitLibrary = Map[SNum, (SHitQuality, Option[Mat])]
   // TODO solution should be an array of Int or a string with 81 entries
   // the graphical representation should be a single mat with the matrixes edited inline

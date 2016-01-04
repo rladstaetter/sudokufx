@@ -6,6 +6,7 @@ import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
+import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -195,14 +196,14 @@ resetHitsIfThereAreTooMuchAmbiguities(hits)
      * @return
      */
     def determineMatParams(): Option[(Size, Int)] = {
-      digitLibrary.values.map(_._2).flatten.headOption.map {
+      digitLibrary.values.flatMap(_._2).headOption.map {
         case m => (m.size, m.`type`)
       }
     }
 
     for ((size, matType) <- determineMatParams()) yield {
       val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
-      Core.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
+      Imgproc.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
       mat
     }
   }

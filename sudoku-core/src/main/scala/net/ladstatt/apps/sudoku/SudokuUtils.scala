@@ -38,7 +38,11 @@ object SudokuUtils {
         if (nrDetections(hitCounters, cap) >= minHits) {
           logInfo("Trying to solve with detectednumbers: " + nrDetections(hitCounters, cap) + ", minHits: " + minHits)
           val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounters, cap)
-          val someResult = solve(sudoku2Solve, maxDuration)
+          val someResult: Option[SudokuDigitSolution] = solve(sudoku2Solve, maxDuration)
+          someResult.foreach {
+            case a =>
+              println(a.sliding(9, 9).map(new String(_)).mkString("\n"))
+          }
           (someResult,
             if (someResult.isDefined) hitCounters else Parameters.defaultHitCounters,
             if (someResult.isDefined) digitLibrary else Parameters.defaultDigitLibrary) // reset if no valid solution was found
@@ -47,7 +51,7 @@ object SudokuUtils {
         //  (Some(mkIntermediateSudokuMatrix(hitCounters)), hitCounters, digitLibrary)
           (None, hitCounters, digitLibrary)
 
-      val someCells = someDigitSolution.map(toSolutionCells(digitLibrary, _))
+      val someCells: Option[Cells] = someDigitSolution.map(toSolutionCells(digitLibrary, _))
       (someDigitSolution, someCells, currentHits, currentDigitLibrary)
     }
 

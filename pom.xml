@@ -11,12 +11,13 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scala.version>2.11.6</scala.version>
+        <scala.version>2.11.7</scala.version>
     </properties>
 
     <modules>
         <module>sudoku-core</module>
-        <module>sudoku-android</module>
+      <!--  <module>sudoku-android</module>
+         -->
         <module>sudoku-javafx</module>
     </modules>
 
@@ -29,8 +30,8 @@
             </dependency>
             <dependency>
                 <groupId>org.opencv</groupId>
-                <artifactId>opencv-java7</artifactId>
-                <version>2.4.6</version>
+                <artifactId>opencv-java</artifactId>
+                <version>3.1.0</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
@@ -59,7 +60,7 @@
                 <plugin>
                     <groupId>net.alchim31.maven</groupId>
                     <artifactId>scala-maven-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.2.2</version>
                     <executions>
                         <execution>
                             <goals>
@@ -77,13 +78,11 @@
                         </jvmArgs>
                         <javacArgs>
                             <javacArg>-source</javacArg>
-                            <javacArg>1.6</javacArg>
+                            <javacArg>1.7</javacArg>
                             <javacArg>-target</javacArg>
-                            <javacArg>1.6</javacArg>
+                            <javacArg>1.7</javacArg>
                         </javacArgs>
                         <args>
-                            <arg>-Xfatal-warnings</arg>
-                            <!-- <arg>-Yno-adapted-args</arg>    -->
                             <arg>-Xlint</arg>
                             <arg>-Ywarn-dead-code</arg>
                             <arg>-Ywarn-numeric-widen</arg>
@@ -102,11 +101,6 @@
                         <recompileMode>incremental</recompileMode>
                         <useZincServer>true</useZincServer>
                     </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>com.zenjava</groupId>
-                    <artifactId>javafx-maven-plugin</artifactId>
-                    <version>8.1.1</version>
                 </plugin>
             </plugins>
         </pluginManagement>

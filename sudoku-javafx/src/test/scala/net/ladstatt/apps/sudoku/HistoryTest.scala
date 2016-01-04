@@ -1,27 +1,23 @@
 package net.ladstatt.apps.sudoku
 
-import net.ladstatt.apps.sudoku.Parameters._
 import net.ladstatt.core.Utils
+import net.ladstatt.opencv.OpenCV
 import org.junit.Assert._
 import org.junit.Test
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import scala.util.{Failure, Try}
 
 /**
- * Created by lad on 27.04.14.
- */
-class HistoryTest extends OpenCvUnitTest with Utils {
+  * Created by lad on 27.04.14.
+  */
+class HistoryTest   {
 
-
-
-
+  //OpenCV.loadNativeLib("../lib/libopencv_java310.so")
 
   @Test
   def invalidSCell() = {
     Try {
-      SCell(-10, 0,null)
+      SCell(-10, 0, null)
     } match {
       case Failure(e: AssertionError) =>
       case _ => fail("should throw an AssertionError")
@@ -37,8 +33,6 @@ class HistoryTest extends OpenCvUnitTest with Utils {
       case _ => fail("should throw an AssertionError")
     }
   }
-
-
 
 
 }

@@ -1,8 +1,8 @@
 package net.ladstatt.apps.sudoku.fx
 
 /**
- * Copyright (c) 2013-2014, Robert Ladstätter @rladstaetter
- **/
+  * Copyright (c) 2013-2014, Robert Ladstätter @rladstaetter
+  **/
 
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene._
@@ -17,21 +17,20 @@ import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
 import javafx.geometry.Pos
-import javafx.scene.control.Alert.AlertType
 import javafx.scene.effect.{BlendMode, DropShadow}
-import javafx.scene.image.ImageView
+import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
-import javafx.scene.shape.{Rectangle, Polyline, Circle}
+import javafx.scene.shape.{Circle, Polyline, Rectangle}
 
 import com.sun.javafx.perf.PerformanceTracker
 import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
 import net.ladstatt.apps.sudoku._
-import net.ladstatt.core.CanLog
+import net.ladstatt.core.{Utils, CanLog}
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, Point}
-import org.opencv.highgui.VideoCapture
-import rx.lang.scala.{JavaConversions, Observable, Subscription}
+import org.opencv.videoio.VideoCapture
+import rx.lang.scala.{Observable, Subscription}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -39,10 +38,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-import javafx.scene.image.Image
 /**
- * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
- */
+  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
+  */
 object SudokuFX {
 
   def main(args: Array[String]): Unit = {
@@ -184,7 +182,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage)
 
-
   val videoCapture = new VideoCapture(0)
 
   def aquireMat(): VideoInput = {
@@ -200,12 +197,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         new Runnable {
           override def run(): Unit = {
             while (getCameraActive) {
-              time(Try {
+              Try {
                 aquireMat()
               } match {
                 case Success(m) => o.onNext(m)
                 case Failure(e) => o.onError(e)
-              }, t => logInfo(s"AcquireMat: $t ms"))
+              }
             }
             logInfo("Shutting down video service ... ")
             videoCapture.release()
@@ -216,7 +213,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     }).zipWithIndex.map { case (frame, index) => SCandidate(index, frame) }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
-  def process(candidate: SCandidate): Unit = time({
+  def process(candidate: SCandidate): Unit = {
     for {
       _ <- execOnUIThread({
         frameNumberGauge.setValue(Int.int2double(candidate.nr))
@@ -235,7 +232,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       setCurrentHitCounters(currentHits)
       display(result)
     }
-  }, t => logInfo(s"Processed frame in $t ms"))
+  }
 
   def resetState(): Unit = {
     setCurrentDigitLibrary(Parameters.defaultDigitLibrary)
@@ -353,8 +350,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   workingDirectory.mkdirs()
 
   /**
-   * where application will put captured frames
-   */
+    * where application will put captured frames
+    */
   val workingDirectoryProperty = new SimpleObjectProperty[File](workingDirectory)
 
   def getWorkingDirectory = workingDirectoryProperty.get
@@ -390,8 +387,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
   /**
-   * returns coordinates of the 100 cell corners
-   */
+    * returns coordinates of the 100 cell corners
+    */
   def mkCellCorners(corners: List[Point]): Seq[(Double, Double)] = {
     val List(ul, ur, lr, ll) = corners
     val left = splitRange(ul.x, ul.y, ll.x, ll.y)
@@ -412,8 +409,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   /**
-   * reduces 100 corners to 81 boundaries
-   */
+    * reduces 100 corners to 81 boundaries
+    */
   def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
 
     def extractBound(index: Int): Seq[java.lang.Double] = {
@@ -472,7 +469,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         case DilatedStage => updateVideoView(imageIoChain.dilated)
         case ErodedStage => updateVideoView(imageIoChain.eroded)
         case SolutionStage => updateVideoView(solutionMat)
-        case _ => ???
       }
     }
 
@@ -528,12 +524,14 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   def showAbout(): Unit = {
+    /*
     val d = new Alert(AlertType.INFORMATION)
     d.setTitle("About SudokuFX")
     d.setHeaderText("SudokuFX (c) @rladstaetter 2013 - 2015")
     d.setContentText("Use this application to solve Sudokus.")
     d.showAndWait()
     ()
+    */
   }
 
   def initResultPane(resultPane: FlowPane): Boolean = {
@@ -594,9 +592,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
   /**
-   * updates UI to show for each cell (there are 81 of them) which number was detected how often
-   * In each flowpane there are 9 labels (representing each number)
-   */
+    * updates UI to show for each cell (there are 81 of them) which number was detected how often
+    * In each flowpane there are 9 labels (representing each number)
+    */
   def displayHitCounts(hitCounts: HitCounters, displayItems: Seq[FlowPane]): Unit = {
 
     // change colors of flowpanes such that if there are more than one hits it

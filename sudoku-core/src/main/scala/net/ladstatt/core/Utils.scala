@@ -4,18 +4,19 @@ import java.io.{InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
 
-trait Utils extends Timed {
+object Utils  {
 
-
-  def isNull[A, X](o: X)(isnull: => A, notnull: => X => A): A = {
-    if (o == null) {
-      isnull
-    } else {
-      notnull(o)
-    }
+  /**
+    * function to measure execution time of first function, optionally executing a display function,
+    * returning the time in ms
+    */
+  def time[A](a: => A, display: Long => Unit = s => ()): A = {
+    val before = System.nanoTime
+    val result = a
+    val millis = (System.nanoTime - before) / 1000
+    display(millis)
+    result
   }
-
-
 
   /**
    * see

@@ -5,7 +5,7 @@ import java.io.File
 import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.{CanLog, FutureUtils, SystemEnv}
 import org.opencv.core._
-import org.opencv.highgui.Highgui
+import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
@@ -34,12 +34,12 @@ object OpenCV extends CanLog {
   }
 
   def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {
-    Core.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
+    Imgproc.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
   }
 
   def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
     val curvesWithAreas: Seq[(Double, MatOfPoint)] =
-      (for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)).toSeq
+      for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   }
 
@@ -118,7 +118,7 @@ object OpenCV extends CanLog {
   def persist(mat: Mat, file: File): Try[File] =
     Try {
       logWithTimer(s"Wrote ${file.getAbsolutePath}", {
-        if (!Highgui.imwrite(file.getAbsolutePath, mat)) {
+        if (!Imgcodecs.imwrite(file.getAbsolutePath, mat)) {
           throw new RuntimeException(s"Could not save to file $file")
         } else {
           file
@@ -144,7 +144,7 @@ object OpenCV extends CanLog {
     execFuture {
       if (points.size > 2) {
         for (linePoints <- points.sliding(2)) {
-          Core.line(image, linePoints(0), linePoints(1), color, thickness)
+          Imgproc.line(image, linePoints(0), linePoints(1), color, thickness)
         }
       }
       image
@@ -255,11 +255,11 @@ object OpenCV extends CanLog {
                   minArea: Double,
                   maxArea: Double): Option[(Double, MatOfPoint2f, MatOfPoint)] = {
     val candidates =
-      for (c <- contours if ({
+      for (c <- contours if {
         val boundingRect = Imgproc.boundingRect(c)
         val area = boundingRect.area
         (minArea < area) && (area < maxArea) && boundingRect.contains(center)
-      })) yield {
+      }) yield {
         val curve = new MatOfPoint2f
         curve.fromArray(c.toList: _*)
         val contourArea = Imgproc.contourArea(curve)
@@ -366,8 +366,7 @@ object OpenCV extends CanLog {
 
   def runtimeNativeLibName =
     if (SystemEnv.runOnMac)
-      "lib/libopencv_java246.dylib"
-    //"/Users/lad/Library/opencv-3.0.0-beta/build/lib/libopencv_java300.dylib"
+      "../lib/libopencv_java310.so"
     else if (SystemEnv.isX64) {
       "lib/win/x64/opencv_java246.dll"
     } else {

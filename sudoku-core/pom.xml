@@ -17,11 +17,9 @@
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
         </dependency>
-        <!-- you have to install opencv in your local repository -->
-        <!-- for this project, i named the opencv.jar to be a org.opencv opencv-java7 artifact -->
         <dependency>
             <groupId>org.opencv</groupId>
-            <artifactId>opencv-java7</artifactId>
+            <artifactId>opencv-java</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

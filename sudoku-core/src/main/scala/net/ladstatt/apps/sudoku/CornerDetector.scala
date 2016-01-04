@@ -16,8 +16,6 @@ case class CornerDetector(dilated: Mat) {
 
   val corners: MatOfPoint2f = OpenCV.detectSudokuCorners(dilated)
 
-  val foundCorners: Boolean = {
-    !corners.empty
-  }
+  val foundCorners: Boolean = !corners.empty
 
 }

@@ -5,13 +5,13 @@ import java.io.File
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.Image
 
-import net.ladstatt.core.{FutureUtils, Utils}
+import net.ladstatt.core.FutureUtils
 import org.opencv.core.{Mat, Point}
-import org.opencv.highgui.Highgui
+import org.opencv.imgcodecs.Imgcodecs
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait OpenCVJfxUtils extends Utils {
+trait OpenCVJfxUtils {
 
   def toImage(matrix: Mat): Image = {
     val cols = matrix.cols()
@@ -57,14 +57,14 @@ trait OpenCVJfxUtils extends Utils {
     if (points.isEmpty)
       List()
     else {
-      val ps = points.map(p => List[java.lang.Double](p.x, p.y)).flatten.toList
+      val ps = points.flatMap(p => List[java.lang.Double](p.x, p.y)).toList
       ps ++ List(ps.head, ps(1))
     }
   }
 
   def loadImage(implicit ec: ExecutionContext, file: File): Future[Mat] =
     FutureUtils.execFuture {
-      Highgui.imread(file.getAbsolutePath)
+      Imgcodecs.imread(file.getAbsolutePath)
     }
 
 }

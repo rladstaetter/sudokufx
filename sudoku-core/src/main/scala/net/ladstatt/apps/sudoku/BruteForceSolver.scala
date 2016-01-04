@@ -1,5 +1,7 @@
 package net.ladstatt.apps.sudoku
 
+import net.ladstatt.core.Utils
+
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -41,7 +43,7 @@ import scala.util.{Failure, Success, Try}
      * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
      *
      */
-    def solve(mmx: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = time({
+    def solve(mmx: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = Utils.time({
       val before = System.currentTimeMillis()
       var cnt = 0
       val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
@@ -102,9 +104,7 @@ import scala.util.{Failure, Success, Try}
               }, accu, 1, 10)
           }
         }
-        case _ => {
-          throw new RuntimeException("Was cancelled.")
-        }
+        case _ => throw new RuntimeException("Was cancelled.")
       }
 
       // The main part of the program uses the search function to accumulate
@@ -116,18 +116,16 @@ import scala.util.{Failure, Success, Try}
         }, 0)
         solution
       } match {
-        case Success(s) => {
+        case Success(s) =>
           if (405 == s.map(_.asDigit).sum.toLong)
             Some(s)
           else {
             logWarn("Found solution, but is invalid.")
             None
           }
-        }
-        case Failure(e) => {
+        case Failure(e) =>
           logError(e.getMessage)
           None
-        }
       }
     }, printTime)
 

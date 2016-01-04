@@ -27,8 +27,8 @@ object ImageIOChain {
 }
 
 /**
- * the result for one frame. a frame is a image from the image stream
- */
+  * the result for one frame. a frame is a image from the image stream
+  */
 case class ImageIOChain(working: Mat,
                         grayed: Mat,
                         blurred: Mat,

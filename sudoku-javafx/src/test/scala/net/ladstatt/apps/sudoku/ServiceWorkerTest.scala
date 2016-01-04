@@ -9,7 +9,7 @@ import net.ladstatt.core.{CanLog, Utils}
 import org.junit.Test
 import org.opencv.core.Mat
 
-class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils with CanLog {
+class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils  with CanLog {
 
   val solverService = new SolverService
   val sudoku1 =
@@ -77,8 +77,8 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with Utils with Can
 
   @Test def testSimple() = {
     solverService.start()
-    for (i <- (1 to 10))
-      time({
+    for (i <- 1 to 10)
+      Utils.time({
         Thread.sleep(50)
         solverService.cancel()
         logInfo("cancelled task.")

@@ -1,6 +1,0 @@
-Get the latest opencv distribution (I used opencv 2.4.6) and put the contained jar
-(x86 or x64) in your local repository with the following command:
-
-# mvn install:install-file -Dfile=<path-to-file> -DgroupId=<group-id> -DartifactId=<artifact-id> -Dversion=<version> -Dpackaging=<packaging>
-mvn install:install-file -Dfile=/opt/local/share/OpenCV/java/opencv-246.jar -DgroupId=org.opencv -DartifactId=opencv-java -Dversion=2.4.6 -Dpackaging=jar
-

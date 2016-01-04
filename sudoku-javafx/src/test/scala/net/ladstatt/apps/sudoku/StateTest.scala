@@ -10,7 +10,7 @@ import org.opencv.core.Mat
  */
 class StateTest {
 
-  OpenCV.loadNativeLib()
+  OpenCV.loadNativeLib("../lib/libopencv_java310.so")
 
   def compare(a: SCell, b: SCell): Boolean = {
     false
