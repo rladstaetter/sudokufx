@@ -18,8 +18,8 @@ Afterwards the project should build with
 
 You should be able to run the JavaFX application by executing:
 
+    java -jar sudoku-javafx/target/sudoku-javafx-1.0-SNAPSHOT-jar-with-dependencies.jar
 
-    java -jar sudoku-javafx/target/
 # License
 
 Apache License 2.0
