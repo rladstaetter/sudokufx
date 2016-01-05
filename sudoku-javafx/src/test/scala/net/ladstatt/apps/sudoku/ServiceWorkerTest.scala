@@ -9,7 +9,7 @@ import net.ladstatt.core.{CanLog, Utils}
 import org.junit.Test
 import org.opencv.core.Mat
 
-class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils  with CanLog {
+class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with CanLog {
 
   val solverService = new SolverService
   val sudoku1 =

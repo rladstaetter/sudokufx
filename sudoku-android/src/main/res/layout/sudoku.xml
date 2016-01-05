@@ -1,0 +1,21 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+             xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent"
+             android:id="@+id/mainLayout">
+
+    <org.opencv.android.JavaCameraView
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:id="@+id/sudoku"/>
+
+    <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/button_rescan"
+            android:id="@+id/button_rescan"
+            android:layout_gravity="center_horizontal|bottom"
+            android:paddingBottom="10dp"/>
+
+
+</FrameLayout>

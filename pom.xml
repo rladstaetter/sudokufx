@@ -2,12 +2,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>net.ladstatt</groupId>
-    <artifactId>apps</artifactId>
+    <groupId>net.ladstatt.sudoku</groupId>
+    <artifactId>pom</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>nxs.ladstatt.apps</name>
+    <name>nxs.ladstatt.sudoku.pom</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -15,9 +15,9 @@
     </properties>
 
     <modules>
+        <module>android-opencv</module>
         <module>sudoku-core</module>
-      <!--  <module>sudoku-android</module>
-         -->
+        <module>sudoku-android</module>
         <module>sudoku-javafx</module>
     </modules>
 
@@ -57,6 +57,49 @@
     <build>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>com.simpligility.maven.plugins</groupId>
+                    <artifactId>android-maven-plugin</artifactId>
+                    <version>4.3.0</version>
+                    <extensions>true</extensions>
+                    <dependencies>
+                        <dependency>
+                            <groupId>net.sf.proguard</groupId>
+                            <artifactId>proguard-base</artifactId>
+                            <version>5.2</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <release>true</release>
+                        <run>
+                            <debug>false</debug>
+                        </run>
+                        <proguard>
+                            <skip>false</skip>
+                            <config>proguard.cfg</config>
+                        </proguard>
+                        <sdk>
+                            <platform>21</platform>
+                        </sdk>
+                        <extractDuplicates>true</extractDuplicates>
+                        <undeployBeforeDeploy>true</undeployBeforeDeploy>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>zipAlign</id>
+                            <phase>install</phase>
+                            <goals>
+                                <goal>zipalign</goal>
+                            </goals>
+                            <configuration>
+                                <zipalign>
+                                    <skip>false</skip>
+                                    <verbose>true</verbose>
+                                </zipalign>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
                 <plugin>
                     <groupId>net.alchim31.maven</groupId>
                     <artifactId>scala-maven-plugin</artifactId>

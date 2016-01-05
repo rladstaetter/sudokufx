@@ -2,20 +2,19 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>net.ladstatt</groupId>
-        <artifactId>apps</artifactId>
+        <groupId>net.ladstatt.sudoku</groupId>
+        <artifactId>pom</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>net.ladstatt.apps.sudoku</groupId>
     <artifactId>sudoku-javafx</artifactId>
-    <name>net.ladstatt.apps.sudoku.sudoku-javafx</name>
+    <name>net.ladstatt.sudoku.sudoku-javafx</name>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
-            <groupId>net.ladstatt.apps.sudoku</groupId>
+            <groupId>net.ladstatt.sudoku</groupId>
             <artifactId>sudoku-core</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
