@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="net.ladstatt.sudoku"
-          android:versionCode="9"
+          package="net.ladstatt.apps.sudoku.android"
+          android:versionCode="1700"
           android:versionName="1.7"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://schemas.android.com/apk/res/android">

@@ -1,4 +1,4 @@
-package net.ladstatt.sudoku
+package net.ladstatt.apps.sudoku.android
 
 import _root_.android.app.Activity
 import _root_.android.os.{Bundle, Handler, Process}
@@ -8,10 +8,9 @@ import _root_.android.view.{Gravity, View, WindowManager}
 import _root_.android.widget.{Button, FrameLayout}
 import com.google.ads.{AdRequest, AdSize, AdView}
 import net.ladstatt.sudoku._
-import net.ladstatt.sudoku.R
+import org.opencv.android.{OpenCVLoader, CameraBridgeViewBase}
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
-import org.opencv.android.{CameraBridgeViewBase, OpenCVLoader}
-import org.opencv.core._
+import org.opencv.core.Mat
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -121,7 +120,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
   override def onBackPressed(): Unit = {
     super.onBackPressed()
-    logInfo("backButton pressed")
+    //logInfo("backButton pressed")
   }
 
   override def onStop(): Unit = {
@@ -131,13 +130,13 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
   override def onPause(): Unit = {
     super.onPause()
-    logInfo("onPause called")
+    //logInfo("onPause called")
     if (cameraView != null) cameraView.disableView()
   }
 
   override def onResume(): Unit = {
     super.onResume()
-    logInfo("onResume called")
+   // logInfo("onResume called")
     AndroidOpenCV.init()
     //OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, this, mLoaderCallback)
     ()
@@ -145,7 +144,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
   override def onDestroy(): Unit = {
     super.onDestroy()
-    logInfo("onDestroy called")
+    //logInfo("onDestroy called")
     if (cameraView != null) cameraView.disableView()
   }
 
@@ -168,11 +167,11 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   }
 
   def onCameraViewStarted(width: Int, height: Int) {
-    logInfo(s"onCameraViewStarted (width: $width, height: $height)")
+    //logInfo(s"onCameraViewStarted (width: $width, height: $height)")
   }
 
   def onCameraViewStopped() {
-    logInfo("onCameraViewStopped called")
+   // logInfo("onCameraViewStopped called")
   }
 
   def onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat = {
@@ -203,53 +202,5 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
       }
     }
   }
-
-  /*
- def onCameraFrame2(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat = {
-   if (solution != null) {
-     solution
-   } else {
-     if (!calculationInProgress) {
-       calculationInProgress = true
-       Try {
-         logInfo("starting to find sudoku ...")
-         detectSudoku(inputFrame)
-       } match {
-         case Success(frameResult) => {
-           if (isValidSolution(frameResult.solutionString)) {
-             solution = frameResult.solution
-             logInfo("found sudoku: " + frameResult.solutionString)
-             //  execOnUIThread(rescanButton.setVisibility(View.VISIBLE))
-
-           }
-           execOnUIThread(updateSLabels2(history.mkValueIntermediateMatrix))
-           execOnUIThread(nrDetections.setText(history.detectedNumbers.size.toString))
-           // execOnUIThread(updateSLabels(frameResult.detectedCells))
-           calculationInProgress = false
-           frameResult.solution
-         }
-         case Failure(e: SudokuException) => {
-           val mat = Await.result(mkMatWithCurve(inputFrame.rgba, e.curve, new Scalar(0, 255, 0), 1), Duration.Inf)
-           solution = null
-           calculationInProgress = false
-           logInfo("couldn't find sudoku: " + e.getMessage)
-           mat
-         }
-         case Failure(e) => {
-           solution = null
-           calculationInProgress = false
-           //  history.reset
-           //  execOnUIThread(resetSLabels())
-
-           logInfo("sudoku error: " + e.getMessage)
-           inputFrame.gray
-         }
-       }
-     } else {
-       logInfo("calculation in progress ...")
-       inputFrame.gray
-     }
-   }
- }   */
 
 }

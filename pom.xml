@@ -69,36 +69,7 @@
                             <version>5.2</version>
                         </dependency>
                     </dependencies>
-                    <configuration>
-                        <release>true</release>
-                        <run>
-                            <debug>false</debug>
-                        </run>
-                        <proguard>
-                            <skip>false</skip>
-                            <config>proguard.cfg</config>
-                        </proguard>
-                        <sdk>
-                            <platform>21</platform>
-                        </sdk>
-                        <extractDuplicates>true</extractDuplicates>
-                        <undeployBeforeDeploy>true</undeployBeforeDeploy>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>zipAlign</id>
-                            <phase>install</phase>
-                            <goals>
-                                <goal>zipalign</goal>
-                            </goals>
-                            <configuration>
-                                <zipalign>
-                                    <skip>false</skip>
-                                    <verbose>true</verbose>
-                                </zipalign>
-                            </configuration>
-                        </execution>
-                    </executions>
+
                 </plugin>
                 <plugin>
                     <groupId>net.alchim31.maven</groupId>
