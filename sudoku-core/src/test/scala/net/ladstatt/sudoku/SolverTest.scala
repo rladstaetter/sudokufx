@@ -3,7 +3,6 @@ package net.ladstatt.sudoku
 import org.junit.Assert._
 import org.junit.Test
 
-import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 class SolverTest {
@@ -33,7 +32,7 @@ class SolverTest {
   def testSolving(): Unit = {
     Try {
       val solvedSudokus: Array[Option[SudokuDigitSolution]] =
-        for (sudokuAsString <- easySudokus.split("========"))
+        for (sudokuAsString <- SudokuTestContext.easySudokus.split("========"))
           yield solveReadableSudoku(sudokuAsString)
 
       for (fs <- solvedSudokus.flatten) {
@@ -68,9 +67,5 @@ class SolverTest {
     }
   }
 
-  // see http://norvig.com/easy50.txt
-  // and also make sure to visit http://norvig.com/sudoku.html
-  val easySudokus =
-    Source.fromInputStream(getClass.getResourceAsStream("/easysudokus.txt")).getLines().mkString("\n")
 
 }

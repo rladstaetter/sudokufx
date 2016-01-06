@@ -17,7 +17,7 @@ object TemplateLibrary extends CanLog {
   private val (templateWidth, templateHeight) = (25.0, 50.0)
   val templateSize = new Size(templateWidth, templateHeight)
   var getResourceAsStream: String => InputStream = getClass.getResourceAsStream
-  var templateResource: String = "/net/ladstatt/apps/sudokufx/templates.csv"
+  var templateResource: String = "templates.csv"
 
   lazy val asSeq: Seq[Mat] = logWithTimer("Initialize templates", {
     val digits: Seq[Array[Int]] =

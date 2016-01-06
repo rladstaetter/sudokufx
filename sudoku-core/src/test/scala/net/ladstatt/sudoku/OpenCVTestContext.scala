@@ -15,8 +15,8 @@ import scala.concurrent.duration.Duration
 object OpenCVTestContext extends CanLog {
 
 
-  lazy val frame69: Mat = Imgcodecs.imread("src/test/resources/frame69.png")
-  lazy val solution69 =
+  lazy val frameSudoku_1: Mat = Imgcodecs.imread("src/test/resources/net/ladstatt/sudoku/sudoku_1.png")
+  lazy val solutionSudoku_1 =
     """617948532
       |524361879
       |389725641
@@ -26,9 +26,9 @@ object OpenCVTestContext extends CanLog {
       |275683194
       |461592387
       |893174265""".stripMargin.replaceAll("\n", "").toCharArray
-  lazy val sudoku69 = SCandidate(nr = 0, frame = frame69)
+  lazy val sudoku_1 = SCandidate(nr = 0, frame = frameSudoku_1)
 
-  lazy val (sudoku69Result, _, _) = Await.result(sudoku69.calc(Map(), Map(), 1, 17, 5000L), Duration.Inf)
+  lazy val (sudoku_1Result, _, _) = Await.result(sudoku_1.calc(Map(), Map(), 1, 17, 5000L), Duration.Inf)
 
   lazy val emptyFrame = new Mat(1280, 768, CvType.CV_8UC3)
   lazy val emptySudoku = SCandidate(nr = 0, frame = emptyFrame)

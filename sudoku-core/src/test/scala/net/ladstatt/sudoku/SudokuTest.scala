@@ -19,7 +19,7 @@ class SudokuTest  {
   OpenCV.loadNativeLib("../lib/libopencv_java310.so")
 
   val refCellNumbers: Seq[(Int, Double)] = {
-    val lines: Iterator[String] = Source.fromFile(new File("src/test/resources/cellNumbers69.csv")).getLines
+    val lines: Iterator[String] = Source.fromFile(new File("src/test/resources/net/ladstatt/sudoku/sudoku_1_ref.csv")).getLines
     (for (l <- lines) yield {
       val a = l.split(',')
       (a(0).toInt, a(1).toDouble)
@@ -31,7 +31,7 @@ class SudokuTest  {
   @Test def testDetect(): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
     assertEquals(81.toLong, refCellNumbers.size.toLong)
-    val cells = Await.result(Future.sequence(OpenCVTestContext.sudoku69.cellDetector.futureSCells), Duration.Inf)
+    val cells = Await.result(Future.sequence(OpenCVTestContext.sudoku_1.cellDetector.futureSCells), Duration.Inf)
     var i = 0
     for (c <- cells) {
       assertEquals(refCellNumbers(i)._1.toLong, c.value.toLong)

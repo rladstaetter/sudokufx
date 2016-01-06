@@ -1,6 +1,5 @@
 package net.ladstatt.sudoku
 
-
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import org.junit.runner.RunWith
@@ -17,7 +16,7 @@ final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks 
   // val frameGen : Gen[Mat] =
   val stateGen: Gen[SCandidate] =
     for {nr <- Gen.choose(0, 10000)
-         f <- Gen.const(OpenCVTestContext.frame69)
+         f <- Gen.const(OpenCVTestContext.frameSudoku_1)
          cap <- Gen.choose(8, 15)
          minHits <- Gen.choose(20, 30)} yield SCandidate(nr = nr, frame = f )
                      // SudokuState(cap = cap, minHits = minHits)

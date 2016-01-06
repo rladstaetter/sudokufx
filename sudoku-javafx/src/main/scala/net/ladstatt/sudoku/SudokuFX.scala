@@ -58,7 +58,7 @@ class SudokuFXApplication extends Application with JfxUtils {
     Try {
       stage.setTitle("SudokuFX")
 
-      val fxmlLoader = mkFxmlLoader("/net/ladstatt/apps/sudokufx.fxml")
+      val fxmlLoader = mkFxmlLoader("/net/ladstatt/sudoku/sudokufx.fxml")
       val parent = fxmlLoader.load[VBox]()
       val controller = fxmlLoader.getController[SudokuFXController]
       val scene = new Scene(parent)

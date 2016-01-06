@@ -10,12 +10,11 @@ import scala.util.{Failure, Try}
   */
 class HistoryTest {
 
-  //OpenCV.loadNativeLib("../lib/libopencv_java310.so")
-
   @Test
   def invalidSCell() = {
     Try {
       SCell(-10, 0, null)
+      fail()
     } match {
       case Failure(e: AssertionError) =>
       case _ => fail("should throw an AssertionError")
@@ -26,6 +25,7 @@ class HistoryTest {
   def invalidSCell2() = {
     Try {
       SCell(0, -1, null)
+      fail()
     } match {
       case Failure(e: AssertionError) =>
       case _ => fail("should throw an AssertionError")
