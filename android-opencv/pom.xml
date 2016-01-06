@@ -10,6 +10,7 @@
     </parent>
     <artifactId>android-opencv</artifactId>
     <name>nxs.ladstatt.sudoku.android-opencv</name>
+    <description>Regroups OpenCV Java Wrapper in order to make it an AAR</description>
 
     <packaging>aar</packaging>
 
@@ -28,13 +29,6 @@
                 <groupId>com.simpligility.maven.plugins</groupId>
                 <artifactId>android-maven-plugin</artifactId>
                 <extensions>true</extensions>
-                <dependencies>
-                    <dependency>
-                        <groupId>net.sf.proguard</groupId>
-                        <artifactId>proguard-base</artifactId>
-                        <version>5.2</version>
-                    </dependency>
-                </dependencies>
                 <configuration>
                     <release>true</release>
                     <proguard>

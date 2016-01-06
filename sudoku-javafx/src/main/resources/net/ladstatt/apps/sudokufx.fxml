@@ -6,7 +6,7 @@
 <?import javafx.scene.text.Font?>
 <?import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge?>
 <VBox prefHeight="810.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="net.ladstatt.apps.sudoku.fx.SudokuFXController">
+      fx:controller="net.ladstatt.sudoku.SudokuFXController">
     <children>
         <MenuBar VBox.vgrow="NEVER" fx:id="mainMenuBar">
             <menus>

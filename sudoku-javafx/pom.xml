@@ -68,7 +68,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>net.ladstatt.apps.sudoku.fx.SudokuFX</mainClass>
+                            <mainClass>net.ladstatt.sudoku.SudokuFX</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

@@ -2,8 +2,8 @@ package net.ladstatt.opencv
 
 import java.io.File
 
-import net.ladstatt.apps.sudoku._
 import net.ladstatt.core.{CanLog, FutureUtils, SystemEnv}
+import net.ladstatt.sudoku._
 import org.opencv.core._
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
