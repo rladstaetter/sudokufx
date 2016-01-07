@@ -42,7 +42,7 @@ object SudokuTestContext {
   lazy val (emptySudoku, (emptySudokuResult, _, _)) = calculate(emptyFrame)
 
   def calculate(imageAsMat: Mat): (SCandidate, (SudokuResult, DigitLibrary, HitCounters)) = {
-    val c = SCandidate(nr = 0, frame = imageAsMat)
+    val c = SCandidate(0,imageAsMat)
     (c, Await.result(c.calc(defaultDigitLibrary, defaultHitCounts, 1, 17, 5000L), Duration.Inf))
   }
 

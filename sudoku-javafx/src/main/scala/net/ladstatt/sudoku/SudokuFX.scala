@@ -217,7 +217,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       _ <- execOnUIThread({
         frameNumberGauge.setValue(Int.int2double(candidate.nr))
       })
-      _ <- candidate.persist(new File(getWorkingDirectory, s"frame${candidate.nr}.png"))
+      _ <- SudokuUtils.persist(new File(getWorkingDirectory, s"frame${candidate.nr}.png"))
       (result, udl, currentHits) <-
       candidate.calc(
         getCurrentDigitLibrary,

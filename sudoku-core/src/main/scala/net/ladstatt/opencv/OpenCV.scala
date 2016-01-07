@@ -2,7 +2,7 @@ package net.ladstatt.opencv
 
 import java.io.File
 
-import net.ladstatt.core.{CanLog, FutureUtils, SystemEnv}
+import net.ladstatt.core.{CanLog, SystemEnv}
 import net.ladstatt.sudoku._
 import org.opencv.core._
 import org.opencv.imgcodecs.Imgcodecs
@@ -15,11 +15,10 @@ import scala.concurrent.Future
 import scala.util.Try
 
 /**
- * various opencv related stuff
- */
+  * various opencv related stuff
+  */
 object OpenCV extends CanLog {
 
-  import FutureUtils._
   import Parameters._
 
   def copyMat(orig: Mat): Mat = {
@@ -141,7 +140,7 @@ object OpenCV extends CanLog {
   }
 
   def mkMatWithCurve(image: Mat, points: List[Point], color: Scalar, thickness: Int): Future[Mat] =
-    execFuture {
+    Future {
       if (points.size > 2) {
         for (linePoints <- points.sliding(2)) {
           Imgproc.line(image, linePoints(0), linePoints(1), color, thickness)
@@ -151,13 +150,13 @@ object OpenCV extends CanLog {
     }
 
   /**
-   * wraps equalizeHist from Imgproc
-   *
-   * @param input
-   * @return
-   */
+    * wraps equalizeHist from Imgproc
+    *
+    * @param input
+    * @return
+    */
   def equalizeHist(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val output = new Mat
       Imgproc.equalizeHist(input, output)
       output
@@ -173,10 +172,10 @@ object OpenCV extends CanLog {
   }
 
   /**
-   * Returns position and value for a template for a given image
-   *
-   * @return
-   */
+    * Returns position and value for a template for a given image
+    *
+    * @return
+    */
   def matchTemplate(candidate: Mat, number: Int, withNeedle: Mat): Future[(Int, Double)] = {
 
     val normedCandidateF = norm(candidate)
@@ -206,26 +205,26 @@ object OpenCV extends CanLog {
     dest
   }
 
-  def resizeFuture(source: Mat, size: Size): Future[Mat] = execFuture(resize(source, size))
+  def resizeFuture(source: Mat, size: Size): Future[Mat] = Future(resize(source, size))
 
 
   /**
-   * copies source to destination Mat with given mask and returns the destination mat.
-   *
-   * @param source
-   * @param destination
-   * @param pattern
-   * @return
-   */
+    * copies source to destination Mat with given mask and returns the destination mat.
+    *
+    * @param source
+    * @param destination
+    * @param pattern
+    * @return
+    */
   def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Future[Mat] =
-    execFuture {
+    Future {
       source.copyTo(destination, pattern)
       destination
     }
 
   /**
-   * warps image to make feature extraction's life easier (time intensive call)
-   */
+    * warps image to make feature extraction's life easier (time intensive call)
+    */
   def warp(input: Mat, srcCorners: MatOfPoint2f, destCorners: MatOfPoint2f): Mat = {
     val transformationMatrix = Imgproc.getPerspectiveTransform(srcCorners, destCorners)
 
@@ -283,9 +282,9 @@ object OpenCV extends CanLog {
   }
 
   /**
-   * sort points in following order:
-   * topleft, topright, bottomright, bottomleft
-   */
+    * sort points in following order:
+    * topleft, topright, bottomright, bottomleft
+    */
   def mkSortedCorners(points: MatOfPoint2f): MatOfPoint2f = {
     val pointsAsList = points.toList
     val sortBySum = pointsAsList.sortWith((l, r) => (l.x + l.y) < (r.x + r.y))
@@ -300,21 +299,21 @@ object OpenCV extends CanLog {
                         blockSize: Int = 5,
                         c: Double = 2,
                         adaptiveMethod: Int = Imgproc.ADAPTIVE_THRESH_MEAN_C): Future[Mat] =
-    execFuture {
+    Future {
       val thresholded = new Mat()
       Imgproc.adaptiveThreshold(input, thresholded, maxValue, adaptiveMethod, Imgproc.THRESH_BINARY, blockSize, c)
       thresholded
     }
 
   def threshold(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val output = new Mat
       Imgproc.threshold(input, output, 30, 255, Imgproc.THRESH_BINARY)
       output
     }
 
   def bitwiseNot(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val output = new Mat
       Core.bitwise_not(input, output)
       output
@@ -327,7 +326,7 @@ object OpenCV extends CanLog {
   }
 
   def dilate(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val output = new Mat
       val anchor = new Point(-1, -1)
       Imgproc.dilate(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)), anchor, 2)
@@ -337,7 +336,7 @@ object OpenCV extends CanLog {
 
 
   def erode(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val output = new Mat
       val ersize = 0.0
       val m = Imgproc.getStructuringElement(Imgproc.MORPH_CROSS,
@@ -350,14 +349,14 @@ object OpenCV extends CanLog {
 
 
   def gaussianblur(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val dest = new Mat()
       Imgproc.GaussianBlur(input, dest, new Size(11, 11), 0)
       dest
     }
 
   def blur(input: Mat): Future[Mat] =
-    execFuture {
+    Future {
       val dest = new Mat()
       Imgproc.blur(input, dest, new Size(20, 20), new Point(-1, -1))
       dest
@@ -387,25 +386,24 @@ object OpenCV extends CanLog {
 
 
   /**
-   * converts the input mat to another color space
-   *
-   * @param conversionMethod
-   * @param input
-   * @return
-   */
-  def colorSpace(conversionMethod: Int = Imgproc.COLOR_BGR2GRAY, input: Mat): Future[Mat] =
-    execFuture {
-      val colorTransformed = new Mat
-      Imgproc.cvtColor(input, colorTransformed, conversionMethod)
-      colorTransformed
+    * converts the input mat to another color space
+    *
+    * @param input
+    * @return
+    */
+  def toGray(input: Mat): Future[Mat] =
+    Future {
+      val grayed = new Mat
+      Imgproc.cvtColor(input, grayed, Imgproc.COLOR_BGR2GRAY)
+      grayed
     }
 
-  def toGray(mat: Mat): Future[Mat] = colorSpace(Imgproc.COLOR_BGR2GRAY, mat)
 
 
   // only search for contours in a subrange of the original cell to get rid of possible border lines
+  // TODO: remove, likely not really necessary
   def specialize(cellRawData: Mat): Future[(Mat, Point, Double, Double)] =
-    FutureUtils.execFuture {
+    Future {
       val (width, height) = (cellRawData.size.width, cellRawData.size.height)
       val cellData = new Mat(cellRawData, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
       val cellArea = cellData.size().area
@@ -444,7 +442,7 @@ object OpenCV extends CanLog {
       (cellData, center, minArea, maxArea) <- specialize(cell)
       a <- preprocess2(cellData)
     } yield
-    findCellContour(a, center, minArea, maxArea)
+      findCellContour(a, center, minArea, maxArea)
   }
 
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)

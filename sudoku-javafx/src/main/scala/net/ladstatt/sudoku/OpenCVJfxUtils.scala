@@ -5,11 +5,11 @@ import java.io.File
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.Image
 
-import net.ladstatt.core.FutureUtils
 import org.opencv.core.{Mat, Point}
 import org.opencv.imgcodecs.Imgcodecs
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 trait OpenCVJfxUtils {
 
@@ -62,9 +62,8 @@ trait OpenCVJfxUtils {
     }
   }
 
-  def loadImage(implicit ec: ExecutionContext, file: File): Future[Mat] =
-    FutureUtils.execFuture {
-      Imgcodecs.imread(file.getAbsolutePath)
-    }
+  def loadImage(file: File): Future[Mat] = Future {
+    Imgcodecs.imread(file.getAbsolutePath)
+  }
 
 }

@@ -5,6 +5,7 @@ import scala.concurrent.{Promise, Future, ExecutionContext}
 /**
  * Created by lad on 02.02.15.
  */
+/*
 object FutureUtils {
 // TODO remove
   def execFuture[A](f: => A)(implicit ec: ExecutionContext): Future[A] = {
@@ -13,3 +14,4 @@ object FutureUtils {
     p.future
   }
 }
+  */
