@@ -19,7 +19,6 @@ package object sudoku {
   type HitCounters = Map[Int, Map[Int, Int]]
   type DetectionMethod = Option[Mat] => Future[(SNum, SHitQuality)]
 
-  type VideoInput = Mat
   /**
    * records for each number from 0 to 9 the best hit (quality) along with its digital data
    */

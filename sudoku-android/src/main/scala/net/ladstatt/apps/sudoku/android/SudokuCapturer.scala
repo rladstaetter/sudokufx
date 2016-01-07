@@ -181,18 +181,20 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
       if (!calculationInProgress) {
         calculationInProgress = true
         logInfo("starting to find sudoku ...")
-        val result: VideoInput =
+        val result: Mat =
           detectSudoku(inputFrame) match {
-            case s: SSuccess => {
+            case s: SSuccess if s.someSolution.isDefined => {
               execOnUIThread({
                 rescanButton.setVisibility(View.VISIBLE)
                 // adView.setVisibility(View.VISIBLE)
               })
-              solution = s.solutionMat
+              solution = s.someSolution.get.solutionMat
               solution
             }
-            case c: SCorners => c.imageIOChain.inverted
-            case e: SFailure => e.imageIoChain.blurred
+            case s: SSuccess if s.someSolution.isEmpty => {
+              s.inputFrame.imageIOChain.inverted
+            }
+            case e: SFailure => e.inputFrame.imageIOChain.blurred
           }
         calculationInProgress = false
         result

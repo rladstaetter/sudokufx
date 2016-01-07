@@ -14,13 +14,17 @@ import scala.io.Source
   */
 object SudokuTestContext {
 
+  val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
+  val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
+
   // see http://norvig.com/easy50.txt
   // and also make sure to visit http://norvig.com/sudoku.html
-  val easySudokus =
+  lazy val easySudokus =
     Source.fromInputStream(getClass.getResourceAsStream("easysudokus.txt")).getLines().mkString("\n")
 
-  lazy val frameSudoku_1: Mat = Imgcodecs.imread("src/test/resources/net/ladstatt/sudoku/sudoku_1.png")
-  lazy val solutionSudoku_1 =
+
+
+  val solutionSudoku_1 =
     """617948532
       |524361879
       |389725641
@@ -30,13 +34,16 @@ object SudokuTestContext {
       |275683194
       |461592387
       |893174265""".stripMargin.replaceAll("\n", "").toCharArray
-  lazy val sudoku_1 = SCandidate(nr = 0, frame = frameSudoku_1)
 
-  lazy val (sudoku_1Result, _, _) = Await.result(sudoku_1.calc(Map(), Map(), 1, 17, 5000L), Duration.Inf)
+  lazy val frameSudoku_1: Mat = Imgcodecs.imread("src/test/resources/net/ladstatt/sudoku/sudoku_1.png")
+  lazy val emptyFrame: Mat = new Mat(1280, 768, CvType.CV_8UC3)
 
-  lazy val emptyFrame = new Mat(1280, 768, CvType.CV_8UC3)
-  lazy val emptySudoku = SCandidate(nr = 0, frame = emptyFrame)
-  lazy val (emptySudokuResult, _, _) = Await.result(emptySudoku.calc(Map(), Map(), 1, 1, 5000L), Duration.Inf)
+  lazy val (sudoku_1, (sudoku_1Result, _, _)) = calculate(frameSudoku_1)
+  lazy val (emptySudoku, (emptySudokuResult, _, _)) = calculate(emptyFrame)
 
+  def calculate(imageAsMat: Mat): (SCandidate, (SudokuResult, DigitLibrary, HitCounters)) = {
+    val c = SCandidate(nr = 0, frame = imageAsMat)
+    (c, Await.result(c.calc(defaultDigitLibrary, defaultHitCounts, 1, 17, 5000L), Duration.Inf))
+  }
 
 }

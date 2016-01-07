@@ -25,7 +25,6 @@ import javafx.scene.shape.{Circle, Polyline, Rectangle}
 
 import com.sun.javafx.perf.PerformanceTracker
 import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
-import net.ladstatt.sudoku._
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, Point}
@@ -184,15 +183,15 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   val videoCapture = new VideoCapture(0)
 
-  def aquireMat(): VideoInput = {
-    val image: VideoInput = new Mat()
+  def aquireMat(): Mat = {
+    val image: Mat = new Mat()
     if (videoCapture.isOpened) videoCapture.read(image)
     image
   }
 
 
   val videoObservable: Observable[SCandidate] =
-    Observable.create[VideoInput](o => {
+    Observable.create[Mat](o => {
       new Thread(
         new Runnable {
           override def run(): Unit = {
@@ -475,12 +474,15 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     displayHitCounts(getCurrentHitCounters, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
-      case SSuccess(nr, frame, start, imageIoChain, sudokuCanvas, foundCorners, detectedCells, solution, solutionMat, solutionCells) =>
-        updateVideo(stage, frame, imageIoChain, solutionMat)
-        displayResult(solution, as[Label](resultFlowPane.getChildren))
-      case SCorners(nr, frame, start, imageIoChain, sudokuCanvas, detectedCells, solutionCells) =>
-        updateVideo(stage, frame, imageIoChain, frame)
-      case SFailure(nr, frame, start, imageIoChain) =>
+      case SSuccess(InputFrame(nr, frame, start, imageIoChain), SudokuFrame(sudokuCanvas, detectedCells, corners), someSolution) =>
+        if (someSolution.isDefined) {
+          val sol = someSolution.get
+          updateVideo(stage, frame, imageIoChain, sol.solutionMat)
+          displayResult(sol.solution, as[Label](resultFlowPane.getChildren))
+        } else {
+          updateVideo(stage, frame, imageIoChain, frame)
+        }
+      case SFailure(msg, InputFrame(nr, frame, start, imageIoChain)) =>
         updateVideo(stage, frame, imageIoChain, frame)
     }
 
@@ -496,21 +498,17 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     }
     setAnalysisMouseTransparent(false)
     updateDigitLibraryView(getCurrentDigitLibrary, as[ImageView](numberFlowPane.getChildren))
-    execOnUIThread({
-      frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
-    })
+    frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
     result match {
-      case success: SSuccess =>
-        execOnUIThread({
-          detectionGauge.setValue(detectionGauge.getValue + 1)
-          lastDetectionGauge.setValue(Int.int2double(success.detectedCells.length))
-        })
-        updateStatus(mkFps(success.start), Color.GREEN)
-      case onlyCornersDetected: SCorners =>
-        updateStatus(mkFps(onlyCornersDetected.start), Color.ORANGE)
-        updateCellBounds(onlyCornersDetected.sudokuCorners, analysisCellBounds)
-        updateCellCorners(onlyCornersDetected.sudokuCorners, analysisCellCorners)
-      case SFailure(nr, frame, start, imageIoChain) => updateStatus(mkFps(start), Color.AQUA)
+      case success: SSuccess if success.someSolution.isDefined =>
+        detectionGauge.setValue(detectionGauge.getValue + 1)
+        lastDetectionGauge.setValue(Int.int2double(success.sudokuFrame.detectedCells.length))
+        updateStatus(mkFps(success.inputFrame.start), Color.GREEN)
+      case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
+        updateStatus(mkFps(onlyCorners.inputFrame.start), Color.ORANGE)
+        updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
+        updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
+      case SFailure(msg, InputFrame(nr, frame, start, imageIoChain)) => updateStatus(mkFps(start), Color.AQUA)
     }
   }
 
