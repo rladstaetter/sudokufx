@@ -13,7 +13,7 @@ object Utils  {
   def time[A](a: => A, display: Long => Unit = s => ()): A = {
     val before = System.nanoTime
     val result = a
-    val millis = (System.nanoTime - before) / 1000
+    val millis = (System.nanoTime - before) / 1000000
     display(millis)
     result
   }
