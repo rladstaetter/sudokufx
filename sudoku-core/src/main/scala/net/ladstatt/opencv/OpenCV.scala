@@ -21,6 +21,8 @@ object OpenCV extends CanLog {
 
   import Parameters._
 
+  lazy val EmptyCorners = new MatOfPoint2f
+
   def copyMat(orig: Mat): Mat = {
     val dest = new Mat()
     orig.copyTo(dest)
@@ -42,34 +44,6 @@ object OpenCV extends CanLog {
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   }
 
-  def detectSudokuCorners(input: Mat, ratio: Int = 30): MatOfPoint2f = {
-    extractCurveWithMaxArea(coreFindContours(input)) match {
-      case None =>
-        logWarn("Could not detect any curve ... ")
-        CornerDetector.EmptyCorners
-      case Some((maxArea, c)) =>
-        val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / ratio
-        if (maxArea > expectedMaxArea) {
-          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
-          if (has4Sides(approxCurve)) {
-            val corners = mkSortedCorners(approxCurve)
-            if (isSomewhatSquare(corners.toList)) {
-              corners
-            } else {
-              logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
-              CornerDetector.EmptyCorners
-            }
-          } else {
-            logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-            CornerDetector.EmptyCorners
-          }
-        } else {
-          logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
-          CornerDetector.EmptyCorners
-        }
-    }
-
-  }
 
 
   def isSomewhatSquare(corners: Seq[Point]): Boolean = {
@@ -81,15 +55,16 @@ object OpenCV extends CanLog {
     }
 
     def hasAlignedAngles: Boolean =
-      (abs(calcAngle(corners(0), corners(1)) - calcAngle(corners(3), corners(2))) < 10 &&
-        abs(calcAngle(corners(0), corners(3)) - calcAngle(corners(1), corners(2))) < 10)
+      abs(calcAngle(corners(0), corners(1)) - calcAngle(corners(3), corners(2))) < 10 &&
+        abs(calcAngle(corners(0), corners(3)) - calcAngle(corners(1), corners(2))) < 10
 
     hasAlignedAngles
   }
 
-  def mkRect(i: SIndex, size: Size): Rect = {
+  /*
+  def mkRect(i: Int, size: Size): Rect = {
     new Rect(col(i) * size.width.toInt, row(i) * size.height.toInt, size.width.toInt, size.height.toInt)
-  }
+  }      */
 
   def mkCorners(size: Size): MatOfPoint2f = {
     val (width, height) = (size.width, size.height)
@@ -399,7 +374,6 @@ object OpenCV extends CanLog {
     }
 
 
-
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   // TODO: remove, likely not really necessary
   def specialize(cellRawData: Mat): Future[(Mat, Point, Double, Double)] =
@@ -421,7 +395,7 @@ object OpenCV extends CanLog {
     } yield inverted
   }
 
-  def detectCell(detectNumber: Mat => Future[(SNum, SHitQuality)], sudokuPlane: Mat, roi: Rect): Future[SCell] = {
+  def detectCell(detectNumber: Mat => Future[(Int, SHitQuality)], sudokuPlane: Mat, roi: Rect): Future[SCell] = {
     for {
       contour <- extractContour(sudokuPlane.submat(roi))
       (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
@@ -447,10 +421,11 @@ object OpenCV extends CanLog {
 
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
 
-  def imageIOChain(input: Mat): Future[ImageIOChain] = {
+  /*
+  def imageIOChain(frame: Mat): Future[FramePipeline] = {
 
     for {
-      working <- copySrcToDestWithMask(input, new Mat, input)
+      working <- copySrcToDestWithMask(frame, new Mat, frame)
       grayed <- toGray(working)
       blurred <- gaussianblur(grayed)
       thresholdApplied <- adaptiveThreshold(blurred)
@@ -459,7 +434,7 @@ object OpenCV extends CanLog {
       eroded <- erode(inverted)
     //  dilated <- dilate(thresholdApplied)
     //  inverted <- bitwiseNot(dilated)
-    } yield ImageIOChain(working, grayed, blurred, thresholdApplied, inverted, dilated, eroded)
-  }
+    } yield FramePipeline(frame, working, grayed, blurred, thresholdApplied, inverted, dilated, eroded)
+  }     */
 
 }

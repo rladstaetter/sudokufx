@@ -209,22 +209,20 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
           }
         }).start()
       new Subscription {}
-    }).zipWithIndex.map { case (frame, index) => SCandidate(index, frame) }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
+    }).zipWithIndex.map {
+      case (frame, index) =>
+        SCandidate(index, FramePipeline(frame))
+    }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
   def process(candidate: SCandidate): Unit = {
     for {
-      _ <- execOnUIThread({
+     /* _ <- execOnUIThread({
         frameNumberGauge.setValue(Int.int2double(candidate.nr))
       })
-      _ <- SudokuUtils.persist(new File(getWorkingDirectory, s"frame${candidate.nr}.png"))
+      */
       (result, udl, currentHits) <-
-      candidate.calc(
-        getCurrentDigitLibrary,
-        getCurrentHitCounters,
-        getCap,
-        getMinHits,
-        getMaxSolvingTime)
+      candidate.calc(getCurrentDigitLibrary, getCurrentHitCounters, getCap, getMinHits, getMaxSolvingTime)
 
     } {
       setCurrentDigitLibrary(udl)
@@ -458,7 +456,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
 
-    def updateVideo(stage: ProcessingStage, frame: Mat, imageIoChain: ImageIOChain, solutionMat: Mat): Unit = {
+    def updateVideo(stage: ProcessingStage, frame: Mat, imageIoChain: FramePipeline, solutionMat: Mat): Unit = {
       stage match {
         case InputStage => updateVideoView(frame)
         case GrayedStage => updateVideoView(imageIoChain.grayed)

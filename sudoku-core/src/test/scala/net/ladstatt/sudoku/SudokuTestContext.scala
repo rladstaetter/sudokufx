@@ -22,8 +22,6 @@ object SudokuTestContext {
   lazy val easySudokus =
     Source.fromInputStream(getClass.getResourceAsStream("easysudokus.txt")).getLines().mkString("\n")
 
-
-
   val solutionSudoku_1 =
     """617948532
       |524361879
@@ -41,8 +39,8 @@ object SudokuTestContext {
   lazy val (sudoku_1, (sudoku_1Result, _, _)) = calculate(frameSudoku_1)
   lazy val (emptySudoku, (emptySudokuResult, _, _)) = calculate(emptyFrame)
 
-  def calculate(imageAsMat: Mat): (SCandidate, (SudokuResult, DigitLibrary, HitCounters)) = {
-    val c = SCandidate(0,imageAsMat)
+  def calculate(frame: Mat): (SCandidate, (SudokuResult, DigitLibrary, HitCounters)) = {
+    val c = SCandidate(0, FramePipeline(frame))
     (c, Await.result(c.calc(defaultDigitLibrary, defaultHitCounts, 1, 17, 5000L), Duration.Inf))
   }
 

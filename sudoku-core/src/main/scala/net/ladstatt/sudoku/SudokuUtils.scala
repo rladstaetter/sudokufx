@@ -248,6 +248,37 @@ object SudokuUtils {
     //    OpenCV.persist(frame, file)
   }
 
+
+  def detectSudokuCorners(input: Mat, ratio: Int = 30): MatOfPoint2f = {
+    import scala.collection.JavaConversions._
+    extractCurveWithMaxArea(coreFindContours(input)) match {
+      case None =>
+        logWarn("Could not detect any curve ... ")
+        EmptyCorners
+      case Some((maxArea, c)) =>
+        val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / ratio
+        if (maxArea > expectedMaxArea) {
+          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
+          if (has4Sides(approxCurve)) {
+            val corners = mkSortedCorners(approxCurve)
+            if (isSomewhatSquare(corners.toList)) {
+              corners
+            } else {
+              logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+              EmptyCorners
+            }
+          } else {
+            logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+            EmptyCorners
+          }
+        } else {
+          logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
+          EmptyCorners
+        }
+    }
+
+  }
+
 }
 
 

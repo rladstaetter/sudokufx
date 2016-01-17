@@ -9,19 +9,19 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 
 @RunWith(classOf[JUnitRunner])
-final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks  with CanLog {
+final class SudokuStateTest extends FunSuite with GeneratorDrivenPropertyChecks with CanLog {
 
   OpenCV.loadNativeLib("../lib/libopencv_java310.so")
 
   // val frameGen : Gen[Mat] =
   val stateGen: Gen[SCandidate] =
     for {nr <- Gen.choose(0, 10000)
-         f <- Gen.const(SudokuTestContext.frameSudoku_1)
+         frame <- Gen.const(SudokuTestContext.frameSudoku_1)
          cap <- Gen.choose(8, 15)
-         minHits <- Gen.choose(20, 30)} yield SCandidate(nr = nr, frame = f )
-                     // SudokuState(cap = cap, minHits = minHits)
+         minHits <- Gen.choose(20, 30)} yield SCandidate(nr, FramePipeline(frame))
+  // SudokuState(cap = cap, minHits = minHits)
 
-  def printState(s: SCandidate): Unit = logInfo(s"${s.corners}")
+  def printState(s: SCandidate): Unit = logInfo(s"${s}")
 
   test("t2") {
 

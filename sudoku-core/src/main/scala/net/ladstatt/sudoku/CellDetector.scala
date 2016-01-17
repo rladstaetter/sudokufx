@@ -8,6 +8,7 @@ import scala.concurrent.Future
 /**
  * Created by lad on 02.02.15.
  */
+/*
 case class CellDetector(sudokuCanvas: Mat) {
 
   val cellSize = mkCellSize(sudokuCanvas.size)
@@ -17,3 +18,4 @@ case class CellDetector(sudokuCanvas: Mat) {
   // 81 possibly detected cells, most of them probably filled with 0's
   val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 }
+  */

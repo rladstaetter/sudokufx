@@ -14,6 +14,7 @@ import scala.io.Source
  * Created by lad on 15.03.15.
  */
 object TemplateLibrary extends CanLog {
+
   private val (templateWidth, templateHeight) = (25.0, 50.0)
   val templateSize = new Size(templateWidth, templateHeight)
   var getResourceAsStream: String => InputStream = getClass.getResourceAsStream
@@ -32,11 +33,11 @@ object TemplateLibrary extends CanLog {
    *
    * @return
    */
-  def detectNumber(candidate: Mat): Future[(SNum, SHitQuality)] = {
+  def detectNumber(candidate: Mat): Future[(Int, SHitQuality)] = {
     val resizedCandidate = OpenCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
-    val matchHaystack: (SIndex, Mat) => Future[(SIndex, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
+    val matchHaystack: (Int, Mat) => Future[(Int, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
 
-    val result: Future[(SIndex, SHitQuality)] =
+    val result: Future[(Int, SHitQuality)] =
       for {s <- Future.sequence(for {(needle, number) <- TemplateLibrary.asSeq.zipWithIndex} yield
       for {(number, quality) <- matchHaystack(number + 1, needle)} yield (number, quality))
       } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head

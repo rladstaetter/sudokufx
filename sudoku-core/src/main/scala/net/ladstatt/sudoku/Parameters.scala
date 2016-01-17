@@ -40,7 +40,8 @@ object Parameters {
   val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
 
-  def row(i: SIndex): Int = i / 9
+  def row(i: Int): Int = i / 9
 
-  def col(i: SIndex): Int = i % 9
+  def col(i: Int): Int = i % 9
+
 }

@@ -150,10 +150,10 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
 
   def detectSudoku(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): SudokuResult = {
-    val input = inputFrame.rgba()
+    val frame = inputFrame.rgba()
     frameNr = frameNr + 1
     val (sudokuResult, currentDigitLibrary, currentHitCounters) =
-      Await.result(new SCandidate(frameNr, input).calc(digitLibrary, hitCounts, 8, 20, 5000L), Duration.Inf)
+      Await.result(new SCandidate(frameNr, FramePipeline(frame)).calc(digitLibrary, hitCounts, 8, 20, 5000L), Duration.Inf)
     digitLibrary = currentDigitLibrary
     hitCounts = currentHitCounters
     sudokuResult

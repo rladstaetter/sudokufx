@@ -1,7 +1,5 @@
 package net.ladstatt.sudoku
 
-import java.util
-
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
@@ -14,31 +12,37 @@ import scala.concurrent.Future
 /**
   *
   * @param nr number of the frame
-  * @param frame the frame information itself
   */
-case class SCandidate(nr: Int, frame: Mat) extends CanLog {
+case class SCandidate(nr: Int, framePipeline: FramePipeline) extends CanLog {
 
-  val start = System.nanoTime()
+  import Parameters._
 
-  private val imageIoChain: ImageIOChain = ImageIOChain(frame)
+  private val start = System.nanoTime()
 
-  private val cornerDetector: CornerDetector = CornerDetector(imageIoChain.dilated)
+  private val corners: MatOfPoint2f = SudokuUtils.detectSudokuCorners(framePipeline.dilated)
 
-  private lazy val warper = Warper(frame, cornerDetector.corners)
-  private lazy val cellDetector: CellDetector = CellDetector(warper.sudokuCanvas)
-  private lazy val sample: InputFrame = InputFrame(nr, frame, start, imageIoChain)
+  private val foundCorners: Boolean = !corners.empty
 
-  // TODO remove
-  def corners: util.List[Point] = cornerDetector.corners.toList
+  private val destCorners: MatOfPoint2f = OpenCV.mkCorners(framePipeline.frame.size)
+  private lazy val sudokuCanvas = OpenCV.warp(framePipeline.frame, corners, destCorners)
+  private lazy val cellSize = mkCellSize(sudokuCanvas.size)
+  private lazy val cellWidth = cellSize.width.toInt
+  private lazy val cellHeight = cellSize.height.toInt
 
-  def futureSCells = cellDetector.futureSCells
+  private lazy val cellRects: Seq[Rect] = cellRange.map {
+    case i => new Rect(col(i) * cellWidth, row(i) * cellHeight, cellWidth, cellHeight)
+  }
 
+  lazy val futureSCells: Seq[Future[SCell]] = cellRects.map(detectCell(TemplateLibrary.detectNumber, sudokuCanvas, _))
+  private lazy val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+
+  private lazy val sample: InputFrame = InputFrame(nr, framePipeline.frame, start, framePipeline)
 
   /**
     * This function uses an input image and a detection method to calculate the sudoku.
     *
-    * @param cap number of detections for a certain number until it is regarded as "stable enough"
-    * @param minHits minimal number of numbers before a the solving is attempted
+    * @param cap                number of detections for a certain number until it is regarded as "stable enough"
+    * @param minHits            minimal number of numbers before a the solving is attempted
     * @param maxSolvingDuration number of milliseconds which the solver is given before he gives up
     */
   def calc(lastDigitLibrary: DigitLibrary,
@@ -51,27 +55,20 @@ case class SCandidate(nr: Int, frame: Mat) extends CanLog {
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
 
-    if (cornerDetector.foundCorners) {
+    if (foundCorners) {
       for {
-        detectedCells <- cellDetector.futureDetectedCells
-        mergedLibrary = SudokuUtils.mergeDigitLibrary(warper.sudokuCanvas, lastDigitLibrary, detectedCells)
+        detectedCells <- futureDetectedCells
+        mergedLibrary = SudokuUtils.mergeDigitLibrary(sudokuCanvas, lastDigitLibrary, detectedCells)
         hitsToCompute = SudokuUtils.mergeHits(lastHits, detectedCells.map(_.value), cap)
-
         (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- SudokuUtils.computeSolution(hitsToCompute, mergedLibrary, cap, minHits, maxSolvingDuration)
+        withSolution <- SudokuUtils.paintSolution(sudokuCanvas, detectedCells.map(_.value), someSolutionCells, currentDigitLibrary, cellRects)
 
-        withSolution <- SudokuUtils.paintSolution(cellDetector.sudokuCanvas,
-          detectedCells.map(_.value),
-          someSolutionCells,
-          currentDigitLibrary,
-          cellDetector.cellRects)
+        annotatedSolution <- SudokuUtils.paintCorners(withSolution, cellRects, someSolutionCells, currentHits, cap)
 
-        annotatedSolution <- SudokuUtils.paintCorners(withSolution, cellDetector.cellRects, someSolutionCells, currentHits, cap)
-
-        unwarped = OpenCV.warp(annotatedSolution, mkCorners(frame.size), cornerDetector.corners)
-        solutionMat <- OpenCV.copySrcToDestWithMask(unwarped, frame, unwarped) // copy solution mat to input mat
-        sudokuFrame = SudokuFrame(warper.sudokuCanvas, detectedCells.toArray, cornerDetector.corners.toList.toList)
+        unwarped = OpenCV.warp(annotatedSolution, destCorners, corners)
+        solutionMat <- OpenCV.copySrcToDestWithMask(unwarped, framePipeline.frame, unwarped) // copy solution mat to input mat
+        sudokuFrame = SudokuFrame(sudokuCanvas, detectedCells.toArray, corners.toList.toList)
       } yield {
-
         val someSolution =
           if (someSolutionCells.isDefined) {
             Some(SolutionFrame(someDigitSolution.get, solutionMat))
