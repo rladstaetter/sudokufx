@@ -24,7 +24,7 @@ object BruteForceSolver {
 
   val description = "default"
 
-  def printTime(t: Long) = logInfo(s"solved in $t micros.")
+  def printTime(t: Long) = logInfo(s"solved in $t ms.")
 
   /**
     * give this function a net.ladstatt.apps.sudoku in the form

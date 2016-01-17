@@ -14,7 +14,7 @@ class Sudoku4Test {
 
   @Ignore @Test def testSudoku4(): Unit = {
     val sudoku4 = Imgcodecs.imread("src/test/resources/net/ladstatt/sudoku/sudoku_4.png")
-    val (_, (r, _, _)) = SudokuTestContext.calculate(sudoku4)
+    val (_, (r,  _)) = SudokuTestContext.calculate(sudoku4)
     r match {
       case s: SSuccess if s.someSolution.isDefined => Imgcodecs.imwrite("target/dest.png", s.someSolution.get.solutionMat)
       case s: SSuccess if s.someSolution.isEmpty =>

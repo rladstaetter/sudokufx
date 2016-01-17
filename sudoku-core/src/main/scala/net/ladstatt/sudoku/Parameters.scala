@@ -1,5 +1,6 @@
 package net.ladstatt.sudoku
 
+case class SudokuState(hitCounts: HitCounters, library: DigitLibrary)
 
 object Parameters {
 
@@ -36,9 +37,10 @@ object Parameters {
   val sectors: Seq[Seq[Int]] = Seq(leftRange, middleRange, rightRange)
 
 
-  val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
-  val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
+  private val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
+  private val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
+  val DefaultState = SudokuState(defaultHitCounters,defaultDigitLibrary)
 
   def row(i: Int): Int = i / 9
 

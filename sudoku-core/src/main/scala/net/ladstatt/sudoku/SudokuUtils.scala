@@ -2,6 +2,7 @@ package net.ladstatt.sudoku
 
 import java.io.File
 
+import net.ladstatt.sudoku
 import net.ladstatt.sudoku.Parameters._
 import net.ladstatt.core.CollectionUtils
 import net.ladstatt.opencv.OpenCV._
@@ -38,28 +39,33 @@ object SudokuUtils {
                       digitLibrary: DigitLibrary,
                       cap: Int,
                       minHits: Int,
-                      maxDuration: Long): Future[(Option[SudokuDigitSolution], Option[Cells], HitCounters, DigitLibrary)] =
+                      maxDuration: Long): Future[(Option[SudokuDigitSolution], Option[Cells], SudokuState)] =
     Future {
-      val (someDigitSolution, currentHits, currentDigitLibrary) =
-        if (nrDetections(hitCounters, cap) >= minHits) {
-          logInfo("Trying to solve with detectednumbers: " + nrDetections(hitCounters, cap) + ", minHits: " + minHits)
-          val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounters, cap)
-          val someResult: Option[SudokuDigitSolution] = solve(sudoku2Solve, maxDuration)
-          someResult.foreach {
-            case a =>
-              println(a.sliding(9, 9).map(new String(_)).mkString("\n"))
-          }
-          (someResult,
-            if (someResult.isDefined) hitCounters else Parameters.defaultHitCounters,
-            if (someResult.isDefined) digitLibrary else Parameters.defaultDigitLibrary) // reset if no valid solution was found
-        }
-        else
-        //  (Some(mkIntermediateSudokuMatrix(hitCounters)), hitCounters, digitLibrary)
-          (None, hitCounters, digitLibrary)
+      val (someDigitSolution, currentState) =
+        doit(hitCounters, digitLibrary, cap, minHits, maxDuration)
 
       val someCells: Option[Cells] = someDigitSolution.map(toSolutionCells(digitLibrary, _))
-      (someDigitSolution, someCells, currentHits, currentDigitLibrary)
+      (someDigitSolution, someCells, currentState)
     }
+
+  def doit(hitCounters: HitCounters, digitLibrary: DigitLibrary, cap: SCount, minHits: SCount, maxDuration: Long): (Option[sudoku.SudokuDigitSolution], sudoku.SudokuState) = {
+    if (nrDetections(hitCounters, cap) >= minHits) {
+      logInfo("NrDetections: " + nrDetections(hitCounters, cap) + " minHits: " + minHits)
+      val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounters, cap)
+      val someResult: Option[SudokuDigitSolution] = solve(sudoku2Solve, maxDuration)
+      /*
+          someResult.foreach {
+            case a => println(a.sliding(9, 9).map(new String(_)).mkString("\n"))
+          } */
+      (someResult,
+        if (someResult.isDefined) SudokuState(hitCounters,digitLibrary) else Parameters.DefaultState)
+
+      //  if (someResult.isDefined) digitLibrary else Parameters.defaultDigitLibrary) // reset if no valid solution was found
+    }
+    else
+    //  (Some(mkIntermediateSudokuMatrix(hitCounters)), hitCounters, digitLibrary)
+      (None, SudokuState(hitCounters, digitLibrary))
+  }
 
   private def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate, maxDuration)
 
@@ -109,7 +115,8 @@ object SudokuUtils {
 
   /**
    * paints green borders around the cells
-   * @param canvas
+    *
+    * @param canvas
    * @param rects
    * @param someSolution
    * @param hitCounts
@@ -182,6 +189,7 @@ object SudokuUtils {
   private def mkFallback(number: Int, digitLibrary: DigitLibrary): Option[Mat] = {
     /**
       * returns size and type of Mat's contained int he digitLibrary
+      *
       * @return
       */
     def determineMatParams(): Option[(Size, Int)] = {
@@ -212,7 +220,7 @@ object SudokuUtils {
     val cellAmbiguities = counters.values.map(m => m.size).count(_ > Parameters.ambiguitiesCount)
     if (cellAmbiguities > Parameters.ambiCount) {
       logError(s"Too many ambiguities ($cellAmbiguities), resetting .. ")
-      Parameters.defaultHitCounters
+      DefaultState.hitCounts
     }
     else counters
   }

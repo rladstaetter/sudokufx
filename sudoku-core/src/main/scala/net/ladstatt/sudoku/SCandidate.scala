@@ -17,8 +17,6 @@ case class SCandidate(nr: Int, framePipeline: FramePipeline) extends CanLog {
 
   import Parameters._
 
-  private val start = System.nanoTime()
-
   private val corners: MatOfPoint2f = SudokuUtils.detectSudokuCorners(framePipeline.dilated)
 
   private val foundCorners: Boolean = !corners.empty
@@ -36,7 +34,7 @@ case class SCandidate(nr: Int, framePipeline: FramePipeline) extends CanLog {
   lazy val futureSCells: Seq[Future[SCell]] = cellRects.map(detectCell(TemplateLibrary.detectNumber, sudokuCanvas, _))
   private lazy val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
-  private lazy val sample: InputFrame = InputFrame(nr, framePipeline.frame, start, framePipeline)
+  private lazy val sample: InputFrame = InputFrame(nr, framePipeline)
 
   /**
     * This function uses an input image and a detection method to calculate the sudoku.
@@ -45,11 +43,10 @@ case class SCandidate(nr: Int, framePipeline: FramePipeline) extends CanLog {
     * @param minHits            minimal number of numbers before a the solving is attempted
     * @param maxSolvingDuration number of milliseconds which the solver is given before he gives up
     */
-  def calc(lastDigitLibrary: DigitLibrary,
-           lastHits: HitCounters,
+  def calc(lastState: SudokuState,
            cap: Int,
            minHits: Int,
-           maxSolvingDuration: Long): Future[(SudokuResult, DigitLibrary, HitCounters)] = {
+           maxSolvingDuration: Long): Future[(SudokuResult, SudokuState)] = {
 
     // we have to walk two paths here: either we have detected something in the image
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
@@ -58,12 +55,12 @@ case class SCandidate(nr: Int, framePipeline: FramePipeline) extends CanLog {
     if (foundCorners) {
       for {
         detectedCells <- futureDetectedCells
-        mergedLibrary = SudokuUtils.mergeDigitLibrary(sudokuCanvas, lastDigitLibrary, detectedCells)
-        hitsToCompute = SudokuUtils.mergeHits(lastHits, detectedCells.map(_.value), cap)
-        (someDigitSolution, someSolutionCells, currentHits, currentDigitLibrary) <- SudokuUtils.computeSolution(hitsToCompute, mergedLibrary, cap, minHits, maxSolvingDuration)
-        withSolution <- SudokuUtils.paintSolution(sudokuCanvas, detectedCells.map(_.value), someSolutionCells, currentDigitLibrary, cellRects)
+        mergedLibrary = SudokuUtils.mergeDigitLibrary(sudokuCanvas, lastState.library, detectedCells)
+        hitsToCompute = SudokuUtils.mergeHits(lastState.hitCounts, detectedCells.map(_.value), cap)
+        (someDigitSolution, someSolutionCells, currentState) <- SudokuUtils.computeSolution(hitsToCompute, mergedLibrary, cap, minHits, maxSolvingDuration)
+        withSolution <- SudokuUtils.paintSolution(sudokuCanvas, detectedCells.map(_.value), someSolutionCells, currentState.library, cellRects)
 
-        annotatedSolution <- SudokuUtils.paintCorners(withSolution, cellRects, someSolutionCells, currentHits, cap)
+        annotatedSolution <- SudokuUtils.paintCorners(withSolution, cellRects, someSolutionCells, currentState.hitCounts, cap)
 
         unwarped = OpenCV.warp(annotatedSolution, destCorners, corners)
         solutionMat <- OpenCV.copySrcToDestWithMask(unwarped, framePipeline.frame, unwarped) // copy solution mat to input mat
@@ -74,10 +71,10 @@ case class SCandidate(nr: Int, framePipeline: FramePipeline) extends CanLog {
             Some(SolutionFrame(someDigitSolution.get, solutionMat))
           } else None
 
-        (SSuccess(sample, sudokuFrame, someSolution), currentDigitLibrary, currentHits)
+        (SSuccess(sample, sudokuFrame, someSolution), currentState)
       }
     } else {
-      Future.successful((SFailure("Couldn't detect corners", sample), lastDigitLibrary, lastHits))
+      Future.successful((SFailure("Couldn't detect corners", sample), lastState))
     }
 
   }

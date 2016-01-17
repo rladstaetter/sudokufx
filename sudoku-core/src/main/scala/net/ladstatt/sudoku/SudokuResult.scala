@@ -2,7 +2,7 @@ package net.ladstatt.sudoku
 
 import org.opencv.core.{Mat, Point}
 
-case class InputFrame(nr: Int, frame: Mat, start: Long, imageIOChain: FramePipeline)
+case class InputFrame(nr: Int, framePipeline: FramePipeline)
 
 case class SudokuFrame(in: Mat, cells: Cells, corners: List[Point]) {
   lazy val detectedCells = cells.filter(_.value != 0)

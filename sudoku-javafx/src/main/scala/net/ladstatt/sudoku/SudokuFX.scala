@@ -116,17 +116,13 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def setPerformanceTracker(performanceTracker: PerformanceTracker) = performanceTrackerProperty.set(performanceTracker)
 
-  val currentHitCountersProperty = new SimpleObjectProperty[HitCounters](this, "currentHitCountdsProperty", Parameters.defaultHitCounters)
 
-  def getCurrentHitCounters = currentHitCountersProperty.get()
+  val currentSudokuState = new SimpleObjectProperty[SudokuState](Parameters.DefaultState)
 
-  def setCurrentHitCounters(hitCounters: HitCounters) = currentHitCountersProperty.set(hitCounters)
+  def setCurrentSudokuState(sudokuState: SudokuState) = currentSudokuState.set(sudokuState)
 
-  val currentDigitLibraryProperty = new SimpleObjectProperty[DigitLibrary](this, "currentDigitLibraryProperty", Parameters.defaultDigitLibrary)
+  def getCurrentSudokuState(): SudokuState = currentSudokuState.get
 
-  def getCurrentDigitLibrary = currentDigitLibraryProperty.get()
-
-  def setCurrentDigitLibrary(library: DigitLibrary) = currentDigitLibraryProperty.set(library)
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
@@ -217,23 +213,21 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def process(candidate: SCandidate): Unit = {
     for {
-     /* _ <- execOnUIThread({
-        frameNumberGauge.setValue(Int.int2double(candidate.nr))
-      })
-      */
-      (result, udl, currentHits) <-
-      candidate.calc(getCurrentDigitLibrary, getCurrentHitCounters, getCap, getMinHits, getMaxSolvingTime)
+    /* _ <- execOnUIThread({
+       frameNumberGauge.setValue(Int.int2double(candidate.nr))
+     })
+     */
+      (result, nextState) <-
+      candidate.calc(getCurrentSudokuState(), getCap, getMinHits, getMaxSolvingTime)
 
     } {
-      setCurrentDigitLibrary(udl)
-      setCurrentHitCounters(currentHits)
+      setCurrentSudokuState(nextState)
       display(result)
     }
   }
 
   def resetState(): Unit = {
-    setCurrentDigitLibrary(Parameters.defaultDigitLibrary)
-    setCurrentHitCounters(Parameters.defaultHitCounters)
+    setCurrentSudokuState(Parameters.DefaultState)
   }
 
   def shutdown(): Unit = {
@@ -456,9 +450,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
 
-    def updateVideo(stage: ProcessingStage, frame: Mat, imageIoChain: FramePipeline, solutionMat: Mat): Unit = {
+    def updateVideo(stage: ProcessingStage, imageIoChain: FramePipeline, solutionMat: Mat): Unit = {
       stage match {
-        case InputStage => updateVideoView(frame)
+        case InputStage => updateVideoView(imageIoChain.frame)
         case GrayedStage => updateVideoView(imageIoChain.grayed)
         case BlurredStage => updateVideoView(imageIoChain.blurred)
         case ThresholdedStage => updateVideoView(imageIoChain.thresholded)
@@ -469,19 +463,19 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     }
 
-    displayHitCounts(getCurrentHitCounters, as[FlowPane](statsFlowPane.getChildren))
+    displayHitCounts(getCurrentSudokuState().hitCounts, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
-      case SSuccess(InputFrame(nr, frame, start, imageIoChain), SudokuFrame(sudokuCanvas, detectedCells, corners), someSolution) =>
+      case SSuccess(InputFrame(nr, framePipeline), SudokuFrame(sudokuCanvas, detectedCells, corners), someSolution) =>
         if (someSolution.isDefined) {
           val sol = someSolution.get
-          updateVideo(stage, frame, imageIoChain, sol.solutionMat)
+          updateVideo(stage, framePipeline, sol.solutionMat)
           displayResult(sol.solution, as[Label](resultFlowPane.getChildren))
         } else {
-          updateVideo(stage, frame, imageIoChain, frame)
+          updateVideo(stage, framePipeline, framePipeline.frame)
         }
-      case SFailure(msg, InputFrame(nr, frame, start, imageIoChain)) =>
-        updateVideo(stage, frame, imageIoChain, frame)
+      case SFailure(msg, InputFrame(nr, framePipeline)) =>
+        updateVideo(stage, framePipeline, framePipeline.frame)
     }
 
   }
@@ -495,18 +489,18 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     }
     setAnalysisMouseTransparent(false)
-    updateDigitLibraryView(getCurrentDigitLibrary, as[ImageView](numberFlowPane.getChildren))
+    updateDigitLibraryView(getCurrentSudokuState().library, as[ImageView](numberFlowPane.getChildren))
     frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
     result match {
       case success: SSuccess if success.someSolution.isDefined =>
         detectionGauge.setValue(detectionGauge.getValue + 1)
         lastDetectionGauge.setValue(Int.int2double(success.sudokuFrame.detectedCells.length))
-        updateStatus(mkFps(success.inputFrame.start), Color.GREEN)
+        updateStatus(mkFps(success.inputFrame.framePipeline.start), Color.GREEN)
       case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
-        updateStatus(mkFps(onlyCorners.inputFrame.start), Color.ORANGE)
+        updateStatus(mkFps(onlyCorners.inputFrame.framePipeline.start), Color.ORANGE)
         updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
         updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
-      case SFailure(msg, InputFrame(nr, frame, start, imageIoChain)) => updateStatus(mkFps(start), Color.AQUA)
+      case SFailure(msg, InputFrame(_, framePipeline)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
     }
   }
 
