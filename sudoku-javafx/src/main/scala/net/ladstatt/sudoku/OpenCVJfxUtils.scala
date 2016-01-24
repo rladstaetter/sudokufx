@@ -1,19 +1,27 @@
 package net.ladstatt.sudoku
 
 import java.awt.image.BufferedImage
-import java.io.File
+import java.io.{ByteArrayInputStream, File}
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.Image
 
-import org.opencv.core.{Mat, Point}
+import net.ladstatt.core.CanLog
+import org.opencv.core.{Mat, MatOfByte, Point}
 import org.opencv.imgcodecs.Imgcodecs
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-trait OpenCVJfxUtils {
+trait OpenCVJfxUtils extends CanLog {
 
-  def toImage(matrix: Mat): Image = {
+   // TODO profile if toImage or toImage2 is faster
+  def toImage(mat: Mat): Image =  {
+    val byteMat = new MatOfByte()
+    Imgcodecs.imencode(".bmp", mat, byteMat)
+    new Image(new ByteArrayInputStream(byteMat.toArray))
+  }
+
+  def toImage2(matrix: Mat): Image = logWithTimer("frame2",{
     val cols = matrix.cols()
     val rows = matrix.rows()
     val elemSize = matrix.elemSize()
@@ -50,7 +58,7 @@ trait OpenCVJfxUtils {
     val image = new BufferedImage(cols, rows, lType)
     image.getRaster.setDataElements(0, 0, cols, rows, data)
     SwingFXUtils.toFXImage(image, null)
-  }
+  }                   )
 
 
   def convert2PolyLinePoints(points: Iterable[Point]): List[java.lang.Double] = {
