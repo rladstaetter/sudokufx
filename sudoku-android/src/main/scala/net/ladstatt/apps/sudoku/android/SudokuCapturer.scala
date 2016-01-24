@@ -8,8 +8,8 @@ import _root_.android.view.{Gravity, View, WindowManager}
 import _root_.android.widget.{Button, FrameLayout}
 import com.google.ads.{AdRequest, AdSize, AdView}
 import net.ladstatt.sudoku._
-import org.opencv.android.{OpenCVLoader, CameraBridgeViewBase}
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
+import org.opencv.android.{CameraBridgeViewBase, OpenCVLoader}
 import org.opencv.core.Mat
 
 import scala.concurrent.Await
@@ -33,7 +33,11 @@ trait CanLog {
 
 }
 
+
 object AndroidOpenCV extends CanLog {
+
+  val DefaultAndroidState = Parameters.DefaultState.copy(cap = 8, minHits = 20, maxSolvingDuration = 5000L)
+
   def init(): Unit = {
     if (OpenCVLoader.initDebug()) {
       logInfo("OpenCV initialized successfully.")
@@ -58,7 +62,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   val AdsenseKey: String = "ca-app-pub-1727389366588084/4496274256"
 
 
-  var currState : SudokuState = _
+  var currState: SudokuState = AndroidOpenCV.DefaultAndroidState
 
   def initAssets(): Unit = {
     TemplateLibrary.getResourceAsStream = getAssets().open
@@ -81,7 +85,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
     rescanButton.setOnClickListener(new OnClickListener {
       override def onClick(v: View): Unit = {
         //  rescanButton.setVisibility(View.GONE)
-        currState = Parameters.DefaultState
+        currState = AndroidOpenCV.DefaultAndroidState
         rescanButton.setVisibility(View.GONE)
         //  adView.setVisibility(View.GONE)
         solution = null
@@ -121,7 +125,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
   override def onResume(): Unit = {
     super.onResume()
-   // logInfo("onResume called")
+    // logInfo("onResume called")
     AndroidOpenCV.init()
     //OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, this, mLoaderCallback)
     ()
@@ -137,8 +141,9 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   def detectSudoku(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): SudokuResult = {
     val frame = inputFrame.rgba()
     frameNr = frameNr + 1
-    val (sudokuResult, nextState) =
-      Await.result(new SCandidate(frameNr, FramePipeline(frame)).calc(Parameters.DefaultState, 8, 20, 5000L), Duration.Inf)
+    val pipeline: FramePipeline = FramePipeline(frame)
+
+    val (sudokuResult, nextState) = Await.result(new SCandidateImpl(frameNr, pipeline).calc(currState), Duration.Inf)
     currState = nextState
     sudokuResult
   }
@@ -155,7 +160,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   }
 
   def onCameraViewStopped() {
-   // logInfo("onCameraViewStopped called")
+    // logInfo("onCameraViewStopped called")
   }
 
   def onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat = {

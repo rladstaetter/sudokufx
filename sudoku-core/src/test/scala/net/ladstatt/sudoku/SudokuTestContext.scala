@@ -36,12 +36,13 @@ object SudokuTestContext {
   lazy val frameSudoku_1: Mat = Imgcodecs.imread("src/test/resources/net/ladstatt/sudoku/sudoku_1.png")
   lazy val emptyFrame: Mat = new Mat(1280, 768, CvType.CV_8UC3)
 
-  lazy val (sudoku_1, (sudoku_1Result,  _)) = calculate(frameSudoku_1)
+  lazy val (sudoku_1, (sudoku_1Result, _)) = calculate(frameSudoku_1)
   lazy val (emptySudoku, (emptySudokuResult, _)) = calculate(emptyFrame)
 
-  def calculate(frame: Mat): (SCandidate, (SudokuResult, SudokuState)) = {
-    val c = SCandidate(0, FramePipeline(frame))
-    (c, Await.result(c.calc(Parameters.DefaultState, 1, 17, 5000L), Duration.Inf))
+  def calculate(frame: Mat): (SCandidateImpl, (SudokuResult, SudokuState)) = {
+    val c = SCandidateImpl(0, FramePipeline(frame))
+    val state = Parameters.DefaultState.copy(cap = 1, minHits = 17, maxSolvingDuration = 5000L)
+    (c, Await.result(c.calc(state), Duration.Inf))
   }
 
 }

@@ -1,9 +1,50 @@
 package net.ladstatt.sudoku
 
-case class SudokuState(hitCounts: HitCounters, library: DigitLibrary)
+import net.ladstatt.opencv.OpenCV._
+import net.ladstatt.sudoku
+
+/**
+  *
+  * @param hitCounts
+  * @param library
+  * @param cap                number of detections for a certain number until it is regarded as "stable enough"
+  * @param minHits            minimal number of numbers before a the solving is attempted
+  * @param maxSolvingDuration number of milliseconds which the solver is given before he gives up
+  *
+  */
+case class SudokuState(hitCounts: HitCounters,
+                       library: DigitLibrary,
+                       cap: Int,         // TODO NOT used?
+                       minHits: Int,
+                       maxSolvingDuration: Long) {
+
+  import SudokuUtils._
+
+  val detections: SCount = nrDetections(hitCounts, cap)
+
+
+
+  def solveSudoku(): (Option[sudoku.SudokuDigitSolution],Option[Cells], sudoku.SudokuState) = {
+    if (detections >= minHits) {
+      logInfo("NrDetections: " + detections + " minHits: " + minHits)
+      val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounts, cap)
+      val someResult: Option[SudokuDigitSolution] = solve(sudoku2Solve, maxSolvingDuration)
+      val someCells: Option[Cells] = someResult.map(toSolutionCells(library, _))
+      (someResult, someCells, if (someResult.isDefined) this else Parameters.DefaultState)
+    } else (None, None, this)
+  }
+}
 
 object Parameters {
 
+  /**
+    * the maximum time the algorithm should search for a solution
+    */
+  val maxSolvingDuration: Long = 5000L
+
+  // least number of matches necessary to identify one number
+  // if you have a good camera, take 1 to get fast response
+  val cap = 3
 
   // number of different values a cell can have before the cell is label 'ambiguous'
   val ambiguitiesCount = 5
@@ -14,9 +55,6 @@ object Parameters {
   // numbers won't get any larger in the status matrix than this number
   val topCap = 5
 
-  // least number of matches necessary to identify one number
-  // if you have a good camera, take 1 to get fast response
-  val cap = 3
 
   assert(topCap - cap > 0)
 
@@ -40,8 +78,7 @@ object Parameters {
   private val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
   private val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
-  val DefaultState = SudokuState(defaultHitCounters,defaultDigitLibrary)
-
+  val DefaultState = SudokuState(defaultHitCounters, defaultDigitLibrary, cap, minHits, maxSolvingDuration)
   def row(i: Int): Int = i / 9
 
   def col(i: Int): Int = i % 9

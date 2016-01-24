@@ -35,39 +35,11 @@ object SudokuUtils {
   }
 
 
-  def computeSolution(hitCounters: HitCounters,
-                      digitLibrary: DigitLibrary,
-                      cap: Int,
-                      minHits: Int,
-                      maxDuration: Long): Future[(Option[SudokuDigitSolution], Option[Cells], SudokuState)] =
-    Future {
-      val (someDigitSolution, currentState) =
-        doit(hitCounters, digitLibrary, cap, minHits, maxDuration)
+  def computeSolution(sudokuState : SudokuState): Future[(Option[SudokuDigitSolution], Option[Cells], SudokuState)] =
+    Future {sudokuState.solveSudoku()}
 
-      val someCells: Option[Cells] = someDigitSolution.map(toSolutionCells(digitLibrary, _))
-      (someDigitSolution, someCells, currentState)
-    }
 
-  def doit(hitCounters: HitCounters, digitLibrary: DigitLibrary, cap: SCount, minHits: SCount, maxDuration: Long): (Option[sudoku.SudokuDigitSolution], sudoku.SudokuState) = {
-    if (nrDetections(hitCounters, cap) >= minHits) {
-      logInfo("NrDetections: " + nrDetections(hitCounters, cap) + " minHits: " + minHits)
-      val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounters, cap)
-      val someResult: Option[SudokuDigitSolution] = solve(sudoku2Solve, maxDuration)
-      /*
-          someResult.foreach {
-            case a => println(a.sliding(9, 9).map(new String(_)).mkString("\n"))
-          } */
-      (someResult,
-        if (someResult.isDefined) SudokuState(hitCounters,digitLibrary) else Parameters.DefaultState)
-
-      //  if (someResult.isDefined) digitLibrary else Parameters.defaultDigitLibrary) // reset if no valid solution was found
-    }
-    else
-    //  (Some(mkIntermediateSudokuMatrix(hitCounters)), hitCounters, digitLibrary)
-      (None, SudokuState(hitCounters, digitLibrary))
-  }
-
-  private def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate, maxDuration)
+  def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate, maxDuration)
 
   def withCap(cap: Int)(v: Int) = v >= cap
 
@@ -205,7 +177,7 @@ object SudokuUtils {
     }
   }
 
-  def mergeHits(currentHitCounts: HitCounters, detections: Seq[Int], cap: Int): HitCounters = {
+  def mergeHits(currentHitCounts: HitCounters, detections: Seq[Int]): HitCounters = {
     val hits =
       (for ((value, index) <- detections.zipWithIndex) yield {
         val frequencies: Map[Int, Int] = currentHitCounts(index)

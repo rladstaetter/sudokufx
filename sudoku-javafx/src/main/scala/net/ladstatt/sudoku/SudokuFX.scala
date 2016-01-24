@@ -131,27 +131,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   def setFrameNumber(i: Int) = frameNumberProperty.set(i)
 
 
-  val capProperty = new SimpleIntegerProperty(this, "cap", Parameters.cap)
-
-  def getCap: Integer = capProperty.get()
-
-  def setCap(cap: Integer): Unit = capProperty.set(cap)
-
-
-  val minHitsProperty = new SimpleIntegerProperty(this, "minhits", Parameters.minHits)
-
-  def getMinHits: Integer = minHitsProperty.get()
-
-  def setMinHits(minHits: Integer): Unit = minHitsProperty.set(minHits)
-
-
-  val maxSolvingTimeProperty = new SimpleLongProperty(this, "maxSolvingTime", 5000L)
-
-  def getMaxSolvingTime: Long = maxSolvingTimeProperty.get()
-
-  def setMaxSolvingTime(maxSolvingTime: Long): Unit = maxSolvingTimeProperty.set(maxSolvingTime)
-
-
   val cameraActiveProperty = new SimpleBooleanProperty(true)
 
   def setCameraActive(isActive: Boolean): Unit = cameraActiveProperty.set(isActive)
@@ -207,19 +186,14 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       new Subscription {}
     }).zipWithIndex.map {
       case (frame, index) =>
-        SCandidate(index, FramePipeline(frame))
+        val framePipeline = FramePipeline(frame)
+        SCandidateImpl(index, framePipeline)
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
   def process(candidate: SCandidate): Unit = {
     for {
-    /* _ <- execOnUIThread({
-       frameNumberGauge.setValue(Int.int2double(candidate.nr))
-     })
-     */
-      (result, nextState) <-
-      candidate.calc(getCurrentSudokuState(), getCap, getMinHits, getMaxSolvingTime)
-
+      (result, nextState) <- candidate.calc(getCurrentSudokuState())
     } {
       setCurrentSudokuState(nextState)
       display(result)
