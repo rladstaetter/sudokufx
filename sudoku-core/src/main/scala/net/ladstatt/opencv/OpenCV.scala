@@ -9,7 +9,6 @@ import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
@@ -22,6 +21,12 @@ object OpenCV extends CanLog {
   import Parameters._
 
   lazy val EmptyCorners = new MatOfPoint2f
+
+  lazy val Kernel: Mat = {
+    val k = new Mat(3, 3, CvType.CV_8U)
+    k.put(0, 0, Array[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0))
+    k
+  }
 
   def copyMat(orig: Mat): Mat = {
     val dest = new Mat()
@@ -45,7 +50,12 @@ object OpenCV extends CanLog {
   }
 
 
-
+  /**
+    * (a,b,c,d)
+    *
+    * @param corners
+    * @return
+    */
   def isSomewhatSquare(corners: Seq[Point]): Boolean = {
 
     import scala.math.{abs, atan2}
@@ -54,17 +64,16 @@ object OpenCV extends CanLog {
       atan2(b.y - a.y, b.x - a.x) * 180 / scala.math.Pi
     }
 
-    def hasAlignedAngles: Boolean =
-      abs(calcAngle(corners(0), corners(1)) - calcAngle(corners(3), corners(2))) < 10 &&
-        abs(calcAngle(corners(0), corners(3)) - calcAngle(corners(1), corners(2))) < 10
+    if (corners.nonEmpty) {
+      val hasAlignedAngles: Boolean =
+        abs(calcAngle(corners(0), corners(1)) - calcAngle(corners(3), corners(2))) < 10 &&
+          abs(calcAngle(corners(0), corners(3)) - calcAngle(corners(1), corners(2))) < 10
 
-    hasAlignedAngles
+      hasAlignedAngles
+    } else {
+      false
+    }
   }
-
-  /*
-  def mkRect(i: Int, size: Size): Rect = {
-    new Rect(col(i) * size.width.toInt, row(i) * size.height.toInt, size.width.toInt, size.height.toInt)
-  }      */
 
   def mkCorners(size: Size): MatOfPoint2f = {
     val (width, height) = (size.width, size.height)
@@ -74,18 +83,10 @@ object OpenCV extends CanLog {
       new Point(0, height))
   }
 
-  def toMat(buffer: Array[Int], size: Size): Mat = {
-    toMat(buffer, size.width.toInt, size.height.toInt)
-  }
 
-  def toMat(buffer: Array[Int], width: Int, height: Int): Mat = {
-    val m = new Mat(height, width, CvType.CV_8UC1)
-    for {
-      x <- 0 until width
-      y <- 0 until height
-    } {
-      m.put(y, x, Array[Byte](buffer(x + width * y).toByte))
-    }
+  def toMat(buffer: Array[Byte], size: Size): Mat = {
+    val m = new Mat(size, CvType.CV_8UC1)
+    m.put(0, 0, buffer)
     m
   }
 
@@ -141,7 +142,7 @@ object OpenCV extends CanLog {
   def norm(mat: Mat): Future[Mat] = {
     for {
       b <- gaussianblur(mat)
-      dilated <- dilate(b)
+      dilated <- dilate(b, OpenCV.Kernel)
       thresholded <- adaptiveThreshold(dilated, 255, 9)
     } yield thresholded
   }
@@ -201,6 +202,9 @@ object OpenCV extends CanLog {
     * warps image to make feature extraction's life easier (time intensive call)
     */
   def warp(input: Mat, srcCorners: MatOfPoint2f, destCorners: MatOfPoint2f): Mat = {
+    require(srcCorners.toList.size == 4)
+    require(destCorners.toList.size == 4)
+
     val transformationMatrix = Imgproc.getPerspectiveTransform(srcCorners, destCorners)
 
     val dest = new Mat()
@@ -209,9 +213,9 @@ object OpenCV extends CanLog {
   }
 
   // input mat will be altered by the findContours(...) function
-  def coreFindContours(input: Mat): Seq[MatOfPoint] = {
+  def findContours(input: Mat, mode: Int , method: Int): Seq[MatOfPoint] = {
     val contours = new java.util.ArrayList[MatOfPoint]()
-    Imgproc.findContours(input, contours, new Mat, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
+    Imgproc.findContours(input, contours, new Mat, mode, method)
     contours
   }
 
@@ -248,7 +252,7 @@ object OpenCV extends CanLog {
                       maxArea: Double): Option[Mat] = {
     val input = new Mat
     original.copyTo(input)
-    val contours = coreFindContours(input)
+    val contours = findContours(input, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE)
     findBestFit(contours, center, minArea, maxArea) map {
       case (contourArea, curve, contour) => {
         original.submat(Imgproc.boundingRect(contour))
@@ -260,13 +264,13 @@ object OpenCV extends CanLog {
     * sort points in following order:
     * topleft, topright, bottomright, bottomleft
     */
-  def mkSortedCorners(points: MatOfPoint2f): MatOfPoint2f = {
+  def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
     val pointsAsList = points.toList
     val sortBySum = pointsAsList.sortWith((l, r) => (l.x + l.y) < (r.x + r.y))
     val sortByDifference = pointsAsList.sortWith((l, r) => (l.y - l.x) < (r.y - r.x))
     val (topleft, bottomright) = (sortBySum.head, sortBySum.reverse.head)
     val (topright, bottomleft) = (sortByDifference.head, sortByDifference.reverse.head)
-    new MatOfPoint2f(topleft, topright, bottomright, bottomleft)
+    Seq(topleft, topright, bottomright, bottomleft)
   }
 
   def adaptiveThreshold(input: Mat,
@@ -294,18 +298,12 @@ object OpenCV extends CanLog {
       output
     }
 
-  def mkKernel(size: Int, kernelData: ArrayBuffer[Byte]) = {
-    val kernel = new Mat(size, size, CvType.CV_8U)
-    kernel.put(0, 0, kernelData.toArray)
-    kernel
-  }
 
-  def dilate(input: Mat): Future[Mat] =
+  def dilate(input: Mat, kernel: Mat): Future[Mat] =
     Future {
       val output = new Mat
       val anchor = new Point(-1, -1)
-      Imgproc.dilate(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)), anchor, 2)
-      //Imgproc.erode(input, output, mkKernel(3, ArrayBuffer[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0)))
+      Imgproc.dilate(input, output, kernel, anchor, 2)
       output
     }
 
@@ -395,9 +393,9 @@ object OpenCV extends CanLog {
     } yield inverted
   }
 
-  def detectCell(detectNumber: Mat => Future[(Int, SHitQuality)], sudokuPlane: Mat, roi: Rect): Future[SCell] = {
+  def detectCell(detectNumber: Mat => Future[(Int, SHitQuality)], sudokuCanvas: Mat, roi: Rect): Future[SCell] = {
     for {
-      contour <- extractContour(sudokuPlane.submat(roi))
+      contour <- extractContour(sudokuCanvas.submat(roi))
       (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
     } yield {
       SCell(value, quality, roi)

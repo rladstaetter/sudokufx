@@ -15,19 +15,19 @@ import java.util.concurrent.TimeUnit
 import java.util.{Date, ResourceBundle}
 import javafx.animation.FadeTransition
 import javafx.application.Application
-import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
+import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
-import javafx.scene.shape.{Circle, Polyline, Rectangle}
+import javafx.scene.shape.{Circle, Polygon, Polyline, Rectangle}
 
 import com.sun.javafx.perf.PerformanceTracker
 import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
-import org.opencv.core.{Mat, Point}
+import org.opencv.core.{Mat, MatOfPoint, Point}
 import org.opencv.videoio.VideoCapture
 import rx.lang.scala.{Observable, Subscription}
 
@@ -110,6 +110,11 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   @FXML var frameRateGauge: SimpleMetroArcGauge = _
   @FXML var lastDetectionGauge: SimpleMetroArcGauge = _
 
+  @FXML var contourModeChoiceBox: ChoiceBox[Int] = _
+  @FXML var contourMethodChoiceBox: ChoiceBox[Int] = _
+  @FXML var contourRatioChoiceBox: ChoiceBox[Int] = _
+  @FXML var polyArea: AnchorPane = _
+
   val performanceTrackerProperty = new SimpleObjectProperty[PerformanceTracker]()
 
   def getPerformanceTracker = performanceTrackerProperty.get()
@@ -137,7 +142,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def getCameraActive: Boolean = cameraActiveProperty.get
 
-  val basedir: File = new File("./runs/")
+  val basedir: File = new File("./target/runs/")
+  basedir.mkdirs()
   val workingDirectory = new File(basedir, new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date()))
   val history: Array[File] = basedir.listFiles()
 
@@ -187,15 +193,34 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     }).zipWithIndex.map {
       case (frame, index) =>
         val framePipeline = FramePipeline(frame)
-        SCandidateImpl(index, framePipeline)
+        SCandidateImpl(index, framePipeline, SParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue))
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
+
+  def displayContours(contours: Seq[MatOfPoint]) = {
+    val polys =
+      contours.map {
+        c =>
+          val p = new Polygon()
+          c.toList.foldLeft(p)((acc, p) => {
+            acc.getPoints.addAll(p.x, p.y)
+            acc
+          })
+          p.setStroke(Color.AQUAMARINE)
+          p
+      }
+    execOnUIThread({
+      polyArea.getChildren.clear()
+      polyArea.getChildren.addAll(polys)
+    })
+  }
 
   def process(candidate: SCandidate): Unit = {
     for {
       (result, nextState) <- candidate.calc(getCurrentSudokuState())
     } {
       setCurrentSudokuState(nextState)
+      displayContours(candidate.contours)
       display(result)
     }
   }
@@ -252,7 +277,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       })
   }
 
-  val layoutY = 30.0
 
   val analysisCellCorners: Array[Circle] = Array.tabulate(100)(mkCellCorner)
   val analysisCellBounds: Array[Polyline] = Array.tabulate(81)(mkCellBound)
@@ -275,7 +299,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
     line.setBlendMode(BlendMode.MULTIPLY)
     line.setEffect(new DropShadow())
-    line.setLayoutY(layoutY)
     line.setOnMouseEntered(mkEventHandler(e => {
       analysisFadeIn.play()
       logInfo(s"entered box $idx")
@@ -292,7 +315,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     line.setStroke(Color.BLUE)
     line.setStrokeWidth(5)
     line.setEffect(new DropShadow())
-    line.setLayoutY(layoutY) // 30 pixels down
     line.setOnMouseEntered(mkEventHandler(e => {
       line.setOpacity(1.0)
     }))
@@ -323,8 +345,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def setWorkingDirectory(file: File) = workingDirectoryProperty.set(file)
 
-  def updateVideoView(mat: Mat): Unit = {
-    videoView.setImage(toImage(mat))
+  def setVideoView(mat: Mat): Unit = {
+    val image: Image = toImage(mat)
+    videoView.setImage(image)
   }
 
 
@@ -346,7 +369,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     c.setRadius(3)
     c.setStroke(Color.GOLD)
     c.setFill(Color.INDIANRED)
-    c.setLayoutY(layoutY)
     c
   }
 
@@ -426,14 +448,14 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
     def updateVideo(stage: ProcessingStage, imageIoChain: FramePipeline, solutionMat: Mat): Unit = {
       stage match {
-        case InputStage => updateVideoView(imageIoChain.frame)
-        case GrayedStage => updateVideoView(imageIoChain.grayed)
-        case BlurredStage => updateVideoView(imageIoChain.blurred)
-        case ThresholdedStage => updateVideoView(imageIoChain.thresholded)
-        case InvertedStage => updateVideoView(imageIoChain.inverted)
-        case DilatedStage => updateVideoView(imageIoChain.dilated)
-        case ErodedStage => updateVideoView(imageIoChain.eroded)
-        case SolutionStage => updateVideoView(solutionMat)
+        case InputStage => setVideoView(imageIoChain.frame)
+        case GrayedStage => setVideoView(imageIoChain.grayed)
+        case BlurredStage => setVideoView(imageIoChain.blurred)
+        case ThresholdedStage => setVideoView(imageIoChain.thresholded)
+        case InvertedStage => setVideoView(imageIoChain.inverted)
+        case DilatedStage => setVideoView(imageIoChain.dilated)
+        case ErodedStage => setVideoView(imageIoChain.eroded)
+        case SolutionStage => setVideoView(solutionMat)
       }
     }
 
@@ -462,6 +484,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         updateDisplay(userData.asInstanceOf[ProcessingStage], result)
       }
     }
+
+
     setAnalysisMouseTransparent(false)
     updateDigitLibraryView(getCurrentSudokuState().library, as[ImageView](numberFlowPane.getChildren))
     frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
@@ -595,8 +619,19 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     (1 to 9).foreach(i => numberFlowPane.getChildren.add(new ImageView))
   }
 
+  def initializeChoiceBoxes() = {
+    contourModeChoiceBox.getItems.addAll(0, 1, 2, 3)
+    contourMethodChoiceBox.getItems.addAll(1, 2, 3, 4)
+    contourRatioChoiceBox.getItems.addAll(0 to 60 by 5)
+    contourModeChoiceBox.setValue(3)
+    contourMethodChoiceBox.setValue(2)
+    contourRatioChoiceBox.setValue(30)
+  }
+
+
   override def initialize(location: URL, resources: ResourceBundle): Unit = {
 
+    initializeChoiceBoxes()
     initializeSharedState(location, resources)
     initializeCapturing(location, resources)
 

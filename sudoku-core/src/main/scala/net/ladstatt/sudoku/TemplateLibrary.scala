@@ -21,8 +21,8 @@ object TemplateLibrary extends CanLog {
   var templateResource: String = "templates.csv"
 
   lazy val asSeq: Seq[Mat] = logWithTimer("Initialize templates", {
-    val digits: Seq[Array[Int]] =
-      Source.fromInputStream(getResourceAsStream(templateResource)).getLines().map(l => l.split(",").map(e => if (e == "0") 0 else 255)).toSeq
+    val digits: Seq[Array[Byte]] =
+      Source.fromInputStream(getResourceAsStream(templateResource)).getLines().map(l => l.split(",").map(e => if (e == "0") 0.toByte else 255.toByte)).toSeq
 
     digits.map(OpenCV.toMat(_, templateSize))
   })

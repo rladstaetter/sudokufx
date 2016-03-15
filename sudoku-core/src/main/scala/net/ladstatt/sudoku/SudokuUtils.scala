@@ -1,17 +1,14 @@
 package net.ladstatt.sudoku
 
-import java.io.File
-
-import net.ladstatt.sudoku
-import net.ladstatt.sudoku.Parameters._
 import net.ladstatt.core.CollectionUtils
 import net.ladstatt.opencv.OpenCV._
+import net.ladstatt.sudoku.Parameters._
 import org.opencv.core._
 import org.opencv.imgproc.Imgproc
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Try, Random}
+import scala.util.Random
 
 
 /**
@@ -20,14 +17,14 @@ import scala.util.{Try, Random}
 object SudokuUtils {
 
   /**
-   * given a frequency table, returns a number which exceed a certain threshold randomly
-   *
-   * @param freqs
-   * @param threshold
-   * @return
-   */
+    * given a frequency table, returns a number which exceed a certain threshold randomly
+    *
+    * @param freqs
+    * @param threshold
+    * @return
+    */
   def filterHits(freqs: Map[Int, Int], threshold: Int): Option[(Int, Int)] = {
-    freqs.find { case (value, f) => value != 0 && f >= threshold}
+    freqs.find { case (value, f) => value != 0 && f >= threshold }
   }
 
   def nrDetections(hitCounts: HitCounters, cap: Int): Int = {
@@ -35,8 +32,10 @@ object SudokuUtils {
   }
 
 
-  def computeSolution(sudokuState : SudokuState): Future[(Option[SudokuDigitSolution], Option[Cells], SudokuState)] =
-    Future {sudokuState.solveSudoku()}
+  def computeSolution(sudokuState: SudokuState): Future[(Option[SudokuDigitSolution], Option[Cells], SudokuState)] =
+    Future {
+      sudokuState.solveSudoku()
+    }
 
 
   def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate, maxDuration)
@@ -57,13 +56,13 @@ object SudokuUtils {
 
 
   /**
-   * Performance:
-   *
-   * Benchmark                                          Mode   Samples         Mean   Mean error    Units
-   * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
-   *
-   * @return
-   */
+    * Performance:
+    *
+    * Benchmark                                          Mode   Samples         Mean   Mean error    Units
+    * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
+    *
+    * @return
+    */
   def toSolutionCells(digitLibrary: DigitLibrary, digitSolution: SudokuDigitSolution): Cells = {
     val allCells: Cells =
       (for (pos <- cellRange) yield {
@@ -86,14 +85,14 @@ object SudokuUtils {
 
 
   /**
-   * paints green borders around the cells
+    * paints green borders around the cells
     *
     * @param canvas
-   * @param rects
-   * @param someSolution
-   * @param hitCounts
-   * @return
-   */
+    * @param rects
+    * @param someSolution
+    * @param hitCounts
+    * @return
+    */
   def paintCorners(canvas: Mat,
                    rects: Seq[Rect],
                    someSolution: Option[Cells],
@@ -223,39 +222,44 @@ object SudokuUtils {
       }).toMap
   }
 
-  def persist(file: File): Try[File] = {
-    Try(file)
-    //    OpenCV.persist(frame, file)
-  }
-
-
-  def detectSudokuCorners(input: Mat, ratio: Int = 30): MatOfPoint2f = {
+  /**
+    * Awaits a preprocessed video frame and finds the corners of the biggest rectangle seen
+    * in the input.
+    *
+    * @param input
+    * @return
+    */
+  def detectSudokuCorners(input: Mat, params: SParams): (Seq[MatOfPoint], Option[MatOfPoint2f]) = {
     import scala.collection.JavaConversions._
-    extractCurveWithMaxArea(coreFindContours(input)) match {
-      case None =>
-        logWarn("Could not detect any curve ... ")
-        EmptyCorners
-      case Some((maxArea, c)) =>
-        val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / ratio
-        if (maxArea > expectedMaxArea) {
-          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
-          if (has4Sides(approxCurve)) {
-            val corners = mkSortedCorners(approxCurve)
-            if (isSomewhatSquare(corners.toList)) {
-              corners
+    val contours: Seq[MatOfPoint] = findContours(input, params.contourMode, params.contourMethod)
+    (contours,
+      Option {
+        extractCurveWithMaxArea(contours) match {
+          case None =>
+            logWarn("Could not detect any curve ... ")
+            EmptyCorners
+          case Some((maxArea, c)) =>
+            val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / params.contourRatio
+            if (maxArea > expectedMaxArea) {
+              val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
+              if (has4Sides(approxCurve)) {
+                val corners = mkSortedCorners(approxCurve)
+                if (isSomewhatSquare(corners)) {
+                  new MatOfPoint2f(corners: _*)
+                } else {
+                  logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+                  EmptyCorners
+                }
+              } else {
+                logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+                EmptyCorners
+              }
             } else {
-              logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+              logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
               EmptyCorners
             }
-          } else {
-            logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-            EmptyCorners
-          }
-        } else {
-          logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
-          EmptyCorners
         }
-    }
+      })
 
   }
 

@@ -11,7 +11,7 @@ trait CanLog  {
 
   def logError(msg: String) = System.err.println("ERROR: " + msg)
 
-  def logTrace(msg: String) = ()
+  def logTrace(msg: String) = println("TRACE:" + msg)
 
   def logWithTimer[A](msg: String, f: => A): A = {
     Utils.time(f, t => logInfo(s"$msg (duration: $t ms)"))

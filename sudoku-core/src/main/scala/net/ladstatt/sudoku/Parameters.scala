@@ -14,7 +14,7 @@ import net.ladstatt.sudoku
   */
 case class SudokuState(hitCounts: HitCounters,
                        library: DigitLibrary,
-                       cap: Int,         // TODO NOT used?
+                       cap: Int, // TODO NOT used?
                        minHits: Int,
                        maxSolvingDuration: Long) {
 
@@ -22,9 +22,7 @@ case class SudokuState(hitCounts: HitCounters,
 
   val detections: SCount = nrDetections(hitCounts, cap)
 
-
-
-  def solveSudoku(): (Option[sudoku.SudokuDigitSolution],Option[Cells], sudoku.SudokuState) = {
+  def solveSudoku(): (Option[sudoku.SudokuDigitSolution], Option[Cells], sudoku.SudokuState) = {
     if (detections >= minHits) {
       logInfo("NrDetections: " + detections + " minHits: " + minHits)
       val sudoku2Solve: SudokuDigitSolution = mkSudokuMatrix(hitCounts, cap)
@@ -79,6 +77,7 @@ object Parameters {
   private val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
 
   val DefaultState = SudokuState(defaultHitCounters, defaultDigitLibrary, cap, minHits, maxSolvingDuration)
+
   def row(i: Int): Int = i / 9
 
   def col(i: Int): Int = i % 9
