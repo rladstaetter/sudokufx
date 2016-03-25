@@ -42,11 +42,37 @@ object OpenCV extends CanLog {
   def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {
     Imgproc.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
   }
-
-  def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
+           /*
+  def extractCurveWithMaxArea2(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
     val curvesWithAreas: Seq[(Double, MatOfPoint)] =
       for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)
     curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
+  }
+         */
+
+  /**
+    * Given a list of curves, this function returns the curve with the biggest area which is described by the
+    * contour.
+    *
+    * @param curveList
+    * @return
+    */
+  def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
+    if (curveList.isEmpty) None
+    else curveList.foldLeft[Option[(Double,MatOfPoint)]](None) {
+      case (acc, curve) =>
+        val cArea = Imgproc.contourArea(curve)
+        acc match {
+          case None => Some((cArea, curve))
+          case Some((area, c)) =>
+            if (cArea >= area) Some((cArea, curve)) else Some((area, c))
+        }
+    }
+    /*
+val curvesWithAreas: Seq[(Double, MatOfPoint)] =
+for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)
+curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
+*/
   }
 
 
@@ -213,13 +239,13 @@ object OpenCV extends CanLog {
   }
 
   // input mat will be altered by the findContours(...) function
-  def findContours(input: Mat, mode: Int , method: Int): Seq[MatOfPoint] = {
+  def findContours(input: Mat, mode: Int, method: Int): Seq[MatOfPoint] = {
     val contours = new java.util.ArrayList[MatOfPoint]()
     Imgproc.findContours(input, contours, new Mat, mode, method)
     contours
   }
 
-  def has4Sides(needle: MatOfPoint2f) = needle.size == new Size(1, 4)
+  def has4Sides(needle: MatOfPoint2f): Boolean = needle.size == new Size(1, 4)
 
   def mkApproximation(curve: MatOfPoint2f, epsilon: Double = 0.02): MatOfPoint2f = {
     val arcLength = Imgproc.arcLength(curve, true)
@@ -252,7 +278,7 @@ object OpenCV extends CanLog {
                       maxArea: Double): Option[Mat] = {
     val input = new Mat
     original.copyTo(input)
-    val contours = findContours(input, Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE)
+    val contours = findContours(input, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
     findBestFit(contours, center, minArea, maxArea) map {
       case (contourArea, curve, contour) => {
         original.submat(Imgproc.boundingRect(contour))

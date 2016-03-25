@@ -29,10 +29,11 @@ trait SCandidate {
   *
   * @param nr number of the frame
   */
-case class SCandidateImpl(nr: Int, framePipeline: FramePipeline, params: SParams = SParams()) extends CanLog with SCandidate {
+case class SCandidateImpl(nr: Int, framePipeline: FramePipeline, params: SParams = SParams()) extends
+   SCandidate with CanLog {
 
   private val destCorners: MatOfPoint2f = OpenCV.mkCorners(framePipeline.dilated.size)
-  val (contours, someDetectedCorners) = SudokuUtils.detectSudokuCorners(framePipeline.dilated, params)
+  val (contours, someDetectedCorners) = SudokuUtils.detectBiggestRectangle(framePipeline.dilated, destCorners, params)
 
   private lazy val sudokuCanvas = OpenCV.warp(framePipeline.frame, someDetectedCorners.get, destCorners)
   private lazy val cellSize = mkCellSize(sudokuCanvas.size)

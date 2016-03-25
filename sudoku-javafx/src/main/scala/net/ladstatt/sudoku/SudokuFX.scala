@@ -220,7 +220,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       (result, nextState) <- candidate.calc(getCurrentSudokuState())
     } {
       setCurrentSudokuState(nextState)
-      displayContours(candidate.contours)
+      // displayContours(candidate.contours)
       display(result)
     }
   }

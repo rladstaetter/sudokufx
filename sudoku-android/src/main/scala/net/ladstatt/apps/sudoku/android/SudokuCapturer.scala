@@ -6,6 +6,7 @@ import _root_.android.util.Log
 import _root_.android.view.View.OnClickListener
 import _root_.android.view.{Gravity, View, WindowManager}
 import _root_.android.widget.{Button, FrameLayout}
+import android.content.BroadcastReceiver
 import com.google.ads.{AdRequest, AdSize, AdView}
 import net.ladstatt.sudoku._
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
@@ -96,6 +97,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
     adView = new AdView(this, AdSize.BANNER, AdsenseKey)
     adView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
+    adView.setVisibility(View.VISIBLE)
     findViewById(R.id.mainLayout).asInstanceOf[FrameLayout].addView(adView)
 
     val r = new AdRequest()
@@ -103,7 +105,6 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
     handler = new Handler()
     rescanButton.setVisibility(View.GONE)
-    adView.setVisibility(View.VISIBLE)
     cameraView.enableView()
   }
 

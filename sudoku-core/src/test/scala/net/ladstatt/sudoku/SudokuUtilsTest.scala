@@ -1,5 +1,6 @@
 package net.ladstatt.sudoku
 
+import net.ladstatt.opencv.OpenCV
 import org.junit.Assert._
 import org.junit.Test
 import org.opencv.core.Point
@@ -12,7 +13,7 @@ class SudokuUtilsTest {
 
   @Test def detectCorners(): Unit = {
     val pipeline: FramePipeline = FramePipeline(SudokuTestContext.frameSudoku_1)
-    val (_, res) = SudokuUtils.detectSudokuCorners(pipeline.eroded, SParams())
+    val (_, res) = SudokuUtils.detectBiggestRectangle(pipeline.eroded, OpenCV.mkCorners(pipeline.eroded.size),SParams())
     //pipeline.persist(new File("target/utilstest/"))
     assert(res.isDefined)
     assert(res.get.toList.size > 0)

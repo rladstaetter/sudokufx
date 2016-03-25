@@ -227,9 +227,9 @@ object SudokuUtils {
     * in the input.
     *
     * @param input
-    * @return
+    * @return detected contours
     */
-  def detectSudokuCorners(input: Mat, params: SParams): (Seq[MatOfPoint], Option[MatOfPoint2f]) = {
+  def detectBiggestRectangle(input: Mat, corners1: MatOfPoint2f, params: SParams): (Seq[MatOfPoint], Option[MatOfPoint2f]) = {
     import scala.collection.JavaConversions._
     val contours: Seq[MatOfPoint] = findContours(input, params.contourMode, params.contourMethod)
     (contours,
@@ -238,16 +238,16 @@ object SudokuUtils {
           case None =>
             logWarn("Could not detect any curve ... ")
             EmptyCorners
-          case Some((maxArea, c)) =>
-            val expectedMaxArea = Imgproc.contourArea(mkCorners(input.size)) / params.contourRatio
-            if (maxArea > expectedMaxArea) {
+          case Some((contourArea, c)) =>
+            val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
+            if (contourArea > minimumExpectedArea) {
               val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
               if (has4Sides(approxCurve)) {
                 val corners = mkSortedCorners(approxCurve)
                 if (isSomewhatSquare(corners)) {
                   new MatOfPoint2f(corners: _*)
                 } else {
-                  logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a sudoku!")
+                  logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
                   EmptyCorners
                 }
               } else {
@@ -255,13 +255,14 @@ object SudokuUtils {
                 EmptyCorners
               }
             } else {
-              logTrace(s"The detected area of interest was too small ($maxArea < $expectedMaxArea).")
+              logTrace(s"The detected area of interest was too small ($contourArea < $minimumExpectedArea).")
               EmptyCorners
             }
         }
       })
 
   }
+
 
 }
 
