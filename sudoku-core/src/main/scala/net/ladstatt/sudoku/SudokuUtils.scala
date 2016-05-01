@@ -31,13 +31,6 @@ object SudokuUtils {
     hitCounts.values.flatMap(filterHits(_, cap)).size
   }
 
-
-  def computeSolution(sudokuState: SudokuState): Future[(Option[SudokuDigitSolution], Option[Cells], SudokuState)] =
-    Future {
-      sudokuState.solveSudoku()
-    }
-
-
   def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate, maxDuration)
 
   def withCap(cap: Int)(v: Int) = v >= cap
@@ -229,37 +222,33 @@ object SudokuUtils {
     * @param input
     * @return detected contours
     */
-  def detectBiggestRectangle(input: Mat, corners1: MatOfPoint2f, params: SParams): (Seq[MatOfPoint], Option[MatOfPoint2f]) = {
+  def detectRectangle(input: Mat, corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
     import scala.collection.JavaConversions._
-    val contours: Seq[MatOfPoint] = findContours(input, params.contourMode, params.contourMethod)
-    (contours,
-      Option {
-        extractCurveWithMaxArea(contours) match {
-          case None =>
-            logWarn("Could not detect any curve ... ")
-            EmptyCorners
-          case Some((contourArea, c)) =>
-            val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
-            if (contourArea > minimumExpectedArea) {
-              val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
-              if (has4Sides(approxCurve)) {
-                val corners = mkSortedCorners(approxCurve)
-                if (isSomewhatSquare(corners)) {
-                  new MatOfPoint2f(corners: _*)
-                } else {
-                  logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
-                  EmptyCorners
-                }
-              } else {
-                logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-                EmptyCorners
-              }
+    extractCurveWithMaxArea(contours) match {
+      case None =>
+        logWarn("Could not detect any curve ... ")
+        None
+      case Some((contourArea, c)) =>
+        val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
+        if (contourArea > minimumExpectedArea) {
+          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
+          if (has4Sides(approxCurve)) {
+            val corners = mkSortedCorners(approxCurve)
+            if (isSomewhatSquare(corners)) {
+              Option(new MatOfPoint2f(corners: _*))
             } else {
-              logTrace(s"The detected area of interest was too small ($contourArea < $minimumExpectedArea).")
-              EmptyCorners
+              logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
+              None
             }
+          } else {
+            logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+            None
+          }
+        } else {
+          logTrace(s"The detected area of interest was too small ($contourArea < $minimumExpectedArea).")
+          None
         }
-      })
+    }
 
   }
 

@@ -5,8 +5,8 @@ import org.opencv.core.Mat
 import scala.concurrent.Future
 
 /**
- * Created by lad on 29.04.14.
- */
+  * Created by lad on 29.04.14.
+  */
 package object sudoku {
 
   type SCount = Int
@@ -15,11 +15,10 @@ package object sudoku {
   // this means if for a cell 2 times a 3 is counted, the Map looks like this:
   // Map(... PosAtSudoku -> Map(3 -> 2) ...)
   type HitCounters = Map[Int, Map[Int, Int]]
-  type DetectionMethod = Option[Mat] => Future[(Int, Double)]
-
+  type DetectFn = Mat => Future[(Int, SHitQuality)]
   /**
-   * records for each number from 0 to 9 the best hit (quality) along with its digital data
-   */
+    * records for each number from 0 to 9 the best hit (quality) along with its digital data
+    */
   // TODO change to Map[SNum,(SHitQuality, Option[Rect]] and reference it to SudokuCanvas
   type DigitLibrary = Map[Int, (SHitQuality, Option[Mat])]
   // TODO solution should be an array of Int or a string with 81 entries

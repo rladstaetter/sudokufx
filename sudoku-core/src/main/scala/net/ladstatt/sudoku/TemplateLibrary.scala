@@ -11,12 +11,15 @@ import scala.concurrent.Future
 import scala.io.Source
 
 /**
- * Created by lad on 15.03.15.
- */
+  * Created by lad on 15.03.15.
+  */
 object TemplateLibrary extends CanLog {
 
   private val (templateWidth, templateHeight) = (25.0, 50.0)
   val templateSize = new Size(templateWidth, templateHeight)
+  val templateCanvasSize = new Size(templateWidth * Parameters.ssize, templateHeight * Parameters.ssize)
+  val warpedCorners = OpenCV.mkCorners(TemplateLibrary.templateCanvasSize)
+
   var getResourceAsStream: String => InputStream = getClass.getResourceAsStream
   var templateResource: String = "templates.csv"
 
@@ -29,18 +32,19 @@ object TemplateLibrary extends CanLog {
 
 
   /**
-   * given a template library, match the given contour to find the best match. this function takes around 1 ms
-   *
-   * @return
-   */
+    * given a template library, match the given contour to find the best match. this function takes around 1 ms
+    *
+    * @return
+    */
   def detectNumber(candidate: Mat): Future[(Int, SHitQuality)] = {
+    //println(candidate.size.width + "/" + candidate.size.height)
     val resizedCandidate = OpenCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
     val matchHaystack: (Int, Mat) => Future[(Int, SHitQuality)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
 
     val result: Future[(Int, SHitQuality)] =
       for {s <- Future.sequence(for {(needle, number) <- TemplateLibrary.asSeq.zipWithIndex} yield
-      for {(number, quality) <- matchHaystack(number + 1, needle)} yield (number, quality))
-      } yield s.toSeq.sortWith((a, b) => a._2 < b._2).head
+        for {(number, quality) <- matchHaystack(number + 1, needle)} yield (number, quality))
+      } yield s.sortWith((a, b) => a._2 < b._2).head
 
 
     result

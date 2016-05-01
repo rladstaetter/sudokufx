@@ -39,8 +39,8 @@ object SudokuTestContext {
   lazy val (sudoku_1, (sudoku_1Result, _)) = calculate(frameSudoku_1)
   lazy val (emptySudoku, (emptySudokuResult, _)) = calculate(emptyFrame)
 
-  def calculate(frame: Mat): (SCandidateImpl, (SudokuResult, SudokuState)) = {
-    val c = SCandidateImpl(0, FramePipeline(frame))
+  def calculate(frame: Mat): (SCandidate, (SudokuResult, SudokuState)) = {
+    val c = SCandidate(0, frame)
     val state = Parameters.DefaultState.copy(cap = 1, minHits = 17, maxSolvingDuration = 5000L)
     (c, Await.result(c.calc(state), Duration.Inf))
   }

@@ -80,6 +80,14 @@ class SudokuFXApplication extends Application with JfxUtils {
 
 }
 
+class SudokuDebugView extends Initializable {
+  @FXML var sDebugViewController: SDebugViewController = _
+
+  override def initialize(location: URL, resources: ResourceBundle): Unit = {
+
+  }
+}
+
 class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
 
   @FXML var captureButton: ToggleButton = _
@@ -171,7 +179,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
 
-  val videoObservable: Observable[SCandidate] =
+  val videoObservable: Observable[SResult] =
     Observable.create[Mat](o => {
       new Thread(
         new Runnable {
@@ -192,8 +200,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       new Subscription {}
     }).zipWithIndex.map {
       case (frame, index) =>
-        val framePipeline = FramePipeline(frame)
-        SCandidateImpl(index, framePipeline, SParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue))
+        val params: SParams = SParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
+        val pipeline: FramePipeline = FramePipeline(frame, params)
+        pipeline.detectedRectangle match {
+          case None => pipeline
+          case Some(r) => SCandidate(index, pipeline, SRectangle(pipeline, r))
+        }
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
@@ -215,13 +227,21 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     })
   }
 
-  def process(candidate: SCandidate): Unit = {
-    for {
-      (result, nextState) <- candidate.calc(getCurrentSudokuState())
-    } {
-      setCurrentSudokuState(nextState)
-      // displayContours(candidate.contours)
-      display(result)
+  def display(f: FramePipeline): Unit = {
+    setVideoView(f.frame)
+  }
+
+  def process(result: SResult, state: SudokuState): Unit = {
+    result match {
+      case f: FramePipeline => display(f)
+      case c: SCandidate =>
+        for {
+          (result, nextState) <- c.calc(state)
+        } {
+          setCurrentSudokuState(nextState)
+          // displayContours(candidate.contours)
+          display(result)
+        }
     }
   }
 
@@ -462,7 +482,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     displayHitCounts(getCurrentSudokuState().hitCounts, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
-      case SSuccess(InputFrame(nr, framePipeline), SudokuFrame(sudokuCanvas, detectedCells, corners), someSolution) =>
+      case SSuccess(SCandidate(nr, framePipeline, sr), SudokuFrame(sudokuCanvas, detectedCells, corners), someSolution) =>
         if (someSolution.isDefined) {
           val sol = someSolution.get
           updateVideo(stage, framePipeline, sol.solutionMat)
@@ -470,7 +490,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         } else {
           updateVideo(stage, framePipeline, framePipeline.frame)
         }
-      case SFailure(msg, InputFrame(nr, framePipeline)) =>
+      case SFailure(msg, SCandidate(nr, framePipeline, sr)) =>
         updateVideo(stage, framePipeline, framePipeline.frame)
     }
 
@@ -488,6 +508,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
     setAnalysisMouseTransparent(false)
     updateDigitLibraryView(getCurrentSudokuState().library, as[ImageView](numberFlowPane.getChildren))
+
     frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
     result match {
       case success: SSuccess if success.someSolution.isDefined =>
@@ -498,7 +519,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         updateStatus(mkFps(onlyCorners.inputFrame.framePipeline.start), Color.ORANGE)
         updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
         updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
-      case SFailure(msg, InputFrame(_, framePipeline)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
+      case SFailure(msg, SCandidate(_, framePipeline, sr)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
     }
   }
 
@@ -665,11 +686,16 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
     // startCapture
-    videoObservable.subscribe(process,
+    videoObservable.subscribe((result: SResult) => process(result, getCurrentSudokuState()),
       t => t.printStackTrace(),
       () => logInfo("Videostream stopped..."))
     ()
   }
+
+
+}
+
+class SDebugViewController extends AnchorPane {
 
 
 }

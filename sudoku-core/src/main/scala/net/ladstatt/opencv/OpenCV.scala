@@ -1,6 +1,7 @@
 package net.ladstatt.opencv
 
 import java.io.File
+import java.util.UUID
 
 import net.ladstatt.core.{CanLog, SystemEnv}
 import net.ladstatt.sudoku._
@@ -12,6 +13,29 @@ import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
+
+
+object Debug {
+
+  val Active = true
+
+  def writeDebug(sCandidate: SCandidate) = {
+    val parent = new File(s"/Users/lad/Documents/sudokufx/sudoku-core/target/test-classes/net/ladstatt/sudoku/normalized/${sCandidate.nr}")
+    parent.mkdirs()
+    //println("InputCorners:" + sCandidate.framePipeline.corners)
+    //println("CellWidth  :" + sCandidate.sRectangle.cellWidth + "/" + sCandidate.sRectangle.cellHeight)
+    // write sudoku canvas
+    sCandidate.framePipeline.persist(parent)
+    writeMat(new File(parent, s"normalized"), sCandidate.sRectangle.normalized)
+  }
+
+  def writeMat(target : File, mat: Mat): Boolean = {
+    println(target)
+    Imgcodecs.imwrite(target.getAbsolutePath + ".png", mat)
+  }
+
+
+}
 
 /**
   * various opencv related stuff
@@ -42,13 +66,6 @@ object OpenCV extends CanLog {
   def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {
     Imgproc.rectangle(canvas, rect.tl(), rect.br(), color, thickness)
   }
-           /*
-  def extractCurveWithMaxArea2(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
-    val curvesWithAreas: Seq[(Double, MatOfPoint)] =
-      for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)
-    curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
-  }
-         */
 
   /**
     * Given a list of curves, this function returns the curve with the biggest area which is described by the
@@ -59,7 +76,7 @@ object OpenCV extends CanLog {
     */
   def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
     if (curveList.isEmpty) None
-    else curveList.foldLeft[Option[(Double,MatOfPoint)]](None) {
+    else curveList.foldLeft[Option[(Double, MatOfPoint)]](None) {
       case (acc, curve) =>
         val cArea = Imgproc.contourArea(curve)
         acc match {
@@ -68,11 +85,7 @@ object OpenCV extends CanLog {
             if (cArea >= area) Some((cArea, curve)) else Some((area, c))
         }
     }
-    /*
-val curvesWithAreas: Seq[(Double, MatOfPoint)] =
-for (curve <- curveList) yield (Imgproc.contourArea(curve), curve)
-curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
-*/
+
   }
 
 
@@ -225,7 +238,7 @@ curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
     }
 
   /**
-    * warps image to make feature extraction's life easier (time intensive call)
+    * warps image from to make feature extraction's life easier (time intensive call)
     */
   def warp(input: Mat, srcCorners: MatOfPoint2f, destCorners: MatOfPoint2f): Mat = {
     require(srcCorners.toList.size == 4)
@@ -239,7 +252,8 @@ curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   }
 
   // input mat will be altered by the findContours(...) function
-  def findContours(input: Mat, mode: Int, method: Int): Seq[MatOfPoint] = {
+  def findContours(original: Mat, mode: Int, method: Int): Seq[MatOfPoint] = {
+    val input = copyMat(original)
     val contours = new java.util.ArrayList[MatOfPoint]()
     Imgproc.findContours(input, contours, new Mat, mode, method)
     contours
@@ -254,36 +268,46 @@ curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
     approxCurve
   }
 
-  def findBestFit(contours: Seq[MatOfPoint],
-                  center: Point,
-                  minArea: Double,
-                  maxArea: Double): Option[(Double, MatOfPoint2f, MatOfPoint)] = {
-    val candidates =
-      for (c <- contours if {
-        val boundingRect = Imgproc.boundingRect(c)
-        val area = boundingRect.area
-        (minArea < area) && (area < maxArea) && boundingRect.contains(center)
-      }) yield {
-        val curve = new MatOfPoint2f
-        curve.fromArray(c.toList: _*)
-        val contourArea = Imgproc.contourArea(curve)
-        (contourArea, curve, c)
-      }
-    candidates.sortWith((a, b) => a._1 > b._1).headOption
+  def contourPredicate(sp: SpecialParam)(c: MatOfPoint): Boolean = {
+    val boundingRect = Imgproc.boundingRect(c)
+    val area = boundingRect.area
+    (sp.minArea < area) && (area < sp.maxArea) && boundingRect.contains(sp.center)
   }
 
-  def findCellContour(original: Mat,
-                      center: Point,
-                      minArea: Double,
-                      maxArea: Double): Option[Mat] = {
-    val input = new Mat
-    original.copyTo(input)
-    val contours = findContours(input, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
-    findBestFit(contours, center, minArea, maxArea) map {
-      case (contourArea, curve, contour) => {
-        original.submat(Imgproc.boundingRect(contour))
-      }
+
+  /**
+    * Given a list of contours and a predicate function this function returns the "best fit"
+    * bounding rectangle like defined in the predicate function.
+    *
+    * @param contours  the list of contours
+    * @param predicate the predicate function
+    * @return
+    */
+  def findBestFit(contours: Seq[MatOfPoint], predicate: MatOfPoint => Boolean): Option[Rect] = {
+
+    contours.foldLeft[Option[(Double, MatOfPoint)]](None) {
+      case (acc, c) =>
+        if (predicate(c)) {
+          val area = Imgproc.contourArea(c)
+          acc match {
+            case None => Some((area, c))
+            case Some((a, cc)) =>
+              if (area > a) Some((area, c)) else acc
+          }
+        } else acc
+    } map {
+      case (_, contour) => Imgproc.boundingRect(contour)
     }
+
+  }
+
+
+  def findCellContour(original: Mat,
+                      specialParam: SpecialParam,
+                      contourMode: Int, contourMethod: Int): Option[Mat] = {
+    val contours: Seq[MatOfPoint] = findContours(original, contourMode, contourMethod)
+    val predicateFn: (MatOfPoint) => Boolean = contourPredicate(specialParam)
+    findBestFit(contours, predicateFn) map original.submat
   }
 
   /**
@@ -397,29 +421,22 @@ curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
       grayed
     }
 
+  case class SpecialParam(center: Point, minArea: Double, maxArea: Double)
 
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   // TODO: remove, likely not really necessary
-  def specialize(cellRawData: Mat): Future[(Mat, Point, Double, Double)] =
+  def specialize(cellRawData: Mat): Future[(Mat, SpecialParam)] =
     Future {
       val (width, height) = (cellRawData.size.width, cellRawData.size.height)
       val cellData = new Mat(cellRawData, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
       val cellArea = cellData.size().area
       val (minArea, maxArea) = (0.15 * cellArea, 0.5 * cellArea)
       val (centerX, centerY) = (cellData.size.width / 2, cellData.size.height / 2)
-      (cellData, new Point(centerX, centerY), minArea, maxArea)
+      (cellData, SpecialParam(new Point(centerX, centerY), minArea, maxArea))
     }
 
-  def preprocess2(input: Mat): Future[Mat] = {
-    for {
-      equalized <- equalizeHist(input)
-      blurred <- gaussianblur(equalized)
-      thresholded <- threshold(blurred)
-      inverted <- bitwiseNot(thresholded)
-    } yield inverted
-  }
 
-  def detectCell(detectNumber: Mat => Future[(Int, SHitQuality)], sudokuCanvas: Mat, roi: Rect): Future[SCell] = {
+  def genericDetectCell(detectNumber: DetectFn)(sudokuCanvas: Mat, roi: Rect): Future[SCell] = {
     for {
       contour <- extractContour(sudokuCanvas.submat(roi))
       (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
@@ -427,6 +444,8 @@ curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
       SCell(value, quality, roi)
     }
   }
+
+  val detectCell: (Mat, Rect) => Future[SCell] = genericDetectCell(TemplateLibrary.detectNumber)
 
   // filter out false positives
   // use information known (size, position of digits)
@@ -437,28 +456,22 @@ curvesWithAreas.sortWith((a, b) => a._1 > b._1).headOption
   def extractContour(coloredCell: Mat): Future[Option[Mat]] = {
     for {
       cell <- toGray(coloredCell)
-      (cellData, center, minArea, maxArea) <- specialize(cell)
-      a <- preprocess2(cellData)
-    } yield
-      findCellContour(a, center, minArea, maxArea)
+      (cellData, sp) <- specialize(cell)
+      equalized <- equalizeHist(cellData)
+      blurred <- gaussianblur(equalized)
+      thresholded <- threshold(blurred)
+      a <- bitwiseNot(thresholded)
+    } yield {
+      val someMat = findCellContour(a, sp, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
+
+      someMat foreach (Imgcodecs.imwrite(new File("/Users/lad/Documents/sudokufx/sudoku-core/target/" + UUID.randomUUID().toString + ".png").getAbsolutePath, _))
+      someMat
+    }
   }
 
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
 
-  /*
-  def imageIOChain(frame: Mat): Future[FramePipeline] = {
+  def mkRect(i: Int, width: Int, height: Int): Rect = new Rect(Parameters.col(i) * width, Parameters.row(i) * height, width, height)
 
-    for {
-      working <- copySrcToDestWithMask(frame, new Mat, frame)
-      grayed <- toGray(working)
-      blurred <- gaussianblur(grayed)
-      thresholdApplied <- adaptiveThreshold(blurred)
-      inverted <- bitwiseNot(thresholdApplied)
-      dilated <- dilate(inverted)
-      eroded <- erode(inverted)
-    //  dilated <- dilate(thresholdApplied)
-    //  inverted <- bitwiseNot(dilated)
-    } yield FramePipeline(frame, working, grayed, blurred, thresholdApplied, inverted, dilated, eroded)
-  }     */
 
 }

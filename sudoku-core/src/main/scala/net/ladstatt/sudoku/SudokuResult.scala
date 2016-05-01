@@ -13,7 +13,7 @@ case class SolutionFrame(solution: SudokuDigitSolution, solutionMat: Mat) {
 }
 
 sealed trait SudokuResult {
-  def inputFrame: InputFrame
+  def inputFrame: SCandidate
 }
 
 /**
@@ -23,10 +23,10 @@ sealed trait SudokuResult {
   * @param sudokuFrame
   * @param someSolution
   */
-case class SSuccess(inputFrame: InputFrame,
+case class SSuccess(inputFrame: SCandidate,
                     sudokuFrame: SudokuFrame,
                     someSolution: Option[SolutionFrame]) extends SudokuResult
 
-case class SFailure(msg: String, inputFrame: InputFrame) extends SudokuResult
+case class SFailure(msg: String, inputFrame: SCandidate) extends SudokuResult
 
 

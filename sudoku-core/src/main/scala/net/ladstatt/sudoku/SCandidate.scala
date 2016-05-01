@@ -1,8 +1,7 @@
 package net.ladstatt.sudoku
 
 import net.ladstatt.core.CanLog
-import net.ladstatt.opencv.OpenCV
-import net.ladstatt.opencv.OpenCV._
+import net.ladstatt.opencv.{Debug, OpenCV}
 import org.opencv.core._
 
 import scala.collection.JavaConversions._
@@ -12,42 +11,20 @@ import scala.concurrent.Future
 
 object SCandidate {
 
-  def apply(nr: Int, input: Mat): SCandidateImpl = {
-    null
+  def apply(nr: Int, input: Mat): SCandidate = {
+    val pipeline: FramePipeline = FramePipeline(input, SParams())
+    new SCandidate(nr, pipeline, SRectangle(pipeline, pipeline.detectedRectangle.get))
   }
 
 }
 
-trait SCandidate {
-  def calc(lastState: SudokuState): Future[(SudokuResult, SudokuState)]
-
-  def contours: Seq[MatOfPoint]
-}
-
+trait SResult
 
 /**
   *
   * @param nr number of the frame
   */
-case class SCandidateImpl(nr: Int, framePipeline: FramePipeline, params: SParams = SParams()) extends
-   SCandidate with CanLog {
-
-  private val destCorners: MatOfPoint2f = OpenCV.mkCorners(framePipeline.dilated.size)
-  val (contours, someDetectedCorners) = SudokuUtils.detectBiggestRectangle(framePipeline.dilated, destCorners, params)
-
-  private lazy val sudokuCanvas = OpenCV.warp(framePipeline.frame, someDetectedCorners.get, destCorners)
-  private lazy val cellSize = mkCellSize(sudokuCanvas.size)
-  private lazy val cellWidth = cellSize.width.toInt
-  private lazy val cellHeight = cellSize.height.toInt
-
-  private lazy val cellRects: Seq[Rect] = Parameters.cellRange.map {
-    case i => new Rect(Parameters.col(i) * cellWidth, Parameters.row(i) * cellHeight, cellWidth, cellHeight)
-  }
-
-  lazy val futureSCells: Seq[Future[SCell]] = cellRects.map(detectCell(TemplateLibrary.detectNumber, sudokuCanvas, _))
-  private lazy val futureDetectedCells: Future[Seq[SCell]] = Future.fold(futureSCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
-
-  private lazy val sample: InputFrame = InputFrame(nr, framePipeline)
+case class SCandidate(nr: Int, framePipeline: FramePipeline, sRectangle: SRectangle) extends CanLog with SResult {
 
   /**
     * This function uses an input image and a detection method to calculate the sudoku.
@@ -59,33 +36,28 @@ case class SCandidateImpl(nr: Int, framePipeline: FramePipeline, params: SParams
     // stream which resembles a sudoku, or we don't and we skip the rest of the processing
     // pipeline
 
-    if (!someDetectedCorners.get.toList.isEmpty) {
-      for {
-        detectedCells <- futureDetectedCells
-        detectedCellValues = detectedCells.map(_.value)
-        state =
-        lastState.copy(library = SudokuUtils.mergeDigitLibrary(sudokuCanvas, lastState.library, detectedCells),
-          hitCounts = SudokuUtils.mergeHits(lastState.hitCounts, detectedCellValues))
-        (someDigitSolution, someSolutionCells, currentState) <- Future {
-          state.solveSudoku()
-        }
-        withSolution <- SudokuUtils.paintSolution(sudokuCanvas, detectedCellValues, someSolutionCells, currentState.library, cellRects)
-        annotatedSolution <- SudokuUtils.paintCorners(withSolution, cellRects, someSolutionCells, currentState.hitCounts, lastState.cap)
-        unwarped = OpenCV.warp(annotatedSolution, destCorners, someDetectedCorners.get)
-        solutionMat <- OpenCV.copySrcToDestWithMask(unwarped, framePipeline.frame, unwarped) // copy solution mat to input mat
-        sudokuFrame = SudokuFrame(sudokuCanvas, detectedCells.toArray, someDetectedCorners.get.toList.toList)
-      } yield {
-        val someSolution =
-          if (someSolutionCells.isDefined) {
-            Some(SolutionFrame(someDigitSolution.get, solutionMat))
-          } else None
+    if (Debug.Active) Debug.writeDebug(this)
 
-        (SSuccess(sample, sudokuFrame, someSolution), currentState)
-      }
-    } else {
-      Future.successful((SFailure("Couldn't detect corners", sample), lastState))
+    for {
+      detectedCells <- sRectangle.detectedCells
+      detectedCellValues = detectedCells.map(_.value)
+      state = lastState.copy(
+        library = SudokuUtils.mergeDigitLibrary(sRectangle.normalized, lastState.library, detectedCells),
+        hitCounts = SudokuUtils.mergeHits(lastState.hitCounts, detectedCellValues))
+      (someDigitSolution, someSolutionCells, currentState) <- Future(state.solveSudoku())
+      withSolution <- SudokuUtils.paintSolution(sRectangle.normalized, detectedCellValues, someSolutionCells, currentState.library, sRectangle.cellRois)
+      annotatedSolution <- SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, someSolutionCells, currentState.hitCounts, lastState.cap)
+      warped = OpenCV.warp(annotatedSolution, framePipeline.corners, sRectangle.detectedCorners)
+      solutionMat <- OpenCV.copySrcToDestWithMask(warped, framePipeline.frame, warped) // copy solution mat to input mat
+      sudokuFrame = SudokuFrame(sRectangle.normalized, detectedCells.toArray, sRectangle.detectedCorners.toList.toList)
+    } yield {
+      val someSolution =
+        if (someSolutionCells.isDefined) {
+          Some(SolutionFrame(someDigitSolution.get, solutionMat))
+        } else None
+
+      (SSuccess(this, sudokuFrame, someSolution), currentState)
     }
-
   }
 
 
