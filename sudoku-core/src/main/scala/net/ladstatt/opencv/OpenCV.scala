@@ -25,7 +25,7 @@ object Debug {
     //println("InputCorners:" + sCandidate.framePipeline.corners)
     //println("CellWidth  :" + sCandidate.sRectangle.cellWidth + "/" + sCandidate.sRectangle.cellHeight)
     // write sudoku canvas
-    sCandidate.framePipeline.persist(parent)
+    sCandidate.pipeline.persist(parent)
     writeMat(new File(parent, s"normalized"), sCandidate.sRectangle.normalized)
   }
 

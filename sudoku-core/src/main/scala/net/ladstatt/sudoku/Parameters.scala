@@ -47,11 +47,11 @@ case class SudokuState(hitCounts: HitCounters,
     freqs.find { case (value, f) => value != 0 && f >= threshold }
   }
 
-  val detections: SCount = hitCounts.values.flatMap(filterHits(_, cap)).size
+  val detections: Int = hitCounts.values.flatMap(filterHits(_, cap)).size
 
   def merge(normalized: Mat,
             detectedCells: Seq[SCell],
-            detectedCellValues: Seq[SCount]): SudokuState = {
+            detectedCellValues: Seq[Int]): SudokuState = {
     copy(
       library = SudokuUtils.mergeDigitLibrary(normalized, library, detectedCells),
       hitCounts = SudokuUtils.mergeHits(hitCounts, detectedCellValues))

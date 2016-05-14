@@ -6,7 +6,6 @@ import _root_.android.util.Log
 import _root_.android.view.View.OnClickListener
 import _root_.android.view.{Gravity, View, WindowManager}
 import _root_.android.widget.{Button, FrameLayout}
-import android.content.BroadcastReceiver
 import com.google.ads.{AdRequest, AdSize, AdView}
 import net.ladstatt.sudoku._
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
@@ -37,7 +36,7 @@ trait CanLog {
 
 object AndroidOpenCV extends CanLog {
 
-  val DefaultAndroidState = Parameters.DefaultState.copy(cap = 8, minHits = 20, maxSolvingDuration = 5000L)
+  val DefaultAndroidState = SudokuState.DefaultState.copy(cap = 8, minHits = 20, maxSolvingDuration = 5000L)
 
   def init(): Unit = {
     if (OpenCVLoader.initDebug()) {
@@ -142,9 +141,8 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   def detectSudoku(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): SudokuResult = {
     val frame = inputFrame.rgba()
     frameNr = frameNr + 1
-    val pipeline: FramePipeline = FramePipeline(frame)
 
-    val (sudokuResult, nextState) = Await.result(new SCandidateImpl(frameNr, pipeline).calc(currState), Duration.Inf)
+    val (sudokuResult, nextState) = Await.result(SCandidate(frameNr, frame, currState, SParams()).calc, Duration.Inf)
     currState = nextState
     sudokuResult
   }
@@ -182,9 +180,9 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
               solution
             }
             case s: SSuccess if s.someSolution.isEmpty => {
-              s.inputFrame.framePipeline.inverted
+              s.inputFrame.pipeline.inverted
             }
-            case e: SFailure => e.inputFrame.framePipeline.blurred
+            case e: SFailure => e.inputFrame.pipeline.blurred
           }
         calculationInProgress = false
         result

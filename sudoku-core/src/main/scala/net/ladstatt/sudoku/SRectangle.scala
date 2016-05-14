@@ -1,8 +1,9 @@
 package net.ladstatt.sudoku
 
+import net.ladstatt.core.CollectionUtils
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
-import org.opencv.core.{Mat, MatOfPoint2f, Rect, Size}
+import org.opencv.core._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -29,7 +30,7 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
 
   private lazy val warpedCells: Seq[Future[SCell]] = cellRois.map(OpenCV.detectCell(normalized, _))
 
-  lazy val detectedCells = Future.fold(warpedCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+  lazy val detectedCells: Future[Seq[SCell]] = Future.fold(warpedCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
   /**
     * paints the solution to the canvas.
@@ -59,5 +60,7 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
       normalized
     }
   }
+
+
 
 }

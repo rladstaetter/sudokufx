@@ -11,9 +11,9 @@ import scala.concurrent.Future
 
 object SCandidate {
 
-  def apply(nr: Int, input: Mat, state: SudokuState): SCandidate = {
-    val pipeline: FramePipeline = FramePipeline(input, SParams())
-    new SCandidate(nr, pipeline, SRectangle(pipeline.frame, pipeline.detectedRectangle.get, pipeline.corners), state)
+  def apply(nr: Int, frame: Mat, state: SudokuState, params: SParams = SParams()): SCandidate = {
+    val pipeline: FramePipeline = FramePipeline(frame, params)
+    new SCandidate(nr, pipeline, SRectangle(frame, pipeline.detectedRectangle.get, pipeline.corners), state)
   }
 
 }
@@ -25,7 +25,7 @@ trait SResult
   * @param nr number of the frame
   */
 case class SCandidate(nr: Int,
-                      framePipeline: FramePipeline,
+                      pipeline: FramePipeline,
                       sRectangle: SRectangle,
                       oldState: SudokuState) extends CanLog with SResult {
 
@@ -33,7 +33,6 @@ case class SCandidate(nr: Int,
 
   /**
     * This function uses an input image and a detection method to calculate the sudoku.
-    *
     */
   lazy val calc: Future[(SudokuResult, SudokuState)] = {
     for {
@@ -43,8 +42,8 @@ case class SCandidate(nr: Int,
       solvedState <- Future(currentState.solve())
       withSolution <- sRectangle.paintSolution(detectedCellValues, solvedState.someCells, currentState.library)
       annotatedSolution <- SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, solvedState.someCells, currentState.hitCounts, oldState.cap)
-      warped = OpenCV.warp(annotatedSolution, framePipeline.corners, sRectangle.detectedCorners)
-      solutionMat <- OpenCV.copySrcToDestWithMask(warped, framePipeline.frame, warped) // copy solution mat to input mat
+      warped = OpenCV.warp(annotatedSolution, pipeline.corners, sRectangle.detectedCorners)
+      solutionMat <- OpenCV.copySrcToDestWithMask(warped, pipeline.frame, warped) // copy solution mat to input mat
       sudokuFrame = SudokuFrame(sRectangle.normalized, detectedCells.toArray, sRectangle.detectedCorners.toList.toList)
     } yield {
       (SSuccess(this, sudokuFrame, solvedState.someResult.map(s => SolutionFrame(s, solutionMat))), currentState)

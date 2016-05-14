@@ -512,9 +512,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       case success: SSuccess if success.someSolution.isDefined =>
         detectionGauge.setValue(detectionGauge.getValue + 1)
         lastDetectionGauge.setValue(Int.int2double(success.sudokuFrame.detectedCells.length))
-        updateStatus(mkFps(success.inputFrame.framePipeline.start), Color.GREEN)
+        updateStatus(mkFps(success.inputFrame.pipeline.start), Color.GREEN)
       case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
-        updateStatus(mkFps(onlyCorners.inputFrame.framePipeline.start), Color.ORANGE)
+        updateStatus(mkFps(onlyCorners.inputFrame.pipeline.start), Color.ORANGE)
         updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
         updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
       case SFailure(msg, SCandidate(_, framePipeline, sr, SudokuState.DefaultState)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
