@@ -11,9 +11,9 @@ import scala.concurrent.Future
 
 object SCandidate {
 
-  def apply(nr: Int, input: Mat): SCandidate = {
+  def apply(nr: Int, input: Mat, state: SudokuState): SCandidate = {
     val pipeline: FramePipeline = FramePipeline(input, SParams())
-    new SCandidate(nr, pipeline, SRectangle(pipeline, pipeline.detectedRectangle.get))
+    new SCandidate(nr, pipeline, SRectangle(pipeline.frame, pipeline.detectedRectangle.get, pipeline.corners), state)
   }
 
 }
@@ -24,41 +24,31 @@ trait SResult
   *
   * @param nr number of the frame
   */
-case class SCandidate(nr: Int, framePipeline: FramePipeline, sRectangle: SRectangle) extends CanLog with SResult {
+case class SCandidate(nr: Int,
+                      framePipeline: FramePipeline,
+                      sRectangle: SRectangle,
+                      oldState: SudokuState) extends CanLog with SResult {
+
+  if (Debug.Active) Debug.writeDebug(this)
 
   /**
     * This function uses an input image and a detection method to calculate the sudoku.
     *
     */
-  def calc(lastState: SudokuState): Future[(SudokuResult, SudokuState)] = {
-
-    // we have to walk two paths here: either we have detected something in the image
-    // stream which resembles a sudoku, or we don't and we skip the rest of the processing
-    // pipeline
-
-    if (Debug.Active) Debug.writeDebug(this)
-
+  lazy val calc: Future[(SudokuResult, SudokuState)] = {
     for {
       detectedCells <- sRectangle.detectedCells
       detectedCellValues = detectedCells.map(_.value)
-      state = lastState.copy(
-        library = SudokuUtils.mergeDigitLibrary(sRectangle.normalized, lastState.library, detectedCells),
-        hitCounts = SudokuUtils.mergeHits(lastState.hitCounts, detectedCellValues))
-      (someDigitSolution, someSolutionCells, currentState) <- Future(state.solveSudoku())
-      withSolution <- SudokuUtils.paintSolution(sRectangle.normalized, detectedCellValues, someSolutionCells, currentState.library, sRectangle.cellRois)
-      annotatedSolution <- SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, someSolutionCells, currentState.hitCounts, lastState.cap)
+      currentState = oldState.merge(sRectangle.normalized, detectedCells, detectedCellValues)
+      solvedState <- Future(currentState.solve())
+      withSolution <- sRectangle.paintSolution(detectedCellValues, solvedState.someCells, currentState.library)
+      annotatedSolution <- SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, solvedState.someCells, currentState.hitCounts, oldState.cap)
       warped = OpenCV.warp(annotatedSolution, framePipeline.corners, sRectangle.detectedCorners)
       solutionMat <- OpenCV.copySrcToDestWithMask(warped, framePipeline.frame, warped) // copy solution mat to input mat
       sudokuFrame = SudokuFrame(sRectangle.normalized, detectedCells.toArray, sRectangle.detectedCorners.toList.toList)
     } yield {
-      val someSolution =
-        if (someSolutionCells.isDefined) {
-          Some(SolutionFrame(someDigitSolution.get, solutionMat))
-        } else None
-
-      (SSuccess(this, sudokuFrame, someSolution), currentState)
+      (SSuccess(this, sudokuFrame, solvedState.someResult.map(s => SolutionFrame(s, solutionMat))), currentState)
     }
   }
-
 
 }

@@ -17,7 +17,7 @@ import scala.util.Try
 
 object Debug {
 
-  val Active = true
+  val Active = false
 
   def writeDebug(sCandidate: SCandidate) = {
     val parent = new File(s"/Users/lad/Documents/sudokufx/sudoku-core/target/test-classes/net/ladstatt/sudoku/normalized/${sCandidate.nr}")
@@ -29,7 +29,7 @@ object Debug {
     writeMat(new File(parent, s"normalized"), sCandidate.sRectangle.normalized)
   }
 
-  def writeMat(target : File, mat: Mat): Boolean = {
+  def writeMat(target: File, mat: Mat): Boolean = {
     println(target)
     Imgcodecs.imwrite(target.getAbsolutePath + ".png", mat)
   }
@@ -51,6 +51,7 @@ object OpenCV extends CanLog {
     k.put(0, 0, Array[Byte](0, 1, 0, 1, 1, 1, 0, 1, 0))
     k
   }
+
 
   def copyMat(orig: Mat): Mat = {
     val dest = new Mat()
@@ -244,7 +245,7 @@ object OpenCV extends CanLog {
     require(srcCorners.toList.size == 4)
     require(destCorners.toList.size == 4)
 
-    val transformationMatrix = Imgproc.getPerspectiveTransform(srcCorners, destCorners)
+    val transformationMatrix: Mat = Imgproc.getPerspectiveTransform(srcCorners, destCorners)
 
     val dest = new Mat()
     Imgproc.warpPerspective(input, dest, transformationMatrix, input.size())
@@ -472,6 +473,8 @@ object OpenCV extends CanLog {
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
 
   def mkRect(i: Int, width: Int, height: Int): Rect = new Rect(Parameters.col(i) * width, Parameters.row(i) * height, width, height)
+
+  def mkRect(i: Int, s: Size): Rect = new Rect(Parameters.col(i) * s.width.toInt, Parameters.row(i) * s.height.toInt, s.width.toInt, s.height.toInt)
 
 
 }

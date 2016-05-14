@@ -85,7 +85,7 @@ class OpenCVTest {
   /**
     * range of sudoku frames to look at
     */
-  val examplesudokus = 0 to 104
+  val examplesudokus = 0 to 1
 
   /**
     * denotes exceptions which are not recognized properly, the key is the index of the example
@@ -199,7 +199,9 @@ class OpenCVTest {
   @Test def normalizedTest(): Unit = {
     val nr = 0
     for (nr <- examplesudokus) {
-      val m = Imgcodecs.imread(new File(s"src/test/resources/net/ladstatt/sudoku/normalized/sudoku_$nr.png").getAbsolutePath)
+      val image: File = new File(s"src/test/resources/net/ladstatt/sudoku/normalized/$nr/normalized.png")
+      assert(image.exists(),image.getAbsolutePath)
+      val m = Imgcodecs.imread(image.getAbsolutePath)
       check(nr, m, expectedFrauVonHeute -- exceptions(nr))
     }
   }
@@ -211,14 +213,7 @@ class OpenCVTest {
       val SCell(value, _, _) = Await.result(OpenCV.detectCell(m, OpenCV.mkRect(idx, cWidth, cHeight)), Duration.Inf)
       assertEquals(s"sudoku_$sudokuNr, idx: $idx >> Expected $v in row ${Parameters.row(idx)} and col ${Parameters.col(idx)}, but got $value.", v, value)
     }
-    /*
-    val problms =
-      (for ((idx, v) <- expected) yield {
-        if (value != v) Some(idx) else None
-      }).flatten
-    if (problms.nonEmpty)
-      println(sudokuNr + " -> " + problms.mkString("Seq(", ",", "),"))
-      */
+
   }
 
 }

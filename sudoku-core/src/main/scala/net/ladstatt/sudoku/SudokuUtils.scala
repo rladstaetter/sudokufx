@@ -16,22 +16,8 @@ import scala.util.Random
   */
 object SudokuUtils {
 
-  /**
-    * given a frequency table, returns a number which exceed a certain threshold randomly
-    *
-    * @param freqs
-    * @param threshold
-    * @return
-    */
-  def filterHits(freqs: Map[Int, Int], threshold: Int): Option[(Int, Int)] = {
-    freqs.find { case (value, f) => value != 0 && f >= threshold }
-  }
-
-  def nrDetections(hitCounts: HitCounters, cap: Int): Int = {
-    hitCounts.values.flatMap(filterHits(_, cap)).size
-  }
-
-  def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = BruteForceSolver.solve(solutionCandidate, maxDuration)
+  def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] =
+    BruteForceSolver.solve(solutionCandidate, maxDuration)
 
   def withCap(cap: Int)(v: Int) = v >= cap
 
@@ -40,8 +26,10 @@ object SudokuUtils {
   def mkIntermediateSudokuMatrix(hitCounts: HitCounters): SudokuDigitSolution = mkVM(hitCounts)(_ => true)
 
   def mkVM(hitCounts: HitCounters)(p: Int => Boolean): SudokuDigitSolution = {
+    //hitCounts.map { case (value,frequency) => }
     val h =
       for (i <- cellRange) yield {
+        //((for ((value, frequency) <- hitCounts(i) if p(frequency)) yield value).headOption.getOrElse(0) + 48).toChar
         (Random.shuffle(for ((value, frequency) <- hitCounts(i) if p(frequency)) yield value).headOption.getOrElse(0) + 48).toChar
       }
     h.toArray
@@ -94,17 +82,24 @@ object SudokuUtils {
 
 
     // TODO update colors
-    def color(hitCounts: HitCounters, i: Int, cap: Int): Scalar = {
-      val freq4Index = hitCounts(i)
+    def color(freq4Index: Map[Int, Int], cap: Int): Scalar = {
+      println(freq4Index)
       val n = freq4Index.values.max.toDouble
-      val s = new Scalar(0, n * 256 / cap, 256 - n * 256 / cap)
-      s
+      println("n:" + n + "cap: " + cap)
+      // n % cap
+      val r = freq4Index.size match {
+        case 1 => 0
+        case 2 => 100
+        case 3 => 200
+        case _ => 255
+      }
+      new Scalar(0, (n % cap) * 255 / cap, r, 255.0)
     }
 
     Future {
       for (solution <- someSolution) {
         CollectionUtils.traverseWithIndex(rects)((cell, i) => {
-          paintRect(canvas, rects(i), color(hitCounts, i, cap), 1)
+          paintRect(canvas, rects(i), color(hitCounts(i), cap), 1)
         }
         )
       }
@@ -150,7 +145,7 @@ object SudokuUtils {
     * @param number
     * @return
     */
-  private def mkFallback(number: Int, digitLibrary: DigitLibrary): Option[Mat] = {
+  def mkFallback(number: Int, digitLibrary: DigitLibrary): Option[Mat] = {
     /**
       * returns size and type of Mat's contained int he digitLibrary
       *
@@ -175,19 +170,14 @@ object SudokuUtils {
         val frequencies: Map[Int, Int] = currentHitCounts(index)
         index -> (frequencies + (value -> (frequencies(value) + 1)))
       }).toMap
-
-    SudokuUtils.resetHitsIfThereAreTooMuchAmbiguities(hits)
-  }
-
-
-  def resetHitsIfThereAreTooMuchAmbiguities(counters: HitCounters): HitCounters = {
-    val cellAmbiguities = counters.values.map(m => m.size).count(_ > Parameters.ambiguitiesCount)
+    val cellAmbiguities = hits.values.map(m => m.size).count(_ > Parameters.ambiguitiesCount)
     if (cellAmbiguities > Parameters.ambiCount) {
       logError(s"Too many ambiguities ($cellAmbiguities), resetting .. ")
-      DefaultState.hitCounts
+      SudokuState.DefaultState.hitCounts
     }
-    else counters
+    else hits
   }
+
 
   // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
   // TODO remove sudokuCanvas from signature: just save roi's and calculate Mats on demand

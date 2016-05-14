@@ -56,27 +56,7 @@ case class FramePipeline(start: Long,
 
 }
 
-object SRectangle {
 
-  def apply(fp: FramePipeline): Option[SRectangle] = {
-    fp.detectedRectangle.map(new SRectangle(fp, _))
-  }
-}
 
-case class SRectangle(framePipeline: FramePipeline, detectedCorners: MatOfPoint2f) {
 
-  val analysisCorners = framePipeline.corners
- // val analysisCorners = OpenCV.mkCorners(TemplateLibrary.templateCanvasSize)
-  lazy val normalized: Mat = OpenCV.warp(framePipeline.frame, detectedCorners, analysisCorners)
-  lazy val normalizedCellSize: Size = OpenCV.mkCellSize(normalized.size)
-  /**
-    * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
-    */
-  lazy val cellRois: Seq[Rect] = Parameters.cellRange.map(OpenCV.mkRect(_, normalizedCellSize.width.toInt, normalizedCellSize.height.toInt))
-
-  private lazy val detectCells: Seq[Future[SCell]] = cellRois.map(OpenCV.detectCell(normalized, _))
-
-  lazy val detectedCells = Future.fold(detectCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
-
-}
 
