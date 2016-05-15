@@ -1,7 +1,6 @@
 package net.ladstatt.opencv
 
 import java.io.File
-import java.util.UUID
 
 import net.ladstatt.core.{CanLog, SystemEnv}
 import net.ladstatt.sudoku._
@@ -75,17 +74,15 @@ object OpenCV extends CanLog {
     * @param curveList
     * @return
     */
-  def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): Option[(Double, MatOfPoint)] = {
-    if (curveList.isEmpty) None
-    else curveList.foldLeft[Option[(Double, MatOfPoint)]](None) {
-      case (acc, curve) =>
-        val cArea = Imgproc.contourArea(curve)
-        acc match {
-          case None => Some((cArea, curve))
-          case Some((area, c)) =>
-            if (cArea >= area) Some((cArea, curve)) else Some((area, c))
-        }
-    }
+  def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): (Double, MatOfPoint) = {
+    if (curveList.isEmpty)
+      (0.0, new MatOfPoint)
+    else
+      curveList.foldLeft[(Double, MatOfPoint)]((0.0, new MatOfPoint)) {
+        case ((area, c), curve) =>
+          val cArea = Imgproc.contourArea(curve)
+          if (cArea >= area) (cArea, curve) else (area, c)
+      }
 
   }
 
@@ -455,7 +452,7 @@ object OpenCV extends CanLog {
     } yield {
       val someMat = findCellContour(a, sp, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
 
-    //   someMat foreach (Imgcodecs.imwrite(new File("/Users/lad/Documents/sudokufx/sudoku-core/target/" + UUID.randomUUID().toString + ".png").getAbsolutePath, _))
+      //   someMat foreach (Imgcodecs.imwrite(new File("/Users/lad/Documents/sudokufx/sudoku-core/target/" + UUID.randomUUID().toString + ".png").getAbsolutePath, _))
       someMat
     }
   }

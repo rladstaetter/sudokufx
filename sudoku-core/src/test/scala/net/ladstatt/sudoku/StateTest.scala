@@ -3,7 +3,7 @@ package net.ladstatt.sudoku
 import net.ladstatt.opencv.OpenCV
 import org.junit.Assert._
 import org.junit.Test
-import org.opencv.core.Mat
+import org.opencv.core.{Mat, Rect}
 
 /**
   * Created by lad on 12.01.15.
@@ -18,8 +18,8 @@ class StateTest {
 
   def asMat(i: Int): Mat = TemplateLibrary.asSeq(i)
 
-  val cellData = new Mat
-  val cellz = Seq(SCell(cellData,null), SCell(cellData, null))
+  val cellData = SudokuTestContext.frameSudoku_1
+  val cellz = Seq(SCell(cellData, new Rect), SCell(cellData, new Rect))
 
 
   // defines a poor man's comparison between matrixes

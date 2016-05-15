@@ -8,9 +8,6 @@ import org.junit.Test
 import org.opencv.core.{Mat, MatOfPoint, Point, Rect}
 import org.opencv.imgcodecs.Imgcodecs
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 /**
   * Created by lad on 22.02.16.
   */
@@ -28,8 +25,8 @@ class OpenCVTest {
     * what happenes if we detect no contours
     */
   @Test def extractMaxCurveFromEmptyInput(): Unit = {
-    val res: Option[(Double, MatOfPoint)] = OpenCV.extractCurveWithMaxArea(Seq())
-    assertEquals(None, res)
+    val res: (Double, MatOfPoint) = OpenCV.extractCurveWithMaxArea(Seq())
+    assertEquals(res._1, 0.0, 0.01)
   }
 
   /**
@@ -38,22 +35,16 @@ class OpenCVTest {
   @Test def extractMaxCurveWithOneElement(): Unit = {
     val c: MatOfPoint = mkContour(0, 0)
     val seq: Seq[MatOfPoint] = Seq(c)
-    val res: Option[(Double, MatOfPoint)] = OpenCV.extractCurveWithMaxArea(seq)
-    assert(res.isDefined)
-    res foreach {
-      case (area, _) => assert(area == 0)
-    }
+    val (area, _) = OpenCV.extractCurveWithMaxArea(seq)
+    assertEquals(area, 0.0, 0.001)
   }
 
   @Test def extractBiggerContour(): Unit = {
     val c1: MatOfPoint = mkContour(0, 0, 0, 10, 10, 10, 10, 0)
     val c2: MatOfPoint = mkContour(0, 0, 0, 20, 20, 20, 20, 0)
     val seq: Seq[MatOfPoint] = Seq(c1, c2)
-    val res: Option[(Double, MatOfPoint)] = OpenCV.extractCurveWithMaxArea(seq)
-    assert(res.isDefined)
-    res foreach {
-      case (area, _) => assertEquals(400, area, 0.0)
-    }
+    val (area, _) = OpenCV.extractCurveWithMaxArea(seq)
+    assertEquals(area, 400.0, 0.0)
   }
 
 
@@ -212,7 +203,13 @@ class OpenCVTest {
     for ((idx, v) <- expected) {
       val roi: Rect = OpenCV.mkRect(idx, cWidth, cHeight)
       val sCell = SCell(m.submat(roi), roi)
-      assertEquals(s"sudoku_$sudokuNr, idx: $idx >> Expected $v in row ${Parameters.row(idx)} and col ${Parameters.col(idx)}, but got ${sCell.value}.", v, sCell.value)
+      assertEquals(s"sudoku_$sudokuNr, idx: $idx >> Expected $v in row ${
+        Parameters.row(idx)
+      } and col ${
+        Parameters.col(idx)
+      }, but got ${
+        sCell.value
+      }.", v, sCell.value)
     }
 
   }

@@ -214,30 +214,26 @@ object SudokuUtils {
     */
   def detectRectangle(input: Mat, corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
     import scala.collection.JavaConversions._
-    extractCurveWithMaxArea(contours) match {
-      case None =>
-        logWarn("Could not detect any curve ... ")
-        None
-      case Some((contourArea, c)) =>
-        val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
-        if (contourArea > minimumExpectedArea) {
-          val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
-          if (has4Sides(approxCurve)) {
-            val corners = mkSortedCorners(approxCurve)
-            if (isSomewhatSquare(corners)) {
-              Option(new MatOfPoint2f(corners: _*))
-            } else {
-              logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
-              None
-            }
-          } else {
-            logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-            None
-          }
+    val (contourArea, c) = extractCurveWithMaxArea(contours)
+
+    val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
+    if (contourArea > minimumExpectedArea) {
+      val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
+      if (has4Sides(approxCurve)) {
+        val corners = mkSortedCorners(approxCurve)
+        if (isSomewhatSquare(corners)) {
+          Option(new MatOfPoint2f(corners: _*))
         } else {
-          logTrace(s"The detected area of interest was too small ($contourArea < $minimumExpectedArea).")
+          logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
           None
         }
+      } else {
+        logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
+        None
+      }
+    } else {
+      logTrace(s"The detected area of interest was too small ($contourArea < $minimumExpectedArea).")
+      None
     }
 
   }

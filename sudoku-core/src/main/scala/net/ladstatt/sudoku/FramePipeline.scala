@@ -53,7 +53,7 @@ case class FramePipeline(start: Long,
   /**
     * returns coordinates of detected sudoku
     */
-  lazy val detectedRectangle: Option[MatOfPoint2f] = SudokuUtils.detectRectangle(dilated, corners, params, contours)
+  lazy val detectRectangle: Option[MatOfPoint2f] = SudokuUtils.detectRectangle(dilated, corners, params, contours)
 
   def persist(dir: File): Unit = {
     dir.mkdirs()

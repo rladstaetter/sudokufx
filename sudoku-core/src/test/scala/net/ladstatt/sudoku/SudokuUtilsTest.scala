@@ -22,7 +22,6 @@ class SudokuUtilsTest {
     val pipeline: FramePipeline = FramePipeline(SudokuTestContext.frameSudoku_1,params)
     val res = SudokuUtils.detectRectangle(pipeline.dilated, OpenCV.mkCorners(pipeline.dilated.size), params, pipeline.contours)
     //pipeline.persist(new File("target/utilstest/"))
-    assert(res.isDefined)
     val points: util.List[Point] = res.get.toList
     println(points.toSeq)
     assert(points.size > 0)

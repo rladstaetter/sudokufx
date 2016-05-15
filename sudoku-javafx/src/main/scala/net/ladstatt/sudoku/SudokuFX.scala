@@ -202,9 +202,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       case (frame, index) =>
         val params: SParams = SParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
         val pipeline: FramePipeline = FramePipeline(frame, params)
-        pipeline.detectedRectangle match {
+        pipeline.detectRectangle match {
           case None => pipeline
-          case Some(r) => SCandidate(index, pipeline, SRectangle(pipeline.frame, r, pipeline.corners), getCurrentSudokuState())
+          case Some(rect) => SCandidate(index, pipeline, SRectangle(pipeline.frame, rect, pipeline.corners), getCurrentSudokuState())
         }
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 

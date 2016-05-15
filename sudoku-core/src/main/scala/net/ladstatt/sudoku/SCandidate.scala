@@ -7,13 +7,21 @@ import org.opencv.core._
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 
 object SCandidate {
 
-  def apply(nr: Int, frame: Mat, state: SudokuState, params: SParams = SParams()): SCandidate = {
-    val pipeline: FramePipeline = FramePipeline(frame, params)
-    new SCandidate(nr, pipeline, SRectangle(frame, pipeline.detectedRectangle.get, pipeline.corners), state)
+  // todo remove
+  def apply(nr: Int, frame: Mat, pipeline: FramePipeline, state: SudokuState, params: SParams = SParams()): SCandidate = {
+    Try {
+      new SCandidate(nr, pipeline, SRectangle(pipeline.frame, pipeline.detectRectangle.get, pipeline.corners), state)
+    } match {
+      case Success(x) => x
+      case Failure(e) => {
+        throw e
+      }
+    }
   }
 
 }
@@ -27,7 +35,7 @@ trait SResult
 case class SCandidate(nr: Int,
                       pipeline: FramePipeline,
                       sRectangle: SRectangle,
-                      oldState: SudokuState) extends CanLog with SResult {
+                      oldState: SudokuState) extends SResult {
 
   if (Debug.Active) Debug.writeDebug(this)
 

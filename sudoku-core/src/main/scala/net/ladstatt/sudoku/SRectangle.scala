@@ -10,22 +10,14 @@ import scala.concurrent.Future
 /**
   * Created by lad on 01.05.16.
   */
-object SRectangle {
-
-  def apply(fp: FramePipeline): Option[SRectangle] = {
-    fp.detectedRectangle.map(new SRectangle(fp.frame, _, fp.corners))
-  }
-}
-
 case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: MatOfPoint2f) {
 
   //val analysisCorners = OpenCV.mkCorners(TemplateLibrary.templateCanvasSize)
   val normalized: Mat = OpenCV.warp(frame, detectedCorners, destCorners)
-  val warpedCellSize: Size = OpenCV.mkCellSize(normalized.size)
   /**
     * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
     */
-  val cellRois: Seq[Rect] = Parameters.cellRange.map(OpenCV.mkRect(_, warpedCellSize))
+  val cellRois: Seq[Rect] = Parameters.cellRange.map(OpenCV.mkRect(_, OpenCV.mkCellSize(normalized.size)))
 
   val cells: Seq[SCell] = cellRois.map(r => SCell(normalized.submat(r), r))
 
