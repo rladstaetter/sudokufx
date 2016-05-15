@@ -1,6 +1,10 @@
 package net.ladstatt.sudoku
 
-import org.opencv.core.Rect
+import net.ladstatt.opencv.OpenCV._
+import org.opencv.core.{Mat, Rect}
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 
 /**
@@ -9,11 +13,10 @@ import org.opencv.core.Rect
   * A sudoku contains 81 cells. Every cell has its proposed value, a region of interest and some other
   * attributes.
   *
-  * @param value
-  * @param quality
   * @param roi
   */
-case class SCell(value: Int, quality: Double, roi: Rect) {
-  assert(0 <= value && value <= 9, s"value: $value")
-  assert(quality >= 0)
+case class SCell(cellMat: Mat, roi: Rect) {
+  val contour: Option[Mat] = Await.result(extractContour(cellMat), Duration.Inf)
+
+  val (value, quality) = Await.result(contour.map(TemplateLibrary.detectNumber).getOrElse(Future.successful((0, 0.0))),Duration.Inf)
 }

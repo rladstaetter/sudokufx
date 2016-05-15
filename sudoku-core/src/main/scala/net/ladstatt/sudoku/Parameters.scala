@@ -82,7 +82,7 @@ object Parameters {
 
   // least number of matches necessary to identify one number
   // if you have a good camera, take 1 to get fast response
-  val cap = 10
+  val cap = 30
 
   // number of different values a cell can have before the cell is label 'ambiguous'
   val ambiguitiesCount = 5
@@ -91,7 +91,7 @@ object Parameters {
   val ambiCount = 5
 
   // numbers won't get any larger in the status matrix than this number
-  val topCap = 15
+  val topCap = 50
 
 
   assert(topCap - cap > 0)

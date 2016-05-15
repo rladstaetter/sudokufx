@@ -51,12 +51,12 @@ object SudokuUtils {
 
         val x: Option[SCell] =
           if (value != 0) {
-            val someM = digitLibrary(value)._2
+            val someM: Option[Mat] = digitLibrary(value)._2
             (if (someM.isEmpty) {
               //              digitData(value) = mkFallback(value, digitData)
               digitLibrary(value)._2
             } else someM)
-              .map(m => SCell(value, 0, new Rect))
+              .map(m => SCell(m, new Rect))
           } else None
         x
       }).flatten.toArray

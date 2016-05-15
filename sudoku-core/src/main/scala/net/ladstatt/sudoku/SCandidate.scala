@@ -36,8 +36,8 @@ case class SCandidate(nr: Int,
     */
   lazy val calc: Future[(SudokuResult, SudokuState)] = {
     for {
-      detectedCells <- sRectangle.detectedCells
-      detectedCellValues = detectedCells.map(_.value)
+      detectedCells <- Future(sRectangle.cells)
+      detectedCellValues = sRectangle.cells.map(_.value)
       currentState = oldState.merge(sRectangle.normalized, detectedCells, detectedCellValues)
       solvedState <- Future(currentState.solve())
       withSolution <- sRectangle.paintSolution(detectedCellValues, solvedState.someCells, currentState.library)

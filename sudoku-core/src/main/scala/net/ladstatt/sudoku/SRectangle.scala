@@ -1,6 +1,5 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.core.CollectionUtils
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
@@ -21,16 +20,16 @@ object SRectangle {
 case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: MatOfPoint2f) {
 
   //val analysisCorners = OpenCV.mkCorners(TemplateLibrary.templateCanvasSize)
-  lazy val normalized: Mat = OpenCV.warp(frame, detectedCorners, destCorners)
-  lazy val warpedCellSize: Size = OpenCV.mkCellSize(normalized.size)
+  val normalized: Mat = OpenCV.warp(frame, detectedCorners, destCorners)
+  val warpedCellSize: Size = OpenCV.mkCellSize(normalized.size)
   /**
     * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
     */
-  lazy val cellRois: Seq[Rect] = Parameters.cellRange.map(OpenCV.mkRect(_, warpedCellSize))
+  val cellRois: Seq[Rect] = Parameters.cellRange.map(OpenCV.mkRect(_, warpedCellSize))
 
-  private lazy val warpedCells: Seq[Future[SCell]] = cellRois.map(OpenCV.detectCell(normalized, _))
+  val cells: Seq[SCell] = cellRois.map(r => SCell(normalized.submat(r), r))
 
-  lazy val detectedCells: Future[Seq[SCell]] = Future.fold(warpedCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+  // lazy val detectedCells: Future[Seq[SCell]] = Future.fold(warpedCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
 
   /**
     * paints the solution to the canvas.
@@ -60,7 +59,6 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
       normalized
     }
   }
-
 
 
 }

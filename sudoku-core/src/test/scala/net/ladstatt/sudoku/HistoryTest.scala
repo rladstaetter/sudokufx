@@ -2,6 +2,7 @@ package net.ladstatt.sudoku
 
 import org.junit.Assert._
 import org.junit.Test
+import org.opencv.core.Mat
 
 import scala.util.{Failure, Try}
 
@@ -13,7 +14,7 @@ class HistoryTest {
   @Test
   def invalidSCell() = {
     Try {
-      SCell(-10, 0, null)
+      SCell(new Mat, null)
       fail()
     } match {
       case Failure(e: AssertionError) =>
@@ -24,7 +25,7 @@ class HistoryTest {
   @Test
   def invalidSCell2() = {
     Try {
-      SCell(0, -1, null)
+      SCell(new Mat, null)
       fail()
     } match {
       case Failure(e: AssertionError) =>

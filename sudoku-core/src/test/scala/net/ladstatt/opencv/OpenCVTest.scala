@@ -200,7 +200,7 @@ class OpenCVTest {
     val nr = 0
     for (nr <- examplesudokus) {
       val image: File = new File(s"src/test/resources/net/ladstatt/sudoku/normalized/$nr/normalized.png")
-      assert(image.exists(),image.getAbsolutePath)
+      assert(image.exists(), image.getAbsolutePath)
       val m = Imgcodecs.imread(image.getAbsolutePath)
       check(nr, m, expectedFrauVonHeute -- exceptions(nr))
     }
@@ -210,8 +210,9 @@ class OpenCVTest {
     val cWidth: Int = (m.size.width / Parameters.ssize).toInt
     val cHeight: Int = (m.size.height / Parameters.ssize).toInt
     for ((idx, v) <- expected) {
-      val SCell(value, _, _) = Await.result(OpenCV.detectCell(m, OpenCV.mkRect(idx, cWidth, cHeight)), Duration.Inf)
-      assertEquals(s"sudoku_$sudokuNr, idx: $idx >> Expected $v in row ${Parameters.row(idx)} and col ${Parameters.col(idx)}, but got $value.", v, value)
+      val roi: Rect = OpenCV.mkRect(idx, cWidth, cHeight)
+      val sCell = SCell(m.submat(roi), roi)
+      assertEquals(s"sudoku_$sudokuNr, idx: $idx >> Expected $v in row ${Parameters.row(idx)} and col ${Parameters.col(idx)}, but got ${sCell.value}.", v, sCell.value)
     }
 
   }

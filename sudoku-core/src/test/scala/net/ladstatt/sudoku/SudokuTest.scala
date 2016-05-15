@@ -31,7 +31,7 @@ class SudokuTest  {
   @Test def testDetect(): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
     assertEquals(81.toLong, refCellNumbers.size.toLong)
-    val cells: Seq[SCell] = Await.result(SudokuTestContext.sudoku_1.sRectangle.detectedCells, Duration.Inf)
+    val cells: Seq[SCell] = SudokuTestContext.sudoku_1.sRectangle.cells
     var i = 0
     for (c <- cells) {
       assertEquals(refCellNumbers(i)._1.toLong, c.value.toLong)

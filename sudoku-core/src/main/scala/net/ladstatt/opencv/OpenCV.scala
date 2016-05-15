@@ -305,7 +305,8 @@ object OpenCV extends CanLog {
 
   def findCellContour(original: Mat,
                       specialParam: SpecialParam,
-                      contourMode: Int, contourMethod: Int): Option[Mat] = {
+                      contourMode: Int,
+                      contourMethod: Int): Option[Mat] = {
     val contours: Seq[MatOfPoint] = findContours(original, contourMode, contourMethod)
     val predicateFn: (MatOfPoint) => Boolean = contourPredicate(specialParam)
     findBestFit(contours, predicateFn) map original.submat
@@ -437,17 +438,6 @@ object OpenCV extends CanLog {
     }
 
 
-  def genericDetectCell(detectNumber: DetectFn)(sudokuCanvas: Mat, roi: Rect): Future[SCell] = {
-    for {
-      contour <- extractContour(sudokuCanvas.submat(roi))
-      (value, quality) <- contour.map(detectNumber).getOrElse(Future.successful((0, 0.0)))
-    } yield {
-      SCell(value, quality, roi)
-    }
-  }
-
-  val detectCell: (Mat, Rect) => Future[SCell] = genericDetectCell(TemplateLibrary.detectNumber)
-
   // filter out false positives
   // use information known (size, position of digits)
   // the bounding box of the contours must fit into some rough predicate, like follows:
@@ -465,7 +455,7 @@ object OpenCV extends CanLog {
     } yield {
       val someMat = findCellContour(a, sp, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE)
 
-      someMat foreach (Imgcodecs.imwrite(new File("/Users/lad/Documents/sudokufx/sudoku-core/target/" + UUID.randomUUID().toString + ".png").getAbsolutePath, _))
+    //   someMat foreach (Imgcodecs.imwrite(new File("/Users/lad/Documents/sudokufx/sudoku-core/target/" + UUID.randomUUID().toString + ".png").getAbsolutePath, _))
       someMat
     }
   }

@@ -6,8 +6,8 @@ import org.junit.Test
 import org.opencv.core.Mat
 
 /**
- * Created by lad on 12.01.15.
- */
+  * Created by lad on 12.01.15.
+  */
 class StateTest {
 
   OpenCV.loadNativeLib("../lib/libopencv_java310.so")
@@ -19,8 +19,7 @@ class StateTest {
   def asMat(i: Int): Mat = TemplateLibrary.asSeq(i)
 
   val cellData = new Mat
-  val cellz = Seq(SCell(1, 112.1212,null), SCell(4, 80.1212,null))
-
+  val cellz = Seq(SCell(cellData,null), SCell(cellData, null))
 
 
   // defines a poor man's comparison between matrixes
