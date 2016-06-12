@@ -4,21 +4,14 @@
 
 This is a project demonstrating what is necessary implement a Sudoku grabber and solver using the OpenCV Java API.
 
-Maybe you want to check out a blog post series about this project at http://ladstatt.blogspot.com/ for a more detailled
-discussion of the used concepts.
+This project comprises a JavaFX and an Android implementation, you can check out the [APK here](https://play.google.com/store/apps/details?id=net.ladstatt.apps.sudoku.android).
+
+Maybe you want to read some blog posts about this project at http://ladstatt.blogspot.com/.
 
 # Building
 
-SudokuFX uses maven as build tool. One dependency is opencv 3.1, which you will
-have to deploy yourself in your local repository. See INSTALL.txt.
-
-Afterwards the project should build with
-
-    mvn package
-
-You should be able to run the JavaFX application by executing:
-
-    java -jar sudoku-javafx/target/sudoku-javafx-1.0-SNAPSHOT-jar-with-dependencies.jar
+SudokuFX uses maven as build tool. One dependency is opencv 3.1, which you will have to deploy yourself in your local repository.
+See INSTALL.txt.
 
 # License
 
