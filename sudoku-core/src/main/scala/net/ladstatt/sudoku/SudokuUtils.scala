@@ -78,7 +78,7 @@ object SudokuUtils {
                    rects: Seq[Rect],
                    someSolution: Option[Cells],
                    hitCounts: HitCounters,
-                   cap: Int): Future[Mat] = {
+                   cap: Int): Mat = {
 
 
     // TODO update colors
@@ -96,7 +96,7 @@ object SudokuUtils {
       new Scalar(0, (n % cap) * 255 / cap, r, 255.0)
     }
 
-    Future {
+
       for (solution <- someSolution) {
         CollectionUtils.traverseWithIndex(rects)((cell, i) => {
           paintRect(canvas, rects(i), color(hitCounts(i), cap), 1)
@@ -105,7 +105,6 @@ object SudokuUtils {
       }
 
       canvas
-    }
   }
 
 

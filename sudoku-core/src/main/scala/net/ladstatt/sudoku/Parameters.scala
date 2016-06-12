@@ -3,6 +3,8 @@ package net.ladstatt.sudoku
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core.Mat
 
+import scala.concurrent.Future
+
 
 object SudokuState {
 
@@ -49,6 +51,9 @@ case class SudokuState(hitCounts: HitCounters,
 
   val detections: Int = hitCounts.values.flatMap(filterHits(_, cap)).size
 
+  def merge(sRectangle: SRectangle) : SudokuState = {
+    merge(sRectangle.normalized, sRectangle.cells, sRectangle.cellValues)
+  }
   def merge(normalized: Mat,
             detectedCells: Seq[SCell],
             detectedCellValues: Seq[Int]): SudokuState = {
@@ -82,16 +87,20 @@ object Parameters {
 
   // least number of matches necessary to identify one number
   // if you have a good camera, take 1 to get fast response
-  val cap = 30
+  val cap = 3
+  //val cap = 30
 
   // number of different values a cell can have before the cell is label 'ambiguous'
   val ambiguitiesCount = 5
+  //val ambiguitiesCount = 5
 
   // how many cells are allowed to have ambiguous information before number detection process is restarted
   val ambiCount = 5
+  //val ambiCount = 5
 
   // numbers won't get any larger in the status matrix than this number
-  val topCap = 50
+  val topCap =5
+  //val topCap = 50
 
 
   assert(topCap - cap > 0)

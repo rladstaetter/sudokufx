@@ -8,6 +8,7 @@ object SParams {
   def apply(): SParams = {
     SParams(Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE, 30)
   }
+
 }
 
 

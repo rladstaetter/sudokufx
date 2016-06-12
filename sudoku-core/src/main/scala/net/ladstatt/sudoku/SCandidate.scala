@@ -1,6 +1,5 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.{Debug, OpenCV}
 import org.opencv.core._
 
@@ -43,18 +42,15 @@ case class SCandidate(nr: Int,
     * This function uses an input image and a detection method to calculate the sudoku.
     */
   lazy val calc: Future[(SudokuResult, SudokuState)] = {
+    val currentState = oldState.merge(sRectangle)
     for {
-      detectedCells <- Future(sRectangle.cells)
-      detectedCellValues = sRectangle.cells.map(_.value)
-      currentState = oldState.merge(sRectangle.normalized, detectedCells, detectedCellValues)
       solvedState <- Future(currentState.solve())
-      withSolution <- sRectangle.paintSolution(detectedCellValues, solvedState.someCells, currentState.library)
-      annotatedSolution <- SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, solvedState.someCells, currentState.hitCounts, oldState.cap)
+      withSolution <- Future(sRectangle.paintSolution(solvedState.someCells, currentState.library))
+      annotatedSolution <- Future(SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, solvedState.someCells, currentState.hitCounts, oldState.cap))
       warped = OpenCV.warp(annotatedSolution, pipeline.corners, sRectangle.detectedCorners)
-      solutionMat <- OpenCV.copySrcToDestWithMask(warped, pipeline.frame, warped) // copy solution mat to input mat
-      sudokuFrame = SudokuFrame(sRectangle.normalized, detectedCells.toArray, sRectangle.detectedCorners.toList.toList)
+      solutionMat <- Future(OpenCV.copySrcToDestWithMask(warped, pipeline.frame, warped)) // copy solution mat to input mat
     } yield {
-      (SSuccess(this, sudokuFrame, solvedState.someResult.map(s => SolutionFrame(s, solutionMat))), currentState)
+      (SSuccess(this, sRectangle, solvedState.someResult.map(s => SolutionFrame(s, solutionMat))), currentState)
     }
   }
 

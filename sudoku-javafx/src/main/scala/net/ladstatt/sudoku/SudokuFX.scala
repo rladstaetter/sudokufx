@@ -480,7 +480,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     displayHitCounts(getCurrentSudokuState().hitCounts, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
-      case SSuccess(SCandidate(nr, framePipeline, sr, ss), SudokuFrame(sudokuCanvas, detectedCells, corners), someSolution) =>
+      case SSuccess(SCandidate(nr, framePipeline, sr, ss), SRectangle(sudokuCanvas, detectedCells, corners), someSolution) =>
         if (someSolution.isDefined) {
           val sol = someSolution.get
           updateVideo(stage, framePipeline, sol.solutionMat)

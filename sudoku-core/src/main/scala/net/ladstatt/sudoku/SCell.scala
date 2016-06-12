@@ -16,6 +16,7 @@ import scala.concurrent.{Await, Future}
   * @param roi
   */
 case class SCell(cellMat: Mat, roi: Rect) {
+
   val contour: Option[Mat] = Await.result(extractContour(cellMat), Duration.Inf)
 
   val (value, quality) = Await.result(contour.map(TemplateLibrary.detectNumber).getOrElse(Future.successful((0, 0.0))),Duration.Inf)

@@ -24,6 +24,7 @@ package object sudoku {
     * records for each number from 0 to 9 the best hit (quality) along with its digital data
     */
   type DigitLibrary = Map[Int, (Double, Option[Mat])]
+
   // TODO solution should be an array of Int or a string with 81 entries
   // the graphical representation should be a single mat with the matrixes edited inline
   // (meaning the matrix represents the whole canvas and the app is working with submatrixes

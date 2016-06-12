@@ -14,18 +14,17 @@ object FramePipeline {
 
   import net.ladstatt.opencv.OpenCV._
 
-  def apply(frame: Mat, params: SParams): FramePipeline = {
+  def apply(frame: Mat, params: SParams = SParams()): FramePipeline = {
     val start = System.nanoTime()
     Await.result(for {
-      working <- copySrcToDestWithMask(frame, new Mat, frame)
+      working <- Future(copySrcToDestWithMask(frame, new Mat, frame))
       grayed <- toGray(working)
       blurred <- gaussianblur(grayed)
       thresholdApplied <- adaptiveThreshold(blurred)
       inverted <- bitwiseNot(thresholdApplied)
       dilated <- dilate(inverted, OpenCV.Kernel)
       eroded <- erode(inverted)
-      corners: MatOfPoint2f = OpenCV.mkCorners(frame.size)
-    } yield FramePipeline(start, frame, working, grayed, blurred, thresholdApplied, inverted, dilated, eroded, corners, params), Duration.Inf)
+    } yield FramePipeline(start, frame, working, grayed, blurred, thresholdApplied, inverted, dilated, eroded, params), Duration.Inf)
   }
 
 }
@@ -42,9 +41,9 @@ case class FramePipeline(start: Long,
                          thresholded: Mat,
                          inverted: Mat,
                          dilated: Mat, eroded: Mat,
-                         corners: MatOfPoint2f,
                          params: SParams) extends SResult {
 
+  val corners =  OpenCV.mkCorners(frame.size)
   /**
     * a sequence of point lists which give the recognized contour lines
     */

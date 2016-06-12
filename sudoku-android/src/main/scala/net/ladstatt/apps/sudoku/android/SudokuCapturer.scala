@@ -65,6 +65,7 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   var currState: SudokuState = AndroidOpenCV.DefaultAndroidState
 
   def initAssets(): Unit = {
+    AndroidOpenCV.init()
     TemplateLibrary.getResourceAsStream = getAssets().open
     TemplateLibrary.templateResource = "templates.csv"
   }
@@ -142,9 +143,16 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
     val frame = inputFrame.rgba()
     frameNr = frameNr + 1
 
-    val (sudokuResult, nextState) = Await.result(SCandidate(frameNr, frame, currState, SParams()).calc, Duration.Inf)
-    currState = nextState
-    sudokuResult
+    val pipeline: FramePipeline = FramePipeline(frame, SParams())
+
+    pipeline.detectRectangle match  {
+      case None => SFailure("No rectangle detected",SCandidate(frameNr,pipeline, SRectangle(frame, pipeline.corners,pipeline.corners),currState))
+      case Some(r) =>
+        val rectangle: SRectangle = SRectangle(pipeline)
+        val (sudokuResult, nextState) = Await.result(SCandidate(frameNr, pipeline, rectangle, currState).calc, Duration.Inf)
+        currState = nextState
+        sudokuResult
+    }
   }
 
   def execOnUIThread(f: => Unit): Unit = {

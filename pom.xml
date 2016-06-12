@@ -36,7 +36,7 @@
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>4.11</version>
+                <version>4.12</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -60,7 +60,7 @@
                 <plugin>
                     <groupId>com.simpligility.maven.plugins</groupId>
                     <artifactId>android-maven-plugin</artifactId>
-                    <version>4.3.0</version>
+                    <version>4.4.1</version>
                     <extensions>true</extensions>
                     <dependencies>
                         <dependency>

@@ -229,9 +229,8 @@ object OpenCV extends CanLog {
     * @param pattern
     * @return
     */
-  def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Future[Mat] =
-    Future {
-      source.copyTo(destination, pattern)
+  def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Mat = {
+    source.copyTo(destination, pattern)
       destination
     }
 

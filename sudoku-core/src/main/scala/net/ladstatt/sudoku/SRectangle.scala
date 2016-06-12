@@ -4,16 +4,26 @@ import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.collection.JavaConversions ._
 
+object SRectangle {
+
+  def apply(pipeline: FramePipeline) : SRectangle = {
+    SRectangle(pipeline.frame, pipeline.detectRectangle.get,pipeline.corners)
+  }
+}
 /**
   * Created by lad on 01.05.16.
   */
 case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: MatOfPoint2f) {
-
-  //val analysisCorners = OpenCV.mkCorners(TemplateLibrary.templateCanvasSize)
+  /**
+    * This mat contains an 'unstretched' version of the detected sudoku outer rectangle.
+    *
+    * In this representation it is easier to paint upon. After painting this Mat will be retransformed
+    * to the original appearance again.
+    */
   val normalized: Mat = OpenCV.warp(frame, detectedCorners, destCorners)
+
   /**
     * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
     */
@@ -21,8 +31,11 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
 
   val cells: Seq[SCell] = cellRois.map(r => SCell(normalized.submat(r), r))
 
-  // lazy val detectedCells: Future[Seq[SCell]] = Future.fold(warpedCells)(Seq[SCell]())((cells, c) => cells ++ Seq(c))
+  val cellValues: Seq[Int] = cells.map(_.value)
 
+  lazy val detectedCells: Seq[SCell] = cells.filter(_.value != 0)
+
+  lazy val corners = detectedCorners.toList.toList
   /**
     * paints the solution to the canvas.
     *
@@ -33,23 +46,15 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
     *
     * uses digitData as lookup table to paint onto the canvas, thus modifying the canvas.
     */
-  def paintSolution(detectedCells: Seq[Int],
-                    someSolution: Option[Cells],
-                    digitLibrary: DigitLibrary): Future[Mat] = {
-
-    Future {
-      for (solution <- someSolution) {
-        val values: Array[Int] = solution.map(_.value)
-        for ((s, r) <- values zip cellRois) {
-          if (values.sum == 405) {
-            copyTo(digitLibrary(s)._2.getOrElse(SudokuUtils.mkFallback(s, digitLibrary).get), normalized, r)
-          } else {
-            logTrace("values.sum was not 405 in paintsolution")
-          }
-        }
+  def paintSolution(someSolution: Option[Cells],
+                    digitLibrary: DigitLibrary): Mat = {
+    for (solution <- someSolution) {
+      val values: Array[Int] = solution.map(_.value)
+      for ((s, r) <- values zip cellRois if s != 0) {
+        copyTo(digitLibrary(s)._2.getOrElse(SudokuUtils.mkFallback(s, digitLibrary).get), normalized, r)
       }
-      normalized
     }
+    normalized
   }
 
 

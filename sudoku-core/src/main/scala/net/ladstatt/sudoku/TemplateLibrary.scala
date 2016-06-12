@@ -37,7 +37,6 @@ object TemplateLibrary extends CanLog {
     * @return
     */
   def detectNumber(candidate: Mat): Future[(Int, Double)] = {
-    //println(candidate.size.width + "/" + candidate.size.height)
     val resizedCandidate = OpenCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
     val matchHaystack: (Int, Mat) => Future[(Int, Double)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
 
