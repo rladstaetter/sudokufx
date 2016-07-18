@@ -38,14 +38,16 @@
         <dependency>
             <groupId>android</groupId>
             <artifactId>android</artifactId>
-            <version>5.0.1_r2</version>
+            <version>6.0_r2</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.google.android.admob</groupId>
-            <artifactId>admob</artifactId>
-            <version>6.4.1-r11</version>
+            <groupId>com.google.android.gms</groupId>
+            <artifactId>play-services-ads</artifactId>
+            <version>9.2.0</version>
+            <type>aar</type>
         </dependency>
+
     </dependencies>
 
 
@@ -58,7 +60,7 @@
                 <artifactId>scala-maven-plugin</artifactId>
             </plugin>
 
-            <plugin>
+                <plugin>
                 <groupId>com.simpligility.maven.plugins</groupId>
                 <artifactId>android-maven-plugin</artifactId>
                 <configuration>
@@ -75,6 +77,7 @@
                     </sdk>
                     <extractDuplicates>true</extractDuplicates>
                     <undeployBeforeDeploy>true</undeployBeforeDeploy>
+                    <failOnDuplicatePackages>false</failOnDuplicatePackages>
                 </configuration>
                 <executions>
                     <execution>
@@ -103,7 +106,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-jarsigner-plugin</artifactId>
-                        <version>1.2</version>
+                        <version>1.4</version>
                         <executions>
                             <execution>
                                 <id>signing</id>

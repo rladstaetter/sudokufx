@@ -6,7 +6,7 @@ import _root_.android.util.Log
 import _root_.android.view.View.OnClickListener
 import _root_.android.view.{Gravity, View, WindowManager}
 import _root_.android.widget.{Button, FrameLayout}
-import com.google.ads.{AdRequest, AdSize, AdView}
+import com.google.android.gms.ads.{AdRequest, AdSize, AdView, MobileAds}
 import net.ladstatt.sudoku._
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
 import org.opencv.android.{CameraBridgeViewBase, OpenCVLoader}
@@ -56,11 +56,9 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   var frameNr: Int = 0
   var solution: Mat = _
   var calculationInProgress = false
-  var adView: AdView = _
   val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
   val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
-  val AdsenseKey: String = "ca-app-pub-1727389366588084/4496274256"
-
+  val AdUnitId: String = "ca-app-pub-1727389366588084/4496274256"
 
   var currState: SudokuState = AndroidOpenCV.DefaultAndroidState
 
@@ -73,11 +71,15 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   /** Called when the activity is first created. */
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
+
     initAssets()
 
     Log.i(TAG, "called onCreate")
     getWindow.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     setContentView(R.layout.sudoku)
+
+    MobileAds.initialize(this, AdUnitId)
+   //  val adView = findViewById(R.id.ad_view).asInstanceOf[AdView]
 
     cameraView = findViewById(R.id.sudoku).asInstanceOf[CameraBridgeViewBase]
     cameraView.setCvCameraViewListener(this)
@@ -94,13 +96,22 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
       }
     })
 
-
-    adView = new AdView(this, AdSize.BANNER, AdsenseKey)
-    adView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
+    val adView: AdView = new AdView(this)
+    adView.setAdSize(AdSize.SMART_BANNER)
+    adView.setAdUnitId(AdUnitId)
     adView.setVisibility(View.VISIBLE)
+
+    adView.setForegroundGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
+    // adView = new AdView(this, AdSize.BANNER, AdUnitId)
+    // adView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
+    // adView.setVisibility(View.VISIBLE)
+
     findViewById(R.id.mainLayout).asInstanceOf[FrameLayout].addView(adView)
 
-    val r = new AdRequest()
+    val adRequestBuilder = new AdRequest.Builder()
+    adRequestBuilder.addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+    val r = adRequestBuilder.build()
+
     adView.loadAd(r)
 
     handler = new Handler()
@@ -145,8 +156,8 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
     val pipeline: FramePipeline = FramePipeline(frame, SParams())
 
-    pipeline.detectRectangle match  {
-      case None => SFailure("No rectangle detected",SCandidate(frameNr,pipeline, SRectangle(frame, pipeline.corners,pipeline.corners),currState))
+    pipeline.detectRectangle match {
+      case None => SFailure("No rectangle detected", SCandidate(frameNr, pipeline, SRectangle(frame, pipeline.corners, pipeline.corners), currState))
       case Some(r) =>
         val rectangle: SRectangle = SRectangle(pipeline)
         val (sudokuResult, nextState) = Await.result(SCandidate(frameNr, pipeline, rectangle, currState).calc, Duration.Inf)

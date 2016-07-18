@@ -25,12 +25,14 @@ Make sure you've defined the necessary properties in your settings.xml, namely
     android.storepass
     
 Of course, you have to create a corresponding keystore and use your own storepass.
+
+For example, you could place those values in your settings.xml in the SETTINGS.android profile.
  
 For upload to app store use 
 
     target/sudoku-android-aligned.apk.    
 
-via the web interface of googles play store.
+via the google play store web interface.
 
 
 

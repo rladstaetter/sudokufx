@@ -4,6 +4,16 @@
              android:layout_height="match_parent"
              android:id="@+id/mainLayout">
 
+                                                   <!--
+    <com.google.android.gms.ads.AdView
+            android:id="@+id/ad_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            ads:adSize="BANNER"
+            ads:adUnitId="ca-app-pub-1727389366588084/4496274256"/>
+                                                -->
+
+
     <org.opencv.android.JavaCameraView
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
