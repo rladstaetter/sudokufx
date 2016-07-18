@@ -1,10 +1,13 @@
 package net.ladstatt.sudoku
 
+import java.io.File
+import java.util.UUID
+
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 
-import scala.collection.JavaConversions ._
+import scala.collection.JavaConversions._
 
 object SRectangle {
 
@@ -51,7 +54,9 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
     for (solution <- someSolution) {
       val values: Array[Int] = solution.map(_.value)
       for ((s, r) <- values zip cellRois if s != 0) {
-        copyTo(digitLibrary(s)._2.getOrElse(SudokuUtils.mkFallback(s, digitLibrary).get), normalized, r)
+        val normalizedCell: Mat = digitLibrary(s)._2.getOrElse(SudokuUtils.mkFallback(s, digitLibrary).get)
+
+        copyTo(normalizedCell, normalized, r)
       }
     }
     normalized

@@ -1,6 +1,7 @@
 package net.ladstatt.sudoku
 
-import java.io.InputStream
+import java.io.{File, InputStream}
+import java.util.UUID
 
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
@@ -44,7 +45,6 @@ object TemplateLibrary extends CanLog {
       for {s <- Future.sequence(for {(needle, number) <- TemplateLibrary.asSeq.zipWithIndex} yield
         for {(number, quality) <- matchHaystack(number + 1, needle)} yield (number, quality))
       } yield s.sortWith((a, b) => a._2 < b._2).head
-
 
     result
   }

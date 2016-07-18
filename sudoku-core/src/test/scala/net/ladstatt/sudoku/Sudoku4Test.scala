@@ -12,7 +12,7 @@ class Sudoku4Test {
 
   OpenCV.loadNativeLib()
 
-  @Ignore @Test def testSudoku4(): Unit = {
+ @Ignore @Test def testSudoku4(): Unit = {
     val sudoku4 = Imgcodecs.imread("src/test/resources/net/ladstatt/sudoku/sudoku_4.png")
     val (_, (r,  _)) = SudokuTestContext.calculate(sudoku4)
     r match {
