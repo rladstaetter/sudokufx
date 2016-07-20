@@ -16,7 +16,6 @@
         <dependency>
             <groupId>net.ladstatt.sudoku</groupId>
             <artifactId>sudoku-core</artifactId>
-            <version>1.9-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.jfxtras</groupId>

@@ -21,7 +21,6 @@
         <dependency>
             <groupId>net.ladstatt.sudoku</groupId>
             <artifactId>sudoku-core</artifactId>
-            <version>${project.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.opencv</groupId>
@@ -32,19 +31,15 @@
         <dependency>
             <groupId>net.ladstatt.sudoku</groupId>
             <artifactId>android-opencv</artifactId>
-            <version>${project.version}</version>
             <type>aar</type>
         </dependency>
         <dependency>
             <groupId>android</groupId>
             <artifactId>android</artifactId>
-            <version>6.0_r2</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.google.android.gms</groupId>
             <artifactId>play-services-ads</artifactId>
-            <version>9.2.0</version>
             <type>aar</type>
         </dependency>
 
