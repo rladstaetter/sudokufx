@@ -4,8 +4,8 @@ import _root_.android.app.Activity
 import _root_.android.os.{Bundle, Handler, Process}
 import _root_.android.util.Log
 import _root_.android.view.View.OnClickListener
-import _root_.android.view.{Gravity, View, WindowManager}
-import _root_.android.widget.{Button, FrameLayout}
+import _root_.android.view.{Gravity, View, ViewGroup}
+import _root_.android.widget.{Button, FrameLayout, TextView}
 import com.google.android.gms.ads.{AdRequest, AdSize, AdView, MobileAds}
 import net.ladstatt.sudoku._
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
@@ -56,9 +56,13 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
   var frameNr: Int = 0
   var solution: Mat = _
   var calculationInProgress = false
+
   val defaultLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
   val defaultHitCounts: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
   val AdUnitId: String = "ca-app-pub-1727389366588084/4496274256"
+  var adView: AdView = _
+  var showHint: Boolean = true
+  var hint: TextView = _
 
   var currState: SudokuState = AndroidOpenCV.DefaultAndroidState
 
@@ -68,60 +72,73 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
     TemplateLibrary.templateResource = "templates.csv"
   }
 
+  def execOnUIThread(f: => Unit): Unit = {
+    handler.post(new Runnable {
+      override def run(): Unit = f
+    })
+    ()
+  }
+
   /** Called when the activity is first created. */
   override def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
 
     initAssets()
 
-    Log.i(TAG, "called onCreate")
-    getWindow.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    setContentView(R.layout.sudoku)
+    //getWindow.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+    setContentView(R.layout.sudoku_frame_layout)
 
     MobileAds.initialize(this, AdUnitId)
-   //  val adView = findViewById(R.id.ad_view).asInstanceOf[AdView]
+
+
+
+    // adView = findViewById(R.id.ad_view).asInstanceOf[AdView]
 
     cameraView = findViewById(R.id.sudoku).asInstanceOf[CameraBridgeViewBase]
     cameraView.setCvCameraViewListener(this)
     rescanButton = findViewById(R.id.button_rescan).asInstanceOf[Button]
+    hint = findViewById(R.id.use_in_landscape).asInstanceOf[TextView]
+
+    adView = new AdView(this)
 
     rescanButton.setOnClickListener(new OnClickListener {
       override def onClick(v: View): Unit = {
         //  rescanButton.setVisibility(View.GONE)
         currState = AndroidOpenCV.DefaultAndroidState
         rescanButton.setVisibility(View.GONE)
-        //  adView.setVisibility(View.GONE)
+        adView.setVisibility(View.GONE)
         solution = null
 
       }
     })
 
-    val adView: AdView = new AdView(this)
+
     adView.setAdSize(AdSize.SMART_BANNER)
     adView.setAdUnitId(AdUnitId)
     adView.setVisibility(View.VISIBLE)
 
-    adView.setForegroundGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
-    // adView = new AdView(this, AdSize.BANNER, AdUnitId)
-    // adView.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP)
-    // adView.setVisibility(View.VISIBLE)
+    import FrameLayout.LayoutParams
 
-    findViewById(R.id.mainLayout).asInstanceOf[FrameLayout].addView(adView)
+    val p = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP)
 
     val adRequestBuilder = new AdRequest.Builder()
-    adRequestBuilder.addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+    //asdRequestBuilder.addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+    // val adUnitTestId: String = "E7CB8BBA8EEEF5723B49B413253C551B"
+    //adRequestBuilder.addTestDevice(adUnitTestId)
     val r = adRequestBuilder.build()
-
     adView.loadAd(r)
 
     handler = new Handler()
     rescanButton.setVisibility(View.GONE)
     cameraView.enableView()
+
+    findViewById(R.id.mainLayout).asInstanceOf[FrameLayout].addView(adView, 2, p)
+
   }
 
   override def onBackPressed(): Unit = {
     super.onBackPressed()
-    //logInfo("backButton pressed")
   }
 
   override def onStop(): Unit = {
@@ -131,24 +148,67 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
 
   override def onPause(): Unit = {
     super.onPause()
-    //logInfo("onPause called")
     if (cameraView != null) cameraView.disableView()
+    if (adView != null) adView.pause()
+
   }
 
   override def onResume(): Unit = {
     super.onResume()
-    // logInfo("onResume called")
     AndroidOpenCV.init()
+    if (adView != null) adView.resume()
     //OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_6, this, mLoaderCallback)
     ()
   }
 
   override def onDestroy(): Unit = {
     super.onDestroy()
-    //logInfo("onDestroy called")
     if (cameraView != null) cameraView.disableView()
+    if (adView != null) adView.destroy()
   }
 
+  def onCameraViewStarted(width: Int, height: Int): Unit = {
+  }
+
+  def onCameraViewStopped() {
+  }
+
+  def onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat = {
+    if (solution != null) {
+      solution
+    } else {
+      if (!calculationInProgress) {
+        calculationInProgress = true
+        execOnUIThread {
+          if (showHint) {
+            hint.setVisibility(View.GONE)
+            adView.setVisibility(View.VISIBLE)
+            adView.bringToFront()
+          }
+        }
+        logInfo("starting to find sudoku ...")
+        val result: Mat =
+          detectSudoku(inputFrame) match {
+            case s: SSuccess if s.someSolution.isDefined => {
+              execOnUIThread({
+                rescanButton.setVisibility(View.VISIBLE)
+              })
+              solution = s.someSolution.get.solutionMat
+              solution
+            }
+            case s: SSuccess if s.someSolution.isEmpty => {
+              s.inputFrame.pipeline.frame
+            }
+            case e: SFailure => e.inputFrame.pipeline.grayed
+          }
+        calculationInProgress = false
+        result
+      } else {
+        logInfo("calculation in progress ...")
+        inputFrame.gray
+      }
+    }
+  }
 
   def detectSudoku(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): SudokuResult = {
     val frame = inputFrame.rgba()
@@ -163,52 +223,6 @@ class SudokuCapturer extends Activity with CvCameraViewListener2 with CanLog {
         val (sudokuResult, nextState) = Await.result(SCandidate(frameNr, pipeline, rectangle, currState).calc, Duration.Inf)
         currState = nextState
         sudokuResult
-    }
-  }
-
-  def execOnUIThread(f: => Unit): Unit = {
-    handler.post(new Runnable {
-      override def run(): Unit = f
-    })
-    ()
-  }
-
-  def onCameraViewStarted(width: Int, height: Int) {
-    //logInfo(s"onCameraViewStarted (width: $width, height: $height)")
-  }
-
-  def onCameraViewStopped() {
-    // logInfo("onCameraViewStopped called")
-  }
-
-  def onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat = {
-    if (solution != null) {
-      solution
-    } else {
-      if (!calculationInProgress) {
-        calculationInProgress = true
-        logInfo("starting to find sudoku ...")
-        val result: Mat =
-          detectSudoku(inputFrame) match {
-            case s: SSuccess if s.someSolution.isDefined => {
-              execOnUIThread({
-                rescanButton.setVisibility(View.VISIBLE)
-                // adView.setVisibility(View.VISIBLE)
-              })
-              solution = s.someSolution.get.solutionMat
-              solution
-            }
-            case s: SSuccess if s.someSolution.isEmpty => {
-              s.inputFrame.pipeline.inverted
-            }
-            case e: SFailure => e.inputFrame.pipeline.blurred
-          }
-        calculationInProgress = false
-        result
-      } else {
-        logInfo("calculation in progress ...")
-        inputFrame.gray
-      }
     }
   }
 

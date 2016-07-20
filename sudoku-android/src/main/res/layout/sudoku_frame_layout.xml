@@ -4,19 +4,17 @@
              android:layout_height="match_parent"
              android:id="@+id/mainLayout">
 
-                                                   <!--
+                     <!--
     <com.google.android.gms.ads.AdView
             android:id="@+id/ad_view"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            ads:adSize="BANNER"
+            ads:adSize="SMART_BANNER"
             ads:adUnitId="ca-app-pub-1727389366588084/4496274256"/>
-                                                -->
-
-
+                         -->
     <org.opencv.android.JavaCameraView
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:id="@+id/sudoku"/>
 
     <Button
@@ -26,6 +24,16 @@
             android:id="@+id/button_rescan"
             android:layout_gravity="center_horizontal|bottom"
             android:paddingBottom="10dp"/>
+
+    <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:text="@string/use_in_landscape_mode"
+            android:id="@+id/use_in_landscape"
+            android:layout_gravity="center_horizontal|top"
+            android:visibility="visible"
+            android:background="#000000"/>
 
 
 </FrameLayout>

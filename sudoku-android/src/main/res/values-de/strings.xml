@@ -2,5 +2,6 @@
 
     <string name="app_name">Sudoku Capturer</string>
     <string name="button_rescan">neues Sudoku lösen</string>
+    <string name="use_in_landscape_mode">Handy quer halten bitte …</string>
 
 </resources>

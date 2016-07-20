@@ -2,5 +2,6 @@
 <resources>
     <string name="app_name">Sudoku Capturer</string>
     <string name="button_rescan">rescan</string>
-
+    <string name="use_in_landscape_mode">Use in Landscape mode</string>
+    <string name="adunit_id">ca-app-pub-1727389366588084/4496274256</string>
 </resources>
