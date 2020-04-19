@@ -1,11 +1,11 @@
 package net.ladstatt.sudoku
 
-import org.junit.Assert._
-import org.junit.Test
+
+import org.scalatest.WordSpecLike
 
 import scala.util.{Failure, Success, Try}
 
-class SolverTest {
+class SolverSpec extends WordSpecLike {
 
   import net.ladstatt.sudoku.BruteForceSolver._
 
@@ -20,23 +20,22 @@ class SolverTest {
       |814253769
       |695417382""".stripMargin.replaceAll("\n", "")
 
-  @Test def testSum() = {
-    assertEquals(405, solved.toArray.map(_.asDigit).sum.toLong)
+  "testSum" in  {
+    assert(405 ==  solved.toArray.map(_.asDigit).sum.toLong)
   }
 
   def solveReadableSudoku(sudokuWithNewLines: String): Option[SudokuDigitSolution] = {
     solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray, 5000L)
   }
 
-  @Test
-  def testSolving(): Unit = {
+ "testSolving" in{
     Try {
       val solvedSudokus: Array[Option[SudokuDigitSolution]] =
         for (sudokuAsString <- SudokuTestContext.easySudokus.split("========"))
           yield solveReadableSudoku(sudokuAsString)
 
       for (fs <- solvedSudokus.flatten) {
-        assertEquals(405, fs.map(_.asDigit).sum.toLong)
+        assert(405 ==  fs.map(_.asDigit).sum.toLong)
       }
     } match {
       case Success(_) =>
@@ -48,8 +47,7 @@ class SolverTest {
   /**
     * Test shows what happenes if we try to solve an malformed input
     */
-  @Test
-  def testSolveWrongInput(): Unit = {
+  "SolveWrongInput" in{
     val sudokuInput =
       """003020601
         |900305001

@@ -10,9 +10,11 @@ import _root_.javafx.scene.control._
 import _root_.javafx.stage.Stage
 import java.io.File
 import java.net.URL
+import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.concurrent.TimeUnit
-import java.util.{Date, ResourceBundle}
+import java.util.{Date, ResourceBundle, UUID}
+
 import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
@@ -22,12 +24,12 @@ import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polygon, Polyline, Rectangle}
-
 import com.sun.javafx.perf.PerformanceTracker
 import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, MatOfPoint, Point}
+import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.videoio.VideoCapture
 import rx.lang.scala.{Observable, Subscription}
 
@@ -80,13 +82,6 @@ class SudokuFXApplication extends Application with JfxUtils {
 
 }
 
-class SudokuDebugView extends Initializable {
-  @FXML var sDebugViewController: SDebugViewController = _
-
-  override def initialize(location: URL, resources: ResourceBundle): Unit = {
-
-  }
-}
 
 class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
 
@@ -125,23 +120,23 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   val performanceTrackerProperty = new SimpleObjectProperty[PerformanceTracker]()
 
-  def getPerformanceTracker = performanceTrackerProperty.get()
+  def getPerformanceTracker: PerformanceTracker = performanceTrackerProperty.get()
 
-  def setPerformanceTracker(performanceTracker: PerformanceTracker) = performanceTrackerProperty.set(performanceTracker)
+  def setPerformanceTracker(performanceTracker: PerformanceTracker): Unit = performanceTrackerProperty.set(performanceTracker)
 
 
   val currentSudokuState = new SimpleObjectProperty[SudokuState](SudokuState.DefaultState)
 
-  def setCurrentSudokuState(sudokuState: SudokuState) = currentSudokuState.set(sudokuState)
+  def setCurrentSudokuState(sudokuState: SudokuState): Unit = currentSudokuState.set(sudokuState)
 
-  def getCurrentSudokuState(): SudokuState = currentSudokuState.get
+  def getCurrentSudokuState: SudokuState = currentSudokuState.get
 
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
 
-  def getFrameNumber = frameNumberProperty.get()
+  def getFrameNumber: Int = frameNumberProperty.get()
 
-  def setFrameNumber(i: Int) = frameNumberProperty.set(i)
+  def setFrameNumber(i: Int): Unit = frameNumberProperty.set(i)
 
 
   val cameraActiveProperty = new SimpleBooleanProperty(true)
@@ -160,7 +155,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     val historyMenu = new Menu("Previous runs")
     val historyItems: Seq[MenuItem] = {
       history.map(f => {
-        val i = new MenuItem(f.getName + s" (${f.list().size})")
+        val i = new MenuItem(f.getName + s" (${f.list().length})")
         i
       })
     }
@@ -170,23 +165,33 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage)
 
-  val videoCapture = new VideoCapture(0)
+  val videoCapture = {
+    val v = new VideoCapture()
+    v.open(0)
+    v
+  }
 
   def aquireMat(): Mat = {
     val image: Mat = new Mat()
-    if (videoCapture.isOpened) videoCapture.read(image)
+    if (videoCapture.isOpened) {
+      videoCapture.read(image)
+    } else {
+      logError("videocapture closed")
+    }
     image
   }
 
 
   val videoObservable: Observable[SResult] =
-    Observable.create[Mat](o => {
+    Observable[Mat](o => {
       new Thread(
         new Runnable {
           override def run(): Unit = {
             while (getCameraActive) {
               Try {
-                aquireMat()
+                val m = aquireMat()
+              //  Imgcodecs.imwrite(Paths.get("/Users/lad/Documents/sudokufx/target").resolve(UUID.randomUUID() + ".png").toAbsolutePath.toString, m)
+                m
               } match {
                 case Success(m) => o.onNext(m)
                 case Failure(e) => o.onError(e)
@@ -204,12 +209,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         val pipeline: FramePipeline = FramePipeline(frame, params)
         pipeline.detectRectangle match {
           case None => pipeline
-          case Some(rect) => SCandidate(index, pipeline, SRectangle(pipeline.frame, rect, pipeline.corners), getCurrentSudokuState())
+          case Some(rect) => SCandidate(index, pipeline, SRectangle(pipeline.frame, rect, pipeline.corners), getCurrentSudokuState)
         }
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
-  def displayContours(contours: Seq[MatOfPoint]) = {
+  def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
     val polys =
       contours.map {
         c =>
@@ -233,7 +238,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def process(result: SResult, state: SudokuState): Unit = {
     result match {
-      case f: FramePipeline => display(f)
+      case f: FramePipeline =>
+        display(f)
       case c: SCandidate =>
         for {
           (result, nextState) <- c.calc
@@ -291,7 +297,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        digitLibrary(i + 1)._2.foreach { case m => nrViews(i).setImage(toImage(m)) }
+        digitLibrary(i + 1)._2.foreach(m => nrViews(i).setImage(toImage(m)))
       })
   }
 
@@ -328,7 +334,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     line
   }
 
-  val sudokuBorder = {
+  val sudokuBorder: Polyline = {
     val line = new Polyline()
     line.setStroke(Color.BLUE)
     line.setStrokeWidth(5)
@@ -359,9 +365,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     */
   val workingDirectoryProperty = new SimpleObjectProperty[File](workingDirectory)
 
-  def getWorkingDirectory = workingDirectoryProperty.get
+  def getWorkingDirectory: File = workingDirectoryProperty.get
 
-  def setWorkingDirectory(file: File) = workingDirectoryProperty.set(file)
+  def setWorkingDirectory(file: File): Unit = workingDirectoryProperty.set(file)
 
   def setVideoView(mat: Mat): Unit = {
     val image: Image = toImage(mat)
@@ -477,7 +483,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     }
 
-    displayHitCounts(getCurrentSudokuState().hitCounts, as[FlowPane](statsFlowPane.getChildren))
+    displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren))
 
     sudokuResult match {
       case SSuccess(SCandidate(nr, framePipeline, sr, ss), SRectangle(sudokuCanvas, detectedCells, corners), someSolution) =>
@@ -494,7 +500,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   }
 
-  def display(result: SudokuResult) = execOnUIThread {
+  def display(result: SudokuResult): Future[Unit] = execOnUIThread {
     val selectedToggle = viewButtons.getSelectedToggle
     if (selectedToggle != null) {
       val userData = selectedToggle.getUserData
@@ -505,7 +511,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
     setAnalysisMouseTransparent(false)
-    updateDigitLibraryView(getCurrentSudokuState().library, as[ImageView](numberFlowPane.getChildren))
+    updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren))
 
     frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
     result match {
@@ -632,13 +638,13 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
 
-  def initNumberFlowPane(numberFlowPane: FlowPane) = {
+  def initNumberFlowPane(numberFlowPane: FlowPane): Unit = {
     numberFlowPane.setMinWidth(3 * 142.0)
     numberFlowPane.setPrefWrapLength(3 * 142.0)
     (1 to 9).foreach(i => numberFlowPane.getChildren.add(new ImageView))
   }
 
-  def initializeChoiceBoxes() = {
+  def initializeChoiceBoxes(): Unit = {
     contourModeChoiceBox.getItems.addAll(0, 1, 2, 3)
     contourMethodChoiceBox.getItems.addAll(1, 2, 3, 4)
     contourRatioChoiceBox.getItems.addAll(0 to 60 by 5)
@@ -684,7 +690,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
     // startCapture
-    videoObservable.subscribe((result: SResult) => process(result, getCurrentSudokuState()),
+    videoObservable.subscribe((result: SResult) => process(result, getCurrentSudokuState),
       t => t.printStackTrace(),
       () => logInfo("Videostream stopped..."))
     ()
@@ -693,7 +699,3 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 }
 
-class SDebugViewController extends AnchorPane {
-
-
-}

@@ -2,13 +2,11 @@ package net.ladstatt.sudoku
 
 import javafx.beans.property.SimpleObjectProperty
 import javafx.concurrent.{Service, Task, WorkerStateEvent}
-
-import net.ladstatt.JavaFXUnitTest
 import net.ladstatt.core.{CanLog, Utils}
-import org.junit.Test
 import org.opencv.core.Mat
+import org.scalatest.WordSpecLike
 
-class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with CanLog {
+class ServiceWorkerSpec extends  JfxUtils with WordSpecLike with CanLog {
 
   val solverService = new SolverService
   val sudoku1 =
@@ -74,7 +72,7 @@ class ServiceWorkerTest extends JavaFXUnitTest with JfxUtils with CanLog {
       }
   }
 
-  @Test def testSimple() = {
+  "testSimple" ignore {
     solverService.start()
     for (i <- 1 to 10)
       Utils.time({

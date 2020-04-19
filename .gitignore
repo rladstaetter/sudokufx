@@ -1,6 +1,8 @@
 .settings
 .cache
-target
-.idea
+.hydra/
+.idea/
+
+target/
 *.iml
 runs

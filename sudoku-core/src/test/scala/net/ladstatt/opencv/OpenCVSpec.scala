@@ -3,48 +3,47 @@ package net.ladstatt.opencv
 import java.io.File
 
 import net.ladstatt.sudoku.{Parameters, SCell}
-import org.junit.Assert._
-import org.junit.Test
 import org.opencv.core.{Mat, MatOfPoint, Point, Rect}
 import org.opencv.imgcodecs.Imgcodecs
+import org.scalatest.WordSpecLike
 
 /**
-  * Created by lad on 22.02.16.
-  */
-class OpenCVTest {
+ * Created by lad on 22.02.16.
+ */
+class OpenCVSpec extends WordSpecLike {
 
   OpenCV.loadNativeLib()
 
   val rect = new Rect(0, 0, 10, 10)
 
-  @Test def isEmpty(): Unit = {
+  "isEmpty" in {
     assert(!OpenCV.isSomewhatSquare(Seq()))
   }
 
   /**
-    * what happenes if we detect no contours
-    */
-  @Test def extractMaxCurveFromEmptyInput(): Unit = {
+   * what happenes if we detect no contours
+   */
+  "extractMaxCurveFromEmptyInput" in {
     val res: (Double, MatOfPoint) = OpenCV.extractCurveWithMaxArea(Seq())
-    assertEquals(res._1, 0.0, 0.01)
+    assert(Math.abs(res._1) < 0.01)
   }
 
   /**
-    * what happenes if we detect a list of curves with only one element.
-    */
-  @Test def extractMaxCurveWithOneElement(): Unit = {
+   * what happenes if we detect a list of curves with only one element.
+   */
+  "extractMaxCurveWithOneElement" in {
     val c: MatOfPoint = mkContour(0, 0)
     val seq: Seq[MatOfPoint] = Seq(c)
     val (area, _) = OpenCV.extractCurveWithMaxArea(seq)
-    assertEquals(area, 0.0, 0.001)
+    assert(Math.abs(area) < 0.001)
   }
 
-  @Test def extractBiggerContour(): Unit = {
+  "extractBiggerContour" in {
     val c1: MatOfPoint = mkContour(0, 0, 0, 10, 10, 10, 10, 0)
     val c2: MatOfPoint = mkContour(0, 0, 0, 20, 20, 20, 20, 0)
     val seq: Seq[MatOfPoint] = Seq(c1, c2)
     val (area, _) = OpenCV.extractCurveWithMaxArea(seq)
-    assertEquals(area, 400.0, 0.0)
+    assert(Math.abs(area - 400.0) == 0.0)
   }
 
 
@@ -54,13 +53,13 @@ class OpenCVTest {
     new MatOfPoint(points.toSeq: _*)
   }
 
-  @Test def isSomewhatSquare(): Unit = {
+  "isSomewhatSquare" in {
     assert(OpenCV.isSomewhatSquare(Seq(new Point(0, 0), new Point(10, 0), new Point(10, 10), new Point(0, 10))))
   }
 
   /**
-    * expected values for the example sudoku 'frau von heute'
-    */
+   * expected values for the example sudoku 'frau von heute'
+   */
   val expectedFrauVonHeute: Map[Int, Int] = Map(
     0 -> 6, 2 -> 8, 5 -> 1, 7 -> 2,
     11 -> 9, 12 -> 3, 14 -> 2, 15 -> 5, 16 -> 8,
@@ -74,18 +73,18 @@ class OpenCVTest {
   )
 
   /**
-    * range of sudoku frames to look at
-    */
+   * range of sudoku frames to look at
+   */
   val examplesudokus = 0 to 1
 
   /**
-    * denotes exceptions which are not recognized properly, the key is the index of the example
-    * sudoku, the values are again indexes which are not recognized properly.
-    *
-    * ideally this exception map should be empty.
-    *
-    * At the moment, the algorithm has major problems recognizing '1', '2', '3',
-    **/
+   * denotes exceptions which are not recognized properly, the key is the index of the example
+   * sudoku, the values are again indexes which are not recognized properly.
+   *
+   * ideally this exception map should be empty.
+   *
+   * At the moment, the algorithm has major problems recognizing '1', '2', '3',
+   **/
   val exceptions: Map[Int, Set[Int]] = Map(
     0 -> Set(5),
     1 -> Set(5, 56, 24, 14, 46, 21, 34, 22, 59, 12, 66, 50, 40, 58, 36, 30),
@@ -185,9 +184,9 @@ class OpenCVTest {
 
 
   /**
-    * Checks that a series of preprocessed inputs of the same sudoku is recognized properly.
-    */
-  @Test def normalizedTest(): Unit = {
+   * Checks that a series of preprocessed inputs of the same sudoku is recognized properly.
+   */
+  "normalizedTest" in {
     val nr = 0
     for (nr <- examplesudokus) {
       val image: File = new File(s"src/test/resources/net/ladstatt/sudoku/normalized/$nr/normalized.png")
@@ -203,13 +202,7 @@ class OpenCVTest {
     for ((idx, v) <- expected) {
       val roi: Rect = OpenCV.mkRect(idx, cWidth, cHeight)
       val sCell = SCell(m.submat(roi), roi)
-      assertEquals(s"sudoku_$sudokuNr, idx: $idx >> Expected $v in row ${
-        Parameters.row(idx)
-      } and col ${
-        Parameters.col(idx)
-      }, but got ${
-        sCell.value
-      }.", v, sCell.value)
+      assert(v == sCell.value)
     }
 
   }

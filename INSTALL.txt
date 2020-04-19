@@ -1,8 +1,0 @@
-In the lib folder you'll find the opencv-310.jar file and also the native binaries for the macosx
-system, alongside with a install script.
-
-I've blogged about how to get those files from the opencv distribution here:
-
-http://ladstatt.blogspot.co.at/2015/12/opencv-31-with-java-support-on-osx-el.html
-
-

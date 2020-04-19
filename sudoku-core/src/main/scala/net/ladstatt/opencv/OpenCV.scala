@@ -1,6 +1,8 @@
 package net.ladstatt.opencv
 
 import java.io.File
+import java.nio.file.{Files, Path, Paths}
+import java.util.Properties
 
 import net.ladstatt.core.{CanLog, SystemEnv}
 import net.ladstatt.sudoku._
@@ -13,13 +15,95 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
 
+object OpenCvEnvironment {
+
+  // name of java facade to opencv native libs
+  val openCvJavaLibName = "java"
+
+  // names of libraries opencv_java is dependend upon
+  // ordering is important since we load all libs in this order
+  // afterwards only we load opencv_java lib
+  val openCvLibNames = Seq(
+    "core"
+    , "imgproc"
+    , "dnn"
+    , "photo"
+    , "core"
+    , "ml"
+    , "flann"
+    , "features2d"
+    , "calib3d"
+    , "video"
+    , "objdetect"
+    , "imgcodecs"
+    , "videoio"
+    , "highgui")
+
+
+  def apply(): OpenCvEnvironment = {
+    val props: Properties = {
+      val is = getClass.getResourceAsStream("/net/ladstatt/sudoku/env.properties")
+      assert(is != null)
+      val p = new Properties()
+      p.load(is)
+      is.close()
+      p
+    }
+    new OpenCvEnvironment(props)
+  }
+}
+
+class OpenCvEnvironment(props: Properties) {
+
+  private lazy val openCvMajorVersion: String = props.getProperty("opencv.major.version").trim
+  private lazy val openCvFullVersion: String = props.getProperty("opencv.full.version").trim
+  private lazy val openCvInstallPath: Path = Paths.get(props.getProperty("opencv.install.path").trim)
+  private lazy val openCvLibPath = openCvInstallPath.resolve("lib")
+  private lazy val openCvJavaSharedPath = openCvInstallPath.resolve("share/java/opencv4")
+
+  private val libPrefix = if (SystemEnv.runOnMac) "libopencv_" else ""
+  private val libPostFix = if (SystemEnv.runOnMac) ".dylib" else ".dll"
+
+
+  private def loadOpenCvUpstreamLibs(): Unit = {
+    val libPaths: Seq[Path] =
+      OpenCvEnvironment.openCvLibNames.map(l => {
+        openCvLibPath.resolve(
+          libPrefix +
+            l + "." +
+            openCvMajorVersion +
+            libPostFix)
+      })
+    libPaths.foreach(p =>
+      assert(Files.exists(p), s"${p.toAbsolutePath} does not exist, can't continue.")
+    )
+    libPaths.foreach(p => System.load(p.toAbsolutePath.toString))
+  }
+
+  def loadOpenCvJavaLib(): Unit = {
+    val javaLib = openCvJavaSharedPath.resolve(libPrefix +
+      OpenCvEnvironment.openCvJavaLibName +
+      openCvFullVersion.replace(".", "") +
+      libPostFix).toAbsolutePath
+
+    assert(Files.exists(javaLib), s"${javaLib.toString} does not exist, can't continue.")
+    System.load(javaLib.toString)
+  }
+
+  def loadLibs(): Unit = {
+    loadOpenCvUpstreamLibs()
+    loadOpenCvJavaLib()
+  }
+
+
+}
 
 object Debug {
 
   val Active = false
 
   def writeDebug(sCandidate: SCandidate) = {
-    val parent = new File(s"/Users/lad/Documents/sudokufx/sudoku-core/target/test-classes/net/ladstatt/sudoku/normalized/${sCandidate.nr}")
+    val parent = new File(s"/Users/lad/Documents/sudokufx/target/${sCandidate.nr}")
     parent.mkdirs()
     //println("InputCorners:" + sCandidate.framePipeline.corners)
     //println("CellWidth  :" + sCandidate.sRectangle.cellWidth + "/" + sCandidate.sRectangle.cellHeight)
@@ -37,8 +121,8 @@ object Debug {
 }
 
 /**
-  * various opencv related stuff
-  */
+ * various opencv related stuff
+ */
 object OpenCV extends CanLog {
 
   import Parameters._
@@ -68,12 +152,12 @@ object OpenCV extends CanLog {
   }
 
   /**
-    * Given a list of curves, this function returns the curve with the biggest area which is described by the
-    * contour.
-    *
-    * @param curveList
-    * @return
-    */
+   * Given a list of curves, this function returns the curve with the biggest area which is described by the
+   * contour.
+   *
+   * @param curveList
+   * @return
+   */
   def extractCurveWithMaxArea(curveList: Seq[MatOfPoint]): (Double, MatOfPoint) = {
     if (curveList.isEmpty)
       (0.0, new MatOfPoint)
@@ -88,11 +172,11 @@ object OpenCV extends CanLog {
 
 
   /**
-    * (a,b,c,d)
-    *
-    * @param corners
-    * @return
-    */
+   * (a,b,c,d)
+   *
+   * @param corners
+   * @return
+   */
   def isSomewhatSquare(corners: Seq[Point]): Boolean = {
 
     import scala.math.{abs, atan2}
@@ -163,11 +247,11 @@ object OpenCV extends CanLog {
     }
 
   /**
-    * wraps equalizeHist from Imgproc
-    *
-    * @param input
-    * @return
-    */
+   * wraps equalizeHist from Imgproc
+   *
+   * @param input
+   * @return
+   */
   def equalizeHist(input: Mat): Future[Mat] =
     Future {
       val output = new Mat
@@ -185,10 +269,10 @@ object OpenCV extends CanLog {
   }
 
   /**
-    * Returns position and value for a template for a given image
-    *
-    * @return
-    */
+   * Returns position and value for a template for a given image
+   *
+   * @return
+   */
   def matchTemplate(candidate: Mat, number: Int, withNeedle: Mat): Future[(Int, Double)] = {
 
     val normedCandidateF = norm(candidate)
@@ -222,21 +306,21 @@ object OpenCV extends CanLog {
 
 
   /**
-    * copies source to destination Mat with given mask and returns the destination mat.
-    *
-    * @param source
-    * @param destination
-    * @param pattern
-    * @return
-    */
+   * copies source to destination Mat with given mask and returns the destination mat.
+   *
+   * @param source
+   * @param destination
+   * @param pattern
+   * @return
+   */
   def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Mat = {
     source.copyTo(destination, pattern)
-      destination
-    }
+    destination
+  }
 
   /**
-    * warps image from to make feature extraction's life easier (time intensive call)
-    */
+   * warps image from to make feature extraction's life easier (time intensive call)
+   */
   def warp(input: Mat, srcCorners: MatOfPoint2f, destCorners: MatOfPoint2f): Mat = {
     require(srcCorners.toList.size == 4)
     require(destCorners.toList.size == 4)
@@ -273,13 +357,13 @@ object OpenCV extends CanLog {
 
 
   /**
-    * Given a list of contours and a predicate function this function returns the "best fit"
-    * bounding rectangle like defined in the predicate function.
-    *
-    * @param contours  the list of contours
-    * @param predicate the predicate function
-    * @return
-    */
+   * Given a list of contours and a predicate function this function returns the "best fit"
+   * bounding rectangle like defined in the predicate function.
+   *
+   * @param contours  the list of contours
+   * @param predicate the predicate function
+   * @return
+   */
   def findBestFit(contours: Seq[MatOfPoint], predicate: MatOfPoint => Boolean): Option[Rect] = {
 
     contours.foldLeft[Option[(Double, MatOfPoint)]](None) {
@@ -309,9 +393,9 @@ object OpenCV extends CanLog {
   }
 
   /**
-    * sort points in following order:
-    * topleft, topright, bottomright, bottomleft
-    */
+   * sort points in following order:
+   * topleft, topright, bottomright, bottomleft
+   */
   def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
     val pointsAsList = points.toList
     val sortBySum = pointsAsList.sortWith((l, r) => (l.x + l.y) < (r.x + r.y))
@@ -383,21 +467,9 @@ object OpenCV extends CanLog {
       dest
     }
 
+  lazy val openCvEnv = OpenCvEnvironment()
 
-  def runtimeNativeLibName =
-    if (SystemEnv.runOnMac)
-      "../lib/libopencv_java310.so"
-    else if (SystemEnv.isX64) {
-      "lib/win/x64/opencv_java246.dll"
-    } else {
-      "lib/win/x86/opencv_java246.dll"
-    }
-
-  def loadNativeLib(nativeLibName: => String = runtimeNativeLibName) = {
-    val nativeLib = new File(nativeLibName)
-    assert(nativeLib.exists, "Could not find %s.".format(nativeLibName))
-    System.load(nativeLib.getAbsolutePath())
-  }
+  def loadNativeLib(): Unit = openCvEnv.loadLibs()
 
   def filter2D(kernel: Mat)(input: Mat): Mat = {
     val out = new Mat
@@ -405,13 +477,12 @@ object OpenCV extends CanLog {
     out
   }
 
-
   /**
-    * converts the input mat to another color space
-    *
-    * @param input
-    * @return
-    */
+   * converts the input mat to another color space
+   *
+   * @param input
+   * @return
+   */
   def toGray(input: Mat): Future[Mat] =
     Future {
       val grayed = new Mat

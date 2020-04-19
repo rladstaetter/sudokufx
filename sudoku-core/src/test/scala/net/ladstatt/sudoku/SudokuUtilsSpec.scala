@@ -3,23 +3,21 @@ package net.ladstatt.sudoku
 import java.util
 
 import net.ladstatt.opencv.OpenCV
-import org.junit.Assert._
-import org.junit.{Ignore, Test}
 import org.opencv.core.Point
+import org.scalatest.WordSpecLike
 
 import scala.collection.JavaConversions._
 
 /**
-  * Created by lad on 22.02.16.
-  */
-class SudokuUtilsTest {
+ * Created by lad on 22.02.16.
+ */
+class SudokuUtilsSpec extends WordSpecLike {
 
   OpenCV.loadNativeLib()
 
-  @Ignore
-  @Test def detectCorners(): Unit = {
+  "detectCorners" ignore {
     val params: SParams = SParams()
-    val pipeline: FramePipeline = FramePipeline(SudokuTestContext.frameSudoku_1,params)
+    val pipeline: FramePipeline = FramePipeline(SudokuTestContext.frameSudoku_1, params)
     val res = SudokuUtils.detectRectangle(pipeline.dilated, OpenCV.mkCorners(pipeline.dilated.size), params, pipeline.contours)
     //pipeline.persist(new File("target/utilstest/"))
     val points: util.List[Point] = res.get.toList
@@ -27,12 +25,12 @@ class SudokuUtilsTest {
     assert(points.size > 0)
     import scala.collection.JavaConversions._
     val pts: Seq[Point] = res.map(_.toList.toSeq).getOrElse(Seq())
-    assertEquals(
+    assert(
       Seq(
         new Point(231.0, 175.0),
         new Point(677.0, 157.0),
         new Point(709.0, 583.0),
-        new Point(265.0, 624.0)), pts)
+        new Point(265.0, 624.0)) == pts)
 
   }
 

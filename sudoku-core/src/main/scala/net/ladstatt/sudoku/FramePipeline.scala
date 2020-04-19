@@ -31,27 +31,28 @@ object FramePipeline {
 
 
 /**
-  * the result for one frame. a frame is a image from the image stream
-  */
-case class FramePipeline(start: Long,
-                         frame: Mat,
-                         working: Mat,
-                         grayed: Mat,
-                         blurred: Mat,
-                         thresholded: Mat,
-                         inverted: Mat,
-                         dilated: Mat, eroded: Mat,
-                         params: SParams) extends SResult {
+ * the result for one frame. a frame is a image from the image stream
+ */
+case class FramePipeline(start: Long
+                         , frame: Mat
+                         , working: Mat
+                         , grayed: Mat
+                         , blurred: Mat
+                         , thresholded: Mat
+                         , inverted: Mat
+                         , dilated: Mat
+                         , eroded: Mat
+                         , params: SParams) extends SResult {
 
-  val corners =  OpenCV.mkCorners(frame.size)
+  val corners = OpenCV.mkCorners(frame.size)
   /**
-    * a sequence of point lists which give the recognized contour lines
-    */
+   * a sequence of point lists which give the recognized contour lines
+   */
   lazy val contours: Seq[MatOfPoint] = OpenCV.findContours(dilated, params.contourMode, params.contourMethod)
 
   /**
-    * returns coordinates of detected sudoku
-    */
+   * returns coordinates of detected sudoku
+   */
   lazy val detectRectangle: Option[MatOfPoint2f] = SudokuUtils.detectRectangle(dilated, corners, params, contours)
 
   def persist(dir: File): Unit = {

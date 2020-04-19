@@ -12,7 +12,7 @@ import scala.util.Random
 
 
 /**
-  * Contains most of the algorithms necessary for the Sudoku Capturer application.
+  * Contains most of the algorithms necessary for the SudokuFX application.
   */
 object SudokuUtils {
 
@@ -158,7 +158,7 @@ object SudokuUtils {
 
     for ((size, matType) <- determineMatParams()) yield {
       val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
-      Imgproc.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Core.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
+      Imgproc.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Imgproc.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
       mat
     }
   }

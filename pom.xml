@@ -4,21 +4,29 @@
 
     <groupId>net.ladstatt.sudoku</groupId>
     <artifactId>pom</artifactId>
-    <version>2.0-SNAPSHOT</version>
+    <version>2020.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>nxs.ladstatt.sudoku.pom</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scala.version>2.11.8</scala.version>
+        <scala.major.version>2.12</scala.major.version>
+        <scala.full.version>${scala.major.version}.10</scala.full.version>
+        <opencv.major.version>4.3</opencv.major.version>
+        <opencv.full.version>${opencv.major.version}.0</opencv.full.version>
+        <opencv.install.path>/Users/lad/custom-builds/opencv-4.3.0/out/</opencv.install.path>
+        <opencv.java.jar>${opencv.install.path}share/java/opencv4/opencv-430.jar</opencv.java.jar>
     </properties>
 
     <modules>
-        <module>android-opencv</module>
         <module>sudoku-core</module>
-        <module>sudoku-android</module>
         <module>sudoku-javafx</module>
+        <!-- deactivated at the moment -->
+        <!--
+        <module>android-opencv</module>
+        <module>sudoku-android</module>
+        -->
     </modules>
 
     <dependencyManagement>
@@ -26,36 +34,36 @@
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
-                <version>${scala.version}</version>
+                <version>${scala.full.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.opencv</groupId>
                 <artifactId>opencv-java</artifactId>
-                <version>3.1.0</version>
+                <version>${opencv.full.version}</version>
             </dependency>
             <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.12</version>
-                <scope>test</scope>
+                <groupId>net.ladstatt.sudoku</groupId>
+                <artifactId>sudoku-core</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.scalacheck</groupId>
-                <artifactId>scalacheck_2.11</artifactId>
-                <version>1.11.6</version>
+                <artifactId>scalacheck_${scala.major.version}</artifactId>
+                <version>1.13.5</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.scalatest</groupId>
-                <artifactId>scalatest_2.11</artifactId>
-                <version>2.2.2</version>
+                <artifactId>scalatest_${scala.major.version}</artifactId>
+                <version>3.0.4</version>
                 <scope>test</scope>
             </dependency>
+            <!-- deactivated atm -->
+            <!--
             <dependency>
                 <groupId>android</groupId>
                 <artifactId>android</artifactId>
                 <version>5.0.1_r2</version>
-                <!--  <version>6.0_r2</version> -->
                 <scope>provided</scope>
             </dependency>
             <dependency>
@@ -66,21 +74,53 @@
             </dependency>
             <dependency>
                 <groupId>net.ladstatt.sudoku</groupId>
-                <artifactId>sudoku-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>net.ladstatt.sudoku</groupId>
                 <artifactId>android-opencv</artifactId>
                 <version>${project.version}</version>
                 <type>aar</type>
             </dependency>
+            -->
         </dependencies>
     </dependencyManagement>
 
     <build>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>net.alchim31.maven</groupId>
+                    <artifactId>scala-maven-plugin</artifactId>
+                    <version>4.3.1</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>compile</goal>
+                                <goal>testCompile</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <scalaVersion>${scala.major.version}</scalaVersion>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.scalatest</groupId>
+                    <artifactId>scalatest-maven-plugin</artifactId>
+                    <version>2.0.0</version>
+                    <configuration>
+                        <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                        <!-- <forkMode>once</forkMode> -->
+                        <junitxml>.</junitxml>
+                        <parallel>true</parallel>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>test</id>
+                            <goals>
+                                <goal>test</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--
                 <plugin>
                     <groupId>com.simpligility.maven.plugins</groupId>
                     <artifactId>android-maven-plugin</artifactId>
@@ -93,57 +133,68 @@
                             <version>5.2</version>
                         </dependency>
                     </dependencies>
-
                 </plugin>
-                <plugin>
-                    <groupId>net.alchim31.maven</groupId>
-                    <artifactId>scala-maven-plugin</artifactId>
-                    <version>3.2.2</version>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>compile</goal>
-                                <goal>testCompile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                    <configuration>
-                        <scalaVersion>${scala.version}</scalaVersion>
-                        <jvmArgs>
-                            <jvmArg>-client</jvmArg>
-                            <jvmArg>-Xms64m</jvmArg>
-                            <jvmArg>-Xmx2G</jvmArg>
-                        </jvmArgs>
-                        <javacArgs>
-                            <javacArg>-source</javacArg>
-                            <javacArg>1.7</javacArg>
-                            <javacArg>-target</javacArg>
-                            <javacArg>1.7</javacArg>
-                        </javacArgs>
-                        <args>
-                            <arg>-Xlint</arg>
-                            <arg>-Ywarn-dead-code</arg>
-                            <arg>-Ywarn-numeric-widen</arg>
-                            <arg>-Ywarn-value-discard</arg>
-                            <arg>-deprecation</arg>
-                            <arg>-encoding</arg>
-                            <arg>UTF-8</arg>
-                            <arg>-feature</arg>
-                            <arg>-language:existentials</arg>
-                            <arg>-language:higherKinds</arg>
-                            <arg>-language:implicitConversions</arg>
-                            <arg>-optimise</arg>
-                            <arg>-target:jvm-1.6</arg>
-                            <arg>-unchecked</arg>
-                        </args>
-                        <recompileMode>incremental</recompileMode>
-                        <useZincServer>true</useZincServer>
-                    </configuration>
-                </plugin>
+                -->
             </plugins>
         </pluginManagement>
     </build>
 
+    <profiles>
+        <!-- use this profile to install needed jar file in your local maven repository -->
+        <profile>
+            <id>install-opencv</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.0.0-M3</version>
+                        <executions>
+                            <execution>
+                                <id>enforce-opencv</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <phase>initialize</phase>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <message>Could not find ${opencv.java.jar}</message>
+                                            <files>
+                                                <file>${opencv.java.jar}</file>
+                                            </files>
+                                        </requireFilesExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-install-plugin</artifactId>
+                        <version>3.0.0-M1</version>
+                        <executions>
+                            <execution>
+                                <id>install-opencv-jar</id>
+                                <goals>
+                                    <goal>install-file</goal>
+                                </goals>
+                                <phase>initialize</phase>
+                                <configuration>
+                                    <groupId>org.opencv</groupId>
+                                    <artifactId>opencv-java</artifactId>
+                                    <version>${opencv.full.version}</version>
+                                    <packaging>jar</packaging>
+                                    <file>${opencv.java.jar}</file>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 
 </project>
 

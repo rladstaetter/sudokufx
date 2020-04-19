@@ -1,4 +1,4 @@
-# Sudoku Capturer (for Android)
+# SudokuFX (for Android)
 
 ## Prerequisites
 
