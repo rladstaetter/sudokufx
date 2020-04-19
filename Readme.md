@@ -20,7 +20,7 @@ are some blog posts about this project on my [blog](http://ladstatt.blogspot.com
 early 2020) updated dependencies to the latest versions, as such it should be 'no problem' to get it to run on your 
 machine.
 
-You have to provide paths and version of OpenCV, either download a binary version from [their site])(https://opencv.org)
+You have to provide paths and version of OpenCV, either download a binary version from [their site](https://opencv.org)
 or build it from scratch. After successfully doing so, you have to invoke maven like this
 
      mvn initialize -Pinstall-opencv -N
