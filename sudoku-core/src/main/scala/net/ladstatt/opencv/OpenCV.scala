@@ -10,7 +10,7 @@ import org.opencv.core._
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
@@ -233,7 +233,7 @@ object OpenCV extends CanLog {
   }
 
   def mkMatWithCurve(image: Mat, curve: MatOfPoint2f, color: Scalar, thickness: Int): Future[Mat] = {
-    mkMatWithCurve(image, curve.toList.toList, color, thickness)
+    mkMatWithCurve(image, curve.toList.asScala.toList, color, thickness)
   }
 
   def mkMatWithCurve(image: Mat, points: List[Point], color: Scalar, thickness: Int): Future[Mat] =
@@ -337,7 +337,7 @@ object OpenCV extends CanLog {
     val input = copyMat(original)
     val contours = new java.util.ArrayList[MatOfPoint]()
     Imgproc.findContours(input, contours, new Mat, mode, method)
-    contours
+    contours.asScala.toSeq
   }
 
   def has4Sides(needle: MatOfPoint2f): Boolean = needle.size == new Size(1, 4)
@@ -398,8 +398,8 @@ object OpenCV extends CanLog {
    */
   def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
     val pointsAsList = points.toList
-    val sortBySum = pointsAsList.sortWith((l, r) => (l.x + l.y) < (r.x + r.y))
-    val sortByDifference = pointsAsList.sortWith((l, r) => (l.y - l.x) < (r.y - r.x))
+    val sortBySum = pointsAsList.asScala.sortWith((l, r) => (l.x + l.y) < (r.x + r.y))
+    val sortByDifference = pointsAsList.asScala.sortWith((l, r) => (l.y - l.x) < (r.y - r.x))
     val (topleft, bottomright) = (sortBySum.head, sortBySum.reverse.head)
     val (topright, bottomleft) = (sortByDifference.head, sortByDifference.reverse.head)
     Seq(topleft, topright, bottomright, bottomleft)

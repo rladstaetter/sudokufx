@@ -1,20 +1,20 @@
 package net.ladstatt.sudoku
 
 /**
-  * Copyright (c) 2013-2016, Robert Ladstätter @rladstaetter
-  **/
+ * Copyright (c) 2013-2016, Robert Ladstätter @rladstaetter
+ **/
+
+import java.io.File
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.concurrent.TimeUnit
+import java.util.{Date, ResourceBundle}
 
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene._
 import _root_.javafx.scene.control._
 import _root_.javafx.stage.Stage
-import java.io.File
-import java.net.URL
-import java.nio.file.Paths
-import java.text.SimpleDateFormat
-import java.util.concurrent.TimeUnit
-import java.util.{Date, ResourceBundle, UUID}
-
+import com.sun.javafx.perf.PerformanceTracker
 import javafx.animation.FadeTransition
 import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
@@ -24,24 +24,22 @@ import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polygon, Polyline, Rectangle}
-import com.sun.javafx.perf.PerformanceTracker
 import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, MatOfPoint, Point}
-import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.videoio.VideoCapture
 import rx.lang.scala.{Observable, Subscription}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 /**
-  * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
-  */
+ * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
+ */
 object SudokuFX {
 
   def main(args: Array[String]): Unit = {
@@ -159,7 +157,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         i
       })
     }
-    historyMenu.getItems.addAll(historyItems)
+    historyMenu.getItems.addAll(historyItems.asJava)
     historyMenu
   }
 
@@ -190,7 +188,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
             while (getCameraActive) {
               Try {
                 val m = aquireMat()
-              //  Imgcodecs.imwrite(Paths.get("/Users/lad/Documents/sudokufx/target").resolve(UUID.randomUUID() + ".png").toAbsolutePath.toString, m)
+                //  Imgcodecs.imwrite(Paths.get("/Users/lad/Documents/sudokufx/target").resolve(UUID.randomUUID() + ".png").toAbsolutePath.toString, m)
                 m
               } match {
                 case Success(m) => o.onNext(m)
@@ -219,7 +217,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       contours.map {
         c =>
           val p = new Polygon()
-          c.toList.foldLeft(p)((acc, p) => {
+          c.toList.asScala.foldLeft(p)((acc, p) => {
             acc.getPoints.addAll(p.x, p.y)
             acc
           })
@@ -228,7 +226,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     execOnUIThread({
       polyArea.getChildren.clear()
-      polyArea.getChildren.addAll(polys)
+      polyArea.getChildren.addAll(polys.asJava)
     })
   }
 
@@ -271,10 +269,10 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
     mainMenuBar.getMenus.add(historyMenu)
     val imageViews = imageTemplates.map(new ImageView(_))
-    templateToolBar.getItems.addAll(imageViews)
+    templateToolBar.getItems.addAll(imageViews.asJava)
     canvas.getChildren.add(sudokuBorder)
-    canvas.getChildren.addAll(analysisCellBounds.toList)
-    canvas.getChildren.addAll(analysisCellCorners.toList)
+    canvas.getChildren.addAll(analysisCellBounds.toList.asJava)
+    canvas.getChildren.addAll(analysisCellCorners.toList.asJava)
     frameNumberGauge.setMaxValue(5000)
     frameNumberGauge.setMinValue(0)
     detectionGauge.setMinValue(0)
@@ -361,8 +359,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   workingDirectory.mkdirs()
 
   /**
-    * where application will put captured frames
-    */
+   * where application will put captured frames
+   */
   val workingDirectoryProperty = new SimpleObjectProperty[File](workingDirectory)
 
   def getWorkingDirectory: File = workingDirectoryProperty.get
@@ -379,8 +377,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     if (a == b) {
       List.fill(10)(a)
     } else {
-      val r = a to b by ((b - a) / nrCells)
-      if (r.size == 9) List.concat(r, List(b)) else r
+      val r: Seq[BigDecimal] = BigDecimal(a) to BigDecimal(b) by BigDecimal((b - a) / nrCells)
+      if (r.size == 9) {
+        List.concat(r.map(_.toDouble), List(b))
+      } else {
+        r.map(_.toDouble)
+      }
     }
   }
 
@@ -398,8 +400,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
   /**
-    * returns coordinates of the 100 cell corners
-    */
+   * returns coordinates of the 100 cell corners
+   */
   def mkCellCorners(corners: List[Point]): Seq[(Double, Double)] = {
     val List(ul, ur, lr, ll) = corners
     val left = splitRange(ul.x, ul.y, ll.x, ll.y)
@@ -420,8 +422,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   /**
-    * reduces 100 corners to 81 boundaries
-    */
+   * reduces 100 corners to 81 boundaries
+   */
   def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
 
     def extractBound(index: Int): Seq[java.lang.Double] = {
@@ -431,6 +433,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         cellCorners(index + 10)._1, cellCorners(index + 10)._2,
         cellCorners(index)._1, cellCorners(index)._2)
     }
+
     val exclusions = 9 to 79 by 10
     for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
   }
@@ -443,7 +446,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         for (i <- 0 to 80) {
           val line = cellBounds(i)
           line.getPoints.clear()
-          line.getPoints.addAll(boundCoordinates(i))
+          line.getPoints.addAll(boundCoordinates(i).asJava)
         }
       } else {
         logError(s"Found ${boundCoordinates.size} bounds, expected 81 (border size: ${border.size})!")
@@ -464,7 +467,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def updateBorder(corners: List[Point]): Unit = {
     sudokuBorder.getPoints.clear()
-    sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners))
+    sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners).asJava)
     borderFadeTransition.play()
   }
 
@@ -483,14 +486,14 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     }
 
-    displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren))
+    displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
 
     sudokuResult match {
       case SSuccess(SCandidate(nr, framePipeline, sr, ss), SRectangle(sudokuCanvas, detectedCells, corners), someSolution) =>
         if (someSolution.isDefined) {
           val sol = someSolution.get
           updateVideo(stage, framePipeline, sol.solutionMat)
-          displayResult(sol.solution, as[Label](resultFlowPane.getChildren))
+          displayResult(sol.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
         } else {
           updateVideo(stage, framePipeline, framePipeline.frame)
         }
@@ -511,7 +514,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
     setAnalysisMouseTransparent(false)
-    updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren))
+    updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren.asScala.toSeq))
 
     frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
     result match {
@@ -533,6 +536,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       val after = System.nanoTime
       (after - start) / 1000000
     }
+
     s"FPS " + f"${getPerformanceTracker.getAverageFPS}%3.2f" + s" Frame: $mkDuration ms"
   }
 
@@ -561,9 +565,10 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         l
       }
     }
+
     resultPane.setPrefWrapLength(20.0 * 9)
     resultPane.setMaxWidth(20.0 * 9)
-    resultPane.getChildren.addAll(mkSolutionPane())
+    resultPane.getChildren.addAll(mkSolutionPane().asJava)
   }
 
   def initStatsPane(flowPane: FlowPane): Unit = {
@@ -590,10 +595,10 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
           l.setStyle("-fx-font-size:5px")
           l
         })
-        fp.getChildren.addAll(icells)
+        fp.getChildren.addAll(icells.asJava)
         fp
       }
-    flowPane.getChildren.addAll(cellz)
+    flowPane.getChildren.addAll(cellz.asJava)
     ()
   }
 
@@ -605,9 +610,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
 
   /**
-    * updates UI to show for each cell (there are 81 of them) which number was detected how often
-    * In each flowpane there are 9 labels (representing each number)
-    */
+   * updates UI to show for each cell (there are 81 of them) which number was detected how often
+   * In each flowpane there are 9 labels (representing each number)
+   */
   def displayHitCounts(hitCounts: HitCounters, displayItems: Seq[FlowPane]): Unit = {
 
     // change colors of flowpanes such that if there are more than one hits it
@@ -647,7 +652,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   def initializeChoiceBoxes(): Unit = {
     contourModeChoiceBox.getItems.addAll(0, 1, 2, 3)
     contourMethodChoiceBox.getItems.addAll(1, 2, 3, 4)
-    contourRatioChoiceBox.getItems.addAll(0 to 60 by 5)
+    contourRatioChoiceBox.getItems.addAll((0 to 60 by 5).asJava)
     contourModeChoiceBox.setValue(3)
     contourMethodChoiceBox.setValue(2)
     contourRatioChoiceBox.setValue(30)

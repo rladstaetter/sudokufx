@@ -11,8 +11,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scala.major.version>2.12</scala.major.version>
-        <scala.full.version>${scala.major.version}.10</scala.full.version>
+        <scala.major.version>2.13</scala.major.version>
+        <scala.full.version>${scala.major.version}.1</scala.full.version>
         <opencv.major.version>4.3</opencv.major.version>
         <opencv.full.version>${opencv.major.version}.0</opencv.full.version>
         <opencv.install.path>/Users/lad/custom-builds/opencv-4.3.0/out/</opencv.install.path>
@@ -49,13 +49,13 @@
             <dependency>
                 <groupId>org.scalacheck</groupId>
                 <artifactId>scalacheck_${scala.major.version}</artifactId>
-                <version>1.13.5</version>
+                <version>1.14.3</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest_${scala.major.version}</artifactId>
-                <version>3.0.4</version>
+                <version>3.1.1</version>
                 <scope>test</scope>
             </dependency>
             <!-- deactivated atm -->

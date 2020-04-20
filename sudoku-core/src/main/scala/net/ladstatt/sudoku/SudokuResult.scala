@@ -2,7 +2,7 @@ package net.ladstatt.sudoku
 
 import org.opencv.core.{Mat, Point}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 case class InputFrame(nr: Int, framePipeline: FramePipeline)
 

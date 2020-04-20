@@ -14,7 +14,7 @@ import javafx.stage.Stage
 import javafx.util.Callback
 import net.ladstatt.core.CanLog
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, SyncVar}
 
@@ -139,7 +139,7 @@ trait JfxUtils extends CanLog{
 
   def mkObservableList[T](iterable: Iterable[T]): ObservableList[T] = {
     val mutableList = new java.util.ArrayList[T]
-    mutableList.addAll(iterable)
+    mutableList.addAll(iterable.toSeq.asJava)
     FXCollections.observableList(mutableList)
   }
 

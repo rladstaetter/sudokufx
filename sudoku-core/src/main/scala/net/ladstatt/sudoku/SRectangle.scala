@@ -7,7 +7,7 @@ import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core._
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 object SRectangle {
 
@@ -38,7 +38,7 @@ case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: Ma
 
   lazy val detectedCells: Seq[SCell] = cells.filter(_.value != 0)
 
-  lazy val corners = detectedCorners.toList.toList
+  lazy val corners = detectedCorners.toList.asScala.toList
   /**
     * paints the solution to the canvas.
     *

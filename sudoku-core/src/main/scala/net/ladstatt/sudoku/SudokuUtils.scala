@@ -212,12 +212,12 @@ object SudokuUtils {
     * @return detected contours
     */
   def detectRectangle(input: Mat, corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
-    import scala.collection.JavaConversions._
+    import scala.collection.JavaConverters._
     val (contourArea, c) = extractCurveWithMaxArea(contours)
 
     val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
     if (contourArea > minimumExpectedArea) {
-      val approxCurve = mkApproximation(new MatOfPoint2f(c.toList: _*))
+      val approxCurve = mkApproximation(new MatOfPoint2f(c.toList.asScala.toSeq: _*))
       if (has4Sides(approxCurve)) {
         val corners = mkSortedCorners(approxCurve)
         if (isSomewhatSquare(corners)) {

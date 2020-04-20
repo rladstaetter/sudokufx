@@ -6,7 +6,7 @@ import net.ladstatt.opencv.OpenCV
 import org.opencv.core.Point
 import org.scalatest.WordSpecLike
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Created by lad on 22.02.16.
@@ -21,10 +21,9 @@ class SudokuUtilsSpec extends WordSpecLike {
     val res = SudokuUtils.detectRectangle(pipeline.dilated, OpenCV.mkCorners(pipeline.dilated.size), params, pipeline.contours)
     //pipeline.persist(new File("target/utilstest/"))
     val points: util.List[Point] = res.get.toList
-    println(points.toSeq)
     assert(points.size > 0)
-    import scala.collection.JavaConversions._
-    val pts: Seq[Point] = res.map(_.toList.toSeq).getOrElse(Seq())
+    import scala.collection.JavaConverters._
+    val pts: Seq[Point] = res.map(_.toList.asScala.toSeq).getOrElse(Seq())
     assert(
       Seq(
         new Point(231.0, 175.0),
