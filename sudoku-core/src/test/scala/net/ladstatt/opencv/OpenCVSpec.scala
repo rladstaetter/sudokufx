@@ -5,12 +5,12 @@ import java.io.File
 import net.ladstatt.sudoku.{Parameters, SCell}
 import org.opencv.core.{Mat, MatOfPoint, Point, Rect}
 import org.opencv.imgcodecs.Imgcodecs
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
  * Created by lad on 22.02.16.
  */
-class OpenCVSpec extends WordSpecLike {
+class OpenCVSpec extends AnyWordSpecLike {
 
   OpenCV.loadNativeLib()
 

@@ -2,12 +2,12 @@ package net.ladstatt.sudoku
 
 import net.ladstatt.opencv.OpenCV
 import org.opencv.imgcodecs.Imgcodecs
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
  * Created by lad on 07.01.16.
  */
-class Sudoku4Spec extends WordSpecLike {
+class Sudoku4Spec extends AnyWordSpecLike {
 
   OpenCV.loadNativeLib()
 

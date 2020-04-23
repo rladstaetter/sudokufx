@@ -2,12 +2,12 @@ package net.ladstatt.sudoku
 
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, Rect}
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
   * Created by lad on 12.01.15.
   */
-class StateSpec extends WordSpecLike {
+class StateSpec extends AnyWordSpecLike {
 
   OpenCV.loadNativeLib()
 

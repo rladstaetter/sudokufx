@@ -4,13 +4,13 @@ import java.util
 
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.Point
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 
 /**
  * Created by lad on 22.02.16.
  */
-class SudokuUtilsSpec extends WordSpecLike {
+class SudokuUtilsSpec extends AnyWordSpecLike {
 
   OpenCV.loadNativeLib()
 

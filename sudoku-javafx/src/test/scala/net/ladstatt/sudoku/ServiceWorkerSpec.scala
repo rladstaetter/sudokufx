@@ -4,9 +4,9 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.concurrent.{Service, Task, WorkerStateEvent}
 import net.ladstatt.core.{CanLog, Utils}
 import org.opencv.core.Mat
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ServiceWorkerSpec extends  JfxUtils with WordSpecLike with CanLog {
+class ServiceWorkerSpec extends  JfxUtils with AnyWordSpecLike with CanLog {
 
   val solverService = new SolverService
   val sudoku1 =

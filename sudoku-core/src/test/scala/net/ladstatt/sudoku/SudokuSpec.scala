@@ -3,14 +3,14 @@ package net.ladstatt.sudoku
 import java.io.File
 
 import net.ladstatt.opencv.OpenCV
-import org.scalatest.WordSpecLike
 
 import scala.io.Source
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
  * Created by lad on 05.05.14.
  */
-class SudokuSpec extends WordSpecLike {
+class SudokuSpec extends AnyWordSpecLike {
 
   OpenCV.loadNativeLib()
 
