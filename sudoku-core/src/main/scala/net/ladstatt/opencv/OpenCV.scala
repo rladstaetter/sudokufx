@@ -10,7 +10,8 @@ import org.opencv.core._
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try

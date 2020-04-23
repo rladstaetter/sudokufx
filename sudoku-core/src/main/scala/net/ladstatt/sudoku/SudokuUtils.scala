@@ -165,7 +165,8 @@ object SudokuUtils {
 
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
-    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality) }
+//    import Ordering.Double.TotalOrdering
+    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)(Ordering.Double.TotalOrdering) }
 
     digitLibrary ++
       (for (c <- optimal.values if digitLibrary(c.value)._1 > c.quality) yield {
@@ -181,7 +182,7 @@ object SudokuUtils {
    * @return detected contours
    */
   def detectRectangle(corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val (contourArea, c) = extractCurveWithMaxArea(contours)
 
     val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio

@@ -14,7 +14,7 @@ import javafx.stage.Stage
 import javafx.util.Callback
 import net.ladstatt.core.CanLog
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 

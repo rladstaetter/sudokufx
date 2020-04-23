@@ -21,7 +21,7 @@ class SudokuUtilsSpec extends AnyWordSpecLike {
     //pipeline.persist(new File("target/utilstest/"))
     val points: util.List[Point] = res.get.toList
     assert(points.size > 0)
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val pts: Seq[Point] = res.map(_.toList.asScala.toSeq).getOrElse(Seq())
     assert(
       Seq(
