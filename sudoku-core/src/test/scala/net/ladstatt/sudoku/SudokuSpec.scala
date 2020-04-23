@@ -1,16 +1,10 @@
 package net.ladstatt.sudoku
 
-import java.io.{File, FilenameFilter}
+import java.io.File
 
 import net.ladstatt.opencv.OpenCV
-import org.opencv.core.{Mat, Point, Rect}
-import org.opencv.imgcodecs.Imgcodecs
 import org.scalatest.WordSpecLike
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
 import scala.io.Source
 
 /**

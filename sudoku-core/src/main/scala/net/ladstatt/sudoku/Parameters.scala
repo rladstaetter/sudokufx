@@ -3,7 +3,6 @@ package net.ladstatt.sudoku
 import net.ladstatt.opencv.OpenCV._
 import org.opencv.core.Mat
 
-import scala.concurrent.Future
 
 
 object SudokuState {

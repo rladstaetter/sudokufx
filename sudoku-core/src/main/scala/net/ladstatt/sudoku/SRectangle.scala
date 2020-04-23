@@ -1,7 +1,5 @@
 package net.ladstatt.sudoku
 
-import java.io.File
-import java.util.UUID
 
 import net.ladstatt.opencv.OpenCV
 import net.ladstatt.opencv.OpenCV._

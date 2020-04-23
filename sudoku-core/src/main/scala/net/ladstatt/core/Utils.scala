@@ -1,8 +1,5 @@
 package net.ladstatt.core
 
-import java.io.{InputStream, OutputStream}
-import java.nio.ByteBuffer
-import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
 
 object Utils  {
 

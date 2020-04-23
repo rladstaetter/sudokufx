@@ -6,7 +6,6 @@ import net.ladstatt.opencv.OpenCV
 import org.opencv.core.Point
 import org.scalatest.WordSpecLike
 
-import scala.collection.JavaConverters._
 
 /**
  * Created by lad on 22.02.16.

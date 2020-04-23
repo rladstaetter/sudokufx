@@ -3,7 +3,6 @@ package net.ladstatt.sudoku
 import net.ladstatt.opencv.{Debug, OpenCV}
 import org.opencv.core._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}

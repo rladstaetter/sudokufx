@@ -1,7 +1,6 @@
 package net.ladstatt.sudoku
 
-import java.io.{File, InputStream}
-import java.util.UUID
+import java.io.InputStream
 
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
