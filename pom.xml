@@ -138,6 +138,8 @@
                             <arg>-Ywarn-unused:patvars</arg>
                             <arg>-Ywarn-unused:privates</arg>
                             <arg>-Ywarn-value-discard</arg>
+                            <arg>-Yrangepos</arg>
+                            <arg>-P:semanticdb:synthetics:on</arg>
                         </args>
                         <compilerPlugins>
                             <compilerPlugin>
@@ -176,6 +178,11 @@
                             <groupId>org.scalatest</groupId>
                             <artifactId>autofix_2.12</artifactId>
                             <version>3.1.0.0</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.scala-lang.modules</groupId>
+                            <artifactId>scala-collection-migrations_2.12</artifactId>
+                            <version>2.1.6</version>
                         </dependency>
                     </dependencies>
                 </plugin>
