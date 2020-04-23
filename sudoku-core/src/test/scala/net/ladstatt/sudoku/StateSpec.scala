@@ -11,10 +11,6 @@ class StateSpec extends AnyWordSpecLike {
 
   OpenCV.loadNativeLib()
 
-  def compare(a: SCell, b: SCell): Boolean = {
-    false
-  }
-
   def asMat(i: Int): Mat = TemplateLibrary.asSeq(i)
 
   val cellData = SudokuTestContext.frameSudoku_1

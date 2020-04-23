@@ -85,9 +85,9 @@ object BruteForceSolver {
     // accu by applying the given function f to it whenever a solution m
     // is found
     def search(x: Int, y: Int, f: Int => Int, accu: Int): Int = (x, y) match {
-      case (9, yy) if !isCancelled => search(0, y + 1, f, accu) // next row
+      case (9, _) if !isCancelled => search(0, y + 1, f, accu) // next row
       case (0, 9) if !isCancelled => f(accu) // found a solution
-      case (xx, yy) if !isCancelled => {
+      case (_, _) if !isCancelled =>
         if (mx(y)(x) != '0') {
           search(x + 1, y, f, accu)
         } else {
@@ -102,7 +102,6 @@ object BruteForceSolver {
               newaccu
             }, accu, 1, 10)
         }
-      }
       case _ => throw new RuntimeException("Was cancelled.")
     }
 

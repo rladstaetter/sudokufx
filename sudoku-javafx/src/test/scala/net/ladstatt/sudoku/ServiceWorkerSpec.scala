@@ -43,7 +43,7 @@ class ServiceWorkerSpec extends  JfxUtils with AnyWordSpecLike with CanLog {
     def setFrame(frame: Mat) = unsolvedProperty.set(frame)
 
     setOnCancelled(mkEventHandler(
-      (e: WorkerStateEvent) => {
+      (_: WorkerStateEvent) => {
         logInfo("CANCELLED")
       }
     ))
@@ -74,7 +74,7 @@ class ServiceWorkerSpec extends  JfxUtils with AnyWordSpecLike with CanLog {
 
   "testSimple" ignore {
     solverService.start()
-    for (i <- 1 to 10)
+    for (_ <- 1 to 10)
       Utils.time({
         Thread.sleep(50)
         solverService.cancel()

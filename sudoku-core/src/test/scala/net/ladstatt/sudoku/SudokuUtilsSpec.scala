@@ -17,7 +17,7 @@ class SudokuUtilsSpec extends AnyWordSpecLike {
   "detectCorners" ignore {
     val params: SParams = SParams()
     val pipeline: FramePipeline = FramePipeline(SudokuTestContext.frameSudoku_1, params)
-    val res = SudokuUtils.detectRectangle(pipeline.dilated, OpenCV.mkCorners(pipeline.dilated.size), params, pipeline.contours)
+    val res = SudokuUtils.detectRectangle( OpenCV.mkCorners(pipeline.dilated.size), params, pipeline.contours)
     //pipeline.persist(new File("target/utilstest/"))
     val points: util.List[Point] = res.get.toList
     assert(points.size > 0)

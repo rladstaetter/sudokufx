@@ -372,7 +372,7 @@ object OpenCV extends CanLog {
           val area = Imgproc.contourArea(c)
           acc match {
             case None => Some((area, c))
-            case Some((a, cc)) =>
+            case Some((a, _)) =>
               if (area > a) Some((area, c)) else acc
           }
         } else acc

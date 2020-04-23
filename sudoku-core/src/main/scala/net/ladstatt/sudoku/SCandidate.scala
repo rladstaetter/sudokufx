@@ -1,7 +1,6 @@
 package net.ladstatt.sudoku
 
 import net.ladstatt.opencv.{Debug, OpenCV}
-import org.opencv.core._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -11,14 +10,15 @@ import scala.util.{Failure, Success, Try}
 object SCandidate {
 
   // todo remove
-  def apply(nr: Int, frame: Mat, pipeline: FramePipeline, state: SudokuState, params: SParams = SParams()): SCandidate = {
+  def apply(nr: Int
+            , pipeline: FramePipeline
+            , state: SudokuState): SCandidate = {
     Try {
       new SCandidate(nr, pipeline, SRectangle(pipeline.frame, pipeline.detectRectangle.get, pipeline.corners), state)
     } match {
       case Success(x) => x
-      case Failure(e) => {
+      case Failure(e) =>
         throw e
-      }
     }
   }
 
@@ -27,9 +27,9 @@ object SCandidate {
 trait SResult
 
 /**
-  *
-  * @param nr number of the frame
-  */
+ *
+ * @param nr number of the frame
+ */
 case class SCandidate(nr: Int,
                       pipeline: FramePipeline,
                       sRectangle: SRectangle,
@@ -38,8 +38,8 @@ case class SCandidate(nr: Int,
   if (Debug.Active) Debug.writeDebug(this)
 
   /**
-    * This function uses an input image and a detection method to calculate the sudoku.
-    */
+   * This function uses an input image and a detection method to calculate the sudoku.
+   */
   lazy val calc: Future[(SudokuResult, SudokuState)] = {
     val currentState = oldState.merge(sRectangle)
     for {

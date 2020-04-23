@@ -53,7 +53,7 @@ case class FramePipeline(start: Long
   /**
    * returns coordinates of detected sudoku
    */
-  lazy val detectRectangle: Option[MatOfPoint2f] = SudokuUtils.detectRectangle(dilated, corners, params, contours)
+  lazy val detectRectangle: Option[MatOfPoint2f] = SudokuUtils.detectRectangle( corners, params, contours)
 
   def persist(dir: File): Unit = {
     dir.mkdirs()
@@ -65,6 +65,7 @@ case class FramePipeline(start: Long
     Imgcodecs.imwrite(new File(dir, "inverted.png").getAbsolutePath, inverted)
     Imgcodecs.imwrite(new File(dir, "dilated.png").getAbsolutePath, dilated)
     Imgcodecs.imwrite(new File(dir, "eroded.png").getAbsolutePath, eroded)
+    ()
   }
 
 

@@ -187,16 +187,15 @@ class OpenCVSpec extends AnyWordSpecLike {
    * Checks that a series of preprocessed inputs of the same sudoku is recognized properly.
    */
   "normalizedTest" in {
-    val nr = 0
     for (nr <- examplesudokus) {
       val image: File = new File(s"src/test/resources/net/ladstatt/sudoku/normalized/$nr/normalized.png")
       assert(image.exists(), image.getAbsolutePath)
       val m = Imgcodecs.imread(image.getAbsolutePath)
-      check(nr, m, expectedFrauVonHeute -- exceptions(nr))
+      check(m, expectedFrauVonHeute -- exceptions(nr))
     }
   }
 
-  def check(sudokuNr: Int, m: Mat, expected: Map[Int, Int]): Unit = {
+  def check(m: Mat, expected: Map[Int, Int]): Unit = {
     val cWidth: Int = (m.size.width / Parameters.ssize).toInt
     val cHeight: Int = (m.size.height / Parameters.ssize).toInt
     for ((idx, v) <- expected) {

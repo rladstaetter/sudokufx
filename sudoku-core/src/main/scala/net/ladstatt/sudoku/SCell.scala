@@ -27,11 +27,11 @@ case class SCell(cellMat: Mat, roi: Rect) {
 
   val (value, quality) = Await.result(computValueAndQuality, Duration.Inf)
 
-  //persist()
   def persist(): Unit = {
     val libraryPath = new File(s"/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/library/$value")
     libraryPath.mkdirs
     OpenCV.persist(cellMat, new File(libraryPath, UUID.randomUUID.toString + ".png"))
+    ()
   }
 
 }

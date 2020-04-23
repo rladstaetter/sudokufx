@@ -16,13 +16,13 @@ import net.ladstatt.core.CanLog
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, SyncVar}
+import scala.concurrent.Future
 
 object NxsJfxRuntime {
   /**
    * used for thread-synchronized access to the root stage of the JavaFX application
    */
-  val rootStage = new SyncVar[Stage]()
+  val rootStage = new java.util.concurrent.LinkedBlockingQueue[Stage](1)
 
   class Initializer extends Application {
     @throws(classOf[Exception])
@@ -35,7 +35,7 @@ object NxsJfxRuntime {
 
 }
 
-trait JfxUtils extends CanLog{
+trait JfxUtils extends CanLog {
 
 
   val logUi = false
@@ -107,14 +107,14 @@ trait JfxUtils extends CanLog{
         }
       }.start()
 
-      NxsJfxRuntime.rootStage.get
+      NxsJfxRuntime.rootStage.take()
       logInfo("[JavaFx Initialisation] completed ... ")
     } else {
       logWarn("[-> JAVA FX rootstage already initialized.")
     }
   }
 
-  def isRootStageSet = NxsJfxRuntime.rootStage.isSet
+  def isRootStageSet = !NxsJfxRuntime.rootStage.isEmpty
 
   /**
    * closes javafx root stage and by setting implicit exit to true it should end the javafx platform.
@@ -143,7 +143,7 @@ trait JfxUtils extends CanLog{
     FXCollections.observableList(mutableList)
   }
 
-  def execOnUIThread(f: => Unit) : Future[Unit] = Future {
+  def execOnUIThread(f: => Unit): Future[Unit] = Future {
     Platform.runLater(new Runnable {
       override def run() = f
     })

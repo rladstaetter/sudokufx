@@ -8,10 +8,10 @@ import scala.concurrent.duration.Duration
 import scala.io.Source
 
 /**
-  * Provides Test data for Unit Tests
-  *
-  * Created by lad on 06.01.16.
-  */
+ * Provides Test data for Unit Tests
+ *
+ * Created by lad on 06.01.16.
+ */
 object SudokuTestContext {
 
   val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
@@ -20,7 +20,7 @@ object SudokuTestContext {
   // see http://norvig.com/easy50.txt
   // and also make sure to visit http://norvig.com/sudoku.html
   lazy val easySudokus =
-    Source.fromInputStream(getClass.getResourceAsStream("easysudokus.txt")).getLines().mkString("\n")
+  Source.fromInputStream(getClass.getResourceAsStream("easysudokus.txt")).getLines().mkString("\n")
 
   val solutionSudoku_1 =
     """617948532
@@ -40,8 +40,8 @@ object SudokuTestContext {
   lazy val (emptySudoku, (emptySudokuResult, _)) = calculate(emptyFrame)
 
   def calculate(frame: Mat): (SCandidate, (SudokuResult, SudokuState)) = {
-    val c = SCandidate(0, frame, FramePipeline(frame), SudokuState.DefaultState)
-    val state: SudokuState = SudokuState.DefaultState.copy(cap = 1, minHits = 17, maxSolvingDuration = 5000L)
+    val c = SCandidate(0, FramePipeline(frame), SudokuState.DefaultState)
+    // val state: SudokuState = SudokuState.DefaultState.copy(cap = 1, minHits = 17, maxSolvingDuration = 5000L)
     (c, Await.result(c.calc, Duration.Inf))
   }
 

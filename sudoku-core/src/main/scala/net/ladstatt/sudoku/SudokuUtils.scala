@@ -6,14 +6,12 @@ import net.ladstatt.sudoku.Parameters._
 import org.opencv.core._
 import org.opencv.imgproc.Imgproc
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.Random
 
 
 /**
-  * Contains most of the algorithms necessary for the SudokuFX application.
-  */
+ * Contains most of the algorithms necessary for the SudokuFX application.
+ */
 object SudokuUtils {
 
   def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] =
@@ -37,13 +35,13 @@ object SudokuUtils {
 
 
   /**
-    * Performance:
-    *
-    * Benchmark                                          Mode   Samples         Mean   Mean error    Units
-    * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
-    *
-    * @return
-    */
+   * Performance:
+   *
+   * Benchmark                                          Mode   Samples         Mean   Mean error    Units
+   * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
+   *
+   * @return
+   */
   def toSolutionCells(digitLibrary: DigitLibrary, digitSolution: SudokuDigitSolution): Cells = {
     val allCells: Cells =
       (for (pos <- cellRange) yield {
@@ -66,14 +64,14 @@ object SudokuUtils {
 
 
   /**
-    * paints green borders around the cells
-    *
-    * @param canvas
-    * @param rects
-    * @param someSolution
-    * @param hitCounts
-    * @return
-    */
+   * paints green borders around the cells
+   *
+   * @param canvas
+   * @param rects
+   * @param someSolution
+   * @param hitCounts
+   * @return
+   */
   def paintCorners(canvas: Mat,
                    rects: Seq[Rect],
                    someSolution: Option[Cells],
@@ -93,63 +91,35 @@ object SudokuUtils {
         case 3 => 200
         case _ => 255
       }
-      new Scalar(0, (n % cap) * 255 / cap, r, 255.0)
+      new Scalar(0, (n % cap) * 255 / cap, r.toDouble, 255.0)
     }
 
 
-      for (solution <- someSolution) {
-        CollectionUtils.traverseWithIndex(rects)((cell, i) => {
-          paintRect(canvas, rects(i), color(hitCounts(i), cap), 1)
-        }
-        )
+    for (_ <- someSolution) {
+      CollectionUtils.traverseWithIndex(rects)((_, i) => {
+        paintRect(canvas, rects(i), color(hitCounts(i), cap), 1)
       }
-
-      canvas
-  }
-
-
-  /**
-    * paints the solution to the canvas.
-    *
-    * returns the modified canvas with the solution painted upon.
-    *
-    * detectedCells contains values from 0 to 9, with 0 being the cells which are 'empty' and thus have to be filled up
-    * with numbers.
-    *
-    * uses digitData as lookup table to paint onto the canvas, thus modifying the canvas.
-    */
-  def paintSolution(canvas: Mat,
-                    detectedCells: Seq[Int],
-                    someSolution: Option[Cells],
-                    digitLibrary: DigitLibrary,
-                    rects: Seq[Rect]): Future[Mat] = {
-
-    Future {
-      for (solution <- someSolution) {
-        val values = solution.map(_.value)
-        for ((s, r) <- values zip rects if values.sum == 405) {
-          copyTo(digitLibrary(s)._2.getOrElse(mkFallback(s, digitLibrary).get), canvas, r)
-        }
-      }
-      canvas
+      )
     }
+
+    canvas
   }
 
   /**
-    * provides a fallback if there is no digit detected for this number.
-    *
-    * the size and type of the mat is calculated by looking at the other elements of the digit
-    * library. if none found there, just returns null
-    *
-    * @param number
-    * @return
-    */
+   * provides a fallback if there is no digit detected for this number.
+   *
+   * the size and type of the mat is calculated by looking at the other elements of the digit
+   * library. if none found there, just returns null
+   *
+   * @param number
+   * @return
+   */
   def mkFallback(number: Int, digitLibrary: DigitLibrary): Option[Mat] = {
     /**
-      * returns size and type of Mat's contained int he digitLibrary
-      *
-      * @return
-      */
+     * returns size and type of Mat's contained int he digitLibrary
+     *
+     * @return
+     */
     def determineMatParams(): Option[(Size, Int)] = {
       digitLibrary.values.flatMap(_._2).headOption.map {
         case m => (m.size, m.`type`)
@@ -185,10 +155,10 @@ object SudokuUtils {
                         detectedCells: Seq[SCell]): DigitLibrary = {
 
     /**
-      * The filter returns only cells which contain 'better match' cells.
-      *
-      * If there are cells containing '0' detected they are ignored.
-      */
+     * The filter returns only cells which contain 'better match' cells.
+     *
+     * If there are cells containing '0' detected they are ignored.
+     */
     val qualityFilter: PartialFunction[SCell, Boolean] = {
       case c => (c.value != 0) && (c.quality < digitLibrary(c.value)._1) // lower means "better"
     }
@@ -205,13 +175,12 @@ object SudokuUtils {
   }
 
   /**
-    * Awaits a preprocessed video frame and finds the corners of the biggest rectangle seen
-    * in the input.
-    *
-    * @param input
-    * @return detected contours
-    */
-  def detectRectangle(input: Mat, corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
+   * Awaits a preprocessed video frame and finds the corners of the biggest rectangle seen
+   * in the input.
+   *
+   * @return detected contours
+   */
+  def detectRectangle(corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
     import scala.collection.JavaConverters._
     val (contourArea, c) = extractCurveWithMaxArea(contours)
 
