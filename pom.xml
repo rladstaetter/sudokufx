@@ -12,7 +12,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala.major.version>2.13</scala.major.version>
-        <scala.full.version>${scala.major.version}.1</scala.full.version>
+        <scala.full.version>${scala.major.version}.0</scala.full.version>
         <opencv.major.version>4.3</opencv.major.version>
         <opencv.full.version>${opencv.major.version}.0</opencv.full.version>
         <opencv.install.path>/Users/lad/custom-builds/opencv-4.3.0/out/</opencv.install.path>
@@ -100,7 +100,7 @@
                     <configuration>
                         <scalaVersion>${scala.major.version}</scalaVersion>
                         <args>
-                            <!--   <arg>-deprecation</arg> -->
+                            <arg>-deprecation</arg>
                             <arg>-encoding</arg>
                             <arg>utf-8</arg>
                             <arg>-explaintypes</arg>
@@ -111,9 +111,7 @@
                             <arg>-language:implicitConversions</arg>
                             <arg>-unchecked</arg>
                             <arg>-Xcheckinit</arg>
-                            <!-- <arg>-Xfatal-warnings</arg> -->
-                            <!-- <arg>-Xfuture</arg> -->
-                            <!-- <arg>-Yno-adapted-args</arg> -->
+                            <!-- arg>-Xfatal-warnings</arg -->
                             <arg>-Xlint:adapted-args</arg>
                             <arg>-Xlint:constant</arg>
                             <arg>-Xlint:delayedinit-select</arg>
@@ -141,6 +139,13 @@
                             <arg>-Ywarn-unused:privates</arg>
                             <arg>-Ywarn-value-discard</arg>
                         </args>
+                        <compilerPlugins>
+                            <compilerPlugin>
+                                <groupId>org.scalameta</groupId>
+                                <artifactId>semanticdb-scalac_${scala.full.version}</artifactId>
+                                <version>4.3.9</version>
+                            </compilerPlugin>
+                        </compilerPlugins>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -161,6 +166,11 @@
                             </goals>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>io.github.evis</groupId>
+                    <artifactId>scalafix-maven-plugin</artifactId>
+                    <version>0.1.2_0.9.5</version>
                 </plugin>
                 <!--
                 <plugin>
