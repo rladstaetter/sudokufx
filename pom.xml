@@ -171,6 +171,13 @@
                     <groupId>io.github.evis</groupId>
                     <artifactId>scalafix-maven-plugin</artifactId>
                     <version>0.1.2_0.9.5</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.scalatest</groupId>
+                            <artifactId>autofix_2.12</artifactId>
+                            <version>3.1.0.0</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <!--
                 <plugin>
