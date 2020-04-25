@@ -4,7 +4,6 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
-<?import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge?>
 <VBox prefHeight="830.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ladstatt.sudoku.SudokuFXController">
     <children>
@@ -25,31 +24,23 @@
                             <children>
                                 <TitledPane text="Frame number">
                                     <content>
-                                        <SimpleMetroArcGauge fx:id="frameNumberGauge" minHeight="130" maxHeight="130"
-                                                             minWidth="130"
-                                                             maxWidth="130"/>
+
 
                                     </content>
                                 </TitledPane>
                                 <TitledPane text="Detected Sudokus">
                                     <content>
-                                        <SimpleMetroArcGauge fx:id="detectionGauge" minHeight="130" maxHeight="130"
-                                                             minWidth="130"
-                                                             maxWidth="130"/>
+
                                     </content>
                                 </TitledPane>
                                 <TitledPane text="Last detection numbers">
                                     <content>
-                                        <SimpleMetroArcGauge fx:id="lastDetectionGauge" minHeight="130" maxHeight="130"
-                                                             minWidth="130"
-                                                             maxWidth="130"/>
+
                                     </content>
                                 </TitledPane>
                                 <TitledPane text="Frame rate">
                                     <content>
-                                        <SimpleMetroArcGauge fx:id="frameRateGauge" minHeight="130" maxHeight="130"
-                                                             minWidth="130"
-                                                             maxWidth="130"/>
+
                                     </content>
                                 </TitledPane>
                             </children>

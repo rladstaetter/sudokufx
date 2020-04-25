@@ -7,7 +7,7 @@
     <version>2020.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>nxs.ladstatt.sudoku.pom</name>
+    <name>nxs.ladstatt.sudoku.sudokufx</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -17,6 +17,7 @@
         <opencv.full.version>${opencv.major.version}.0</opencv.full.version>
         <opencv.install.path>/Users/lad/custom-builds/opencv-4.3.0/out/</opencv.install.path>
         <opencv.java.jar>${opencv.install.path}share/java/opencv4/opencv-430.jar</opencv.java.jar>
+        <openjfx.version>11.0.2</openjfx.version>
     </properties>
 
     <modules>
@@ -31,6 +32,26 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-base</artifactId>
+                <version>11.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-swing</artifactId>
+                <version>11.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-fxml</artifactId>
+                <version>11.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-controls</artifactId>
+                <version>11.0.2</version>
+            </dependency>
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
@@ -111,7 +132,6 @@
                             <arg>-language:implicitConversions</arg>
                             <arg>-unchecked</arg>
                             <arg>-Xcheckinit</arg>
-                            <!-- arg>-Xfatal-warnings</arg -->
                             <arg>-Xlint:adapted-args</arg>
                             <arg>-Xlint:constant</arg>
                             <arg>-Xlint:delayedinit-select</arg>
@@ -139,8 +159,9 @@
                             <arg>-Ywarn-unused:privates</arg>
                             <arg>-Ywarn-value-discard</arg>
                             <arg>-Yrangepos</arg>
-                            <arg>-P:semanticdb:synthetics:on</arg>
+                            <!-- arg>-P:semanticdb:synthetics:on</arg -->
                         </args>
+                        <!--
                         <compilerPlugins>
                             <compilerPlugin>
                                 <groupId>org.scalameta</groupId>
@@ -148,6 +169,7 @@
                                 <version>4.3.9</version>
                             </compilerPlugin>
                         </compilerPlugins>
+                        -->
                     </configuration>
                 </plugin>
                 <plugin>
@@ -169,6 +191,7 @@
                         </execution>
                     </executions>
                 </plugin>
+                <!--
                 <plugin>
                     <groupId>io.github.evis</groupId>
                     <artifactId>scalafix-maven-plugin</artifactId>
@@ -185,6 +208,13 @@
                             <version>2.1.6</version>
                         </dependency>
                     </dependencies>
+                </plugin>
+                -->
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.0.0-M3</version>
                 </plugin>
                 <!--
                 <plugin>
@@ -203,6 +233,30 @@
                 -->
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-jdk</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>3.6.2</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>11</version>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
@@ -214,7 +268,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-enforcer-plugin</artifactId>
-                        <version>3.0.0-M3</version>
                         <executions>
                             <execution>
                                 <id>enforce-opencv</id>

@@ -14,23 +14,31 @@
 
     <dependencies>
         <dependency>
-            <groupId>net.ladstatt.sudoku</groupId>
-            <artifactId>sudoku-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jfxtras</groupId>
-            <artifactId>jfxtras-controls</artifactId>
-            <version>8.0-r4</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jfxtras</groupId>
-            <artifactId>jfxtras-labs</artifactId>
-            <version>8.0-r4</version>
-        </dependency>
-        <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-base</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>net.ladstatt.sudoku</groupId>
+            <artifactId>sudoku-core</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_${scala.major.version}</artifactId>
@@ -51,13 +59,7 @@
         </dependency>
     </dependencies>
     <build>
-        <!-- <sourceDirectory>src/main/scala</sourceDirectory> -->
         <plugins>
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-            </plugin>
-
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
@@ -80,11 +82,15 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
             </plugin>
-        </plugins>
 
+        </plugins>
     </build>
 
 

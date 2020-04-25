@@ -24,7 +24,6 @@ import javafx.scene.image.{Image, ImageView}
 import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polygon, Polyline, Rectangle}
-import jfxtras.labs.scene.control.gauge.linear.SimpleMetroArcGauge
 import net.ladstatt.core.CanLog
 import net.ladstatt.opencv.OpenCV
 import org.opencv.core.{Mat, MatOfPoint, Point}
@@ -105,11 +104,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   @FXML var templateToolBar: ToolBar = _
   @FXML var mainMenuBar: MenuBar = _
   @FXML var modeButtons: ToggleGroup = _
-
-  @FXML var frameNumberGauge: SimpleMetroArcGauge = _
-  @FXML var detectionGauge: SimpleMetroArcGauge = _
-  @FXML var frameRateGauge: SimpleMetroArcGauge = _
-  @FXML var lastDetectionGauge: SimpleMetroArcGauge = _
 
   @FXML var contourModeChoiceBox: ChoiceBox[Int] = _
   @FXML var contourMethodChoiceBox: ChoiceBox[Int] = _
@@ -268,14 +262,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     canvas.getChildren.add(sudokuBorder)
     canvas.getChildren.addAll(analysisCellBounds.toList.asJava)
     canvas.getChildren.addAll(analysisCellCorners.toList.asJava)
-    frameNumberGauge.setMaxValue(5000)
-    frameNumberGauge.setMinValue(0)
-    detectionGauge.setMinValue(0)
-    detectionGauge.setMaxValue(500)
-    frameRateGauge.setMinValue(0)
-    frameRateGauge.setMaxValue(60)
-    lastDetectionGauge.setMinValue(0)
-    lastDetectionGauge.setMaxValue(81)
 
     ()
   }
@@ -511,11 +497,8 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     setAnalysisMouseTransparent(false)
     updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren.asScala.toSeq))
 
-    frameRateGauge.setValue(Float.float2double(getPerformanceTracker.getAverageFPS))
     result match {
       case success: SSuccess if success.someSolution.isDefined =>
-        detectionGauge.setValue(detectionGauge.getValue + 1)
-        lastDetectionGauge.setValue(Int.int2double(success.sudokuFrame.detectedCells.length))
         updateStatus(mkFps(success.inputFrame.pipeline.start), Color.GREEN)
       case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
         updateStatus(mkFps(onlyCorners.inputFrame.pipeline.start), Color.ORANGE)
