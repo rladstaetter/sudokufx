@@ -14,12 +14,13 @@
         <changelist>-SNAPSHOT</changelist>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala.major.version>2.13</scala.major.version>
-        <scala.full.version>${scala.major.version}.0</scala.full.version>
+        <scala.full.version>${scala.major.version}.2</scala.full.version>
         <opencv.major.version>4.3</opencv.major.version>
         <opencv.full.version>${opencv.major.version}.0</opencv.full.version>
         <opencv.install.path>/Users/lad/custom-builds/opencv-4.3.0/out/</opencv.install.path>
         <opencv.java.jar>${opencv.install.path}share/java/opencv4/opencv-430.jar</opencv.java.jar>
-        <openjfx.version>11.0.2</openjfx.version>
+        <openjfx.version>15-ea+4</openjfx.version>
+        <java.version>11</java.version>
     </properties>
 
     <modules>
@@ -34,6 +35,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala.full.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-controls</artifactId>
@@ -50,11 +56,6 @@
                 <version>${openjfx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala.full.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.opencv</groupId>
                 <artifactId>opencv-java</artifactId>
                 <version>${opencv.full.version}</version>
@@ -62,6 +63,11 @@
             <dependency>
                 <groupId>net.ladstatt.sudoku</groupId>
                 <artifactId>sudoku-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.ladstatt.sudoku</groupId>
+                <artifactId>sudoku-javafx</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -131,7 +137,7 @@
                 <plugin>
                     <groupId>net.alchim31.maven</groupId>
                     <artifactId>scala-maven-plugin</artifactId>
-                    <version>4.3.1</version>
+                    <version>4.4.0</version>
                     <executions>
                         <execution>
                             <goals>
@@ -181,6 +187,7 @@
                             <arg>-Ywarn-unused:privates</arg>
                             <arg>-Ywarn-value-discard</arg>
                             <arg>-Yrangepos</arg>
+                            <arg>-Xfatal-warnings</arg>
                             <!-- arg>-P:semanticdb:synthetics:on</arg -->
                         </args>
                         <!--
