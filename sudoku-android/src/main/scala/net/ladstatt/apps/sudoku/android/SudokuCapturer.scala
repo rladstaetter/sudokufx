@@ -12,6 +12,7 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
 import org.opencv.android.{CameraBridgeViewBase, OpenCVLoader}
 import org.opencv.core.Mat
 
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 

@@ -1,12 +1,12 @@
 package net.ladstatt.sudoku
 
-import org.opencv.imgproc.Imgproc
+import org.bytedeco.opencv.global.opencv_imgproc
 
 
 object SParams {
 
   def apply(): SParams = {
-    SParams(Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE, 30)
+    SParams(opencv_imgproc.RETR_TREE, opencv_imgproc.CHAIN_APPROX_SIMPLE, 30)
   }
 
 }

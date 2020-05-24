@@ -1,6 +1,6 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.opencv.{Debug, OpenCV}
+import net.ladstatt.opencv.{Debug, JavaCV}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -46,8 +46,8 @@ case class SCandidate(nr: Int,
       solvedState <- Future(currentState.solve())
       withSolution <- Future(sRectangle.paintSolution(solvedState.someCells, currentState.library))
       annotatedSolution <- Future(SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, solvedState.someCells, currentState.hitCounts, oldState.cap))
-      warped = OpenCV.warp(annotatedSolution, pipeline.corners, sRectangle.detectedCorners)
-      solutionMat <- Future(OpenCV.copySrcToDestWithMask(warped, pipeline.frame, warped)) // copy solution mat to input mat
+      warped = JavaCV.warp(annotatedSolution, pipeline.corners, sRectangle.detectedCorners)
+      solutionMat <- Future(FramePipeline.copySrcToDestWithMask(warped, pipeline.frame, warped)) // copy solution mat to input mat
     } yield {
       (SSuccess(this, sRectangle, solvedState.someResult.map(s => SolutionFrame(s, solutionMat))), currentState)
     }

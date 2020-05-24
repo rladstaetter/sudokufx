@@ -3,9 +3,9 @@ package net.ladstatt.sudoku
 import java.io.File
 import java.util.UUID
 
-import net.ladstatt.opencv.OpenCV
-import net.ladstatt.opencv.OpenCV._
-import org.opencv.core.{Mat, Rect}
+import net.ladstatt.opencv.JavaCV
+import net.ladstatt.opencv.JavaCV._
+import org.bytedeco.opencv.opencv_core.{Mat, Rect}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -30,7 +30,7 @@ case class SCell(cellMat: Mat, roi: Rect) {
   def persist(): Unit = {
     val libraryPath = new File(s"/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/library/$value")
     libraryPath.mkdirs
-    OpenCV.persist(cellMat, new File(libraryPath, UUID.randomUUID.toString + ".png"))
+    JavaCV.persist(cellMat, new File(libraryPath, UUID.randomUUID.toString + ".png"))
     ()
   }
 

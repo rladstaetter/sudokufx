@@ -1,9 +1,8 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.opencv.OpenCV._
-import org.opencv.core.Mat
+import net.ladstatt.opencv.JavaCV._
 
-
+import org.bytedeco.opencv.opencv_core.Mat
 
 object SudokuState {
 

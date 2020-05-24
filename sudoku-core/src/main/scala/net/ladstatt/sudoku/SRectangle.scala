@@ -1,11 +1,10 @@
 package net.ladstatt.sudoku
 
 
-import net.ladstatt.opencv.OpenCV
-import net.ladstatt.opencv.OpenCV._
-import org.opencv.core._
+import net.ladstatt.opencv.JavaCV
+import net.ladstatt.opencv.JavaCV._
+import org.bytedeco.opencv.opencv_core.{Mat, Rect}
 
-import scala.jdk.CollectionConverters._
 object SRectangle {
 
   def apply(pipeline: FramePipeline) : SRectangle = {
@@ -15,27 +14,28 @@ object SRectangle {
 /**
   * Created by lad on 01.05.16.
   */
-case class SRectangle(frame: Mat, detectedCorners: MatOfPoint2f, destCorners: MatOfPoint2f) {
+case class SRectangle(frame: Mat, detectedCorners: Mat, destCorners: Mat) {
   /**
     * This mat contains an 'unstretched' version of the detected sudoku outer rectangle.
     *
     * In this representation it is easier to paint upon. After painting this Mat will be retransformed
     * to the original appearance again.
     */
-  val normalized: Mat = OpenCV.warp(frame, detectedCorners, destCorners)
+  val normalized: Mat = JavaCV.warp(frame, detectedCorners, destCorners)
 
   /**
     * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
     */
-  val cellRois: Seq[Rect] = Parameters.cellRange.map(OpenCV.mkRect(_, OpenCV.mkCellSize(normalized.size)))
+  val cellRois: Seq[Rect] = Parameters.cellRange.map(JavaCV.mkRect(_, JavaCV.mkCellSize(normalized.size)))
 
-  val cells: Seq[SCell] = cellRois.map(r => SCell(normalized.submat(r), r))
+
+  val cells: Seq[SCell] = cellRois.map(r => SCell(normalized.apply(r), r))
 
   val cellValues: Seq[Int] = cells.map(_.value)
 
   lazy val detectedCells: Seq[SCell] = cells.filter(_.value != 0)
 
-  lazy val corners: Seq[Point] = detectedCorners.toList.asScala.toList
+  lazy val corners: Mat = detectedCorners
   /**
     * paints the solution to the canvas.
     *

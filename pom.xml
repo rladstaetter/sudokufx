@@ -15,12 +15,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala.major.version>2.13</scala.major.version>
         <scala.full.version>${scala.major.version}.2</scala.full.version>
-        <opencv.major.version>4.3</opencv.major.version>
-        <opencv.full.version>${opencv.major.version}.0</opencv.full.version>
-        <opencv.install.path>/Users/lad/custom-builds/opencv-4.3.0/out/</opencv.install.path>
-        <opencv.java.jar>${opencv.install.path}share/java/opencv4/opencv-430.jar</opencv.java.jar>
-        <openjfx.version>15-ea+4</openjfx.version>
         <java.version>11</java.version>
+        <openjfx.version>15-ea+4</openjfx.version>
     </properties>
 
     <modules>
@@ -56,9 +52,9 @@
                 <version>${openjfx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.opencv</groupId>
-                <artifactId>opencv-java</artifactId>
-                <version>${opencv.full.version}</version>
+                <groupId>org.bytedeco</groupId>
+                <artifactId>javacv-platform</artifactId>
+                <version>1.5.3</version>
             </dependency>
             <dependency>
                 <groupId>net.ladstatt.sudoku</groupId>
@@ -187,7 +183,7 @@
                             <arg>-Ywarn-unused:privates</arg>
                             <arg>-Ywarn-value-discard</arg>
                             <arg>-Yrangepos</arg>
-                            <arg>-Xfatal-warnings</arg>
+                            <!-- <arg>-Xfatal-warnings</arg> -->
                             <!-- arg>-P:semanticdb:synthetics:on</arg -->
                         </args>
                         <!--
@@ -291,62 +287,6 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!-- use this profile to install needed jar file in your local maven repository -->
-        <profile>
-            <id>install-opencv</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-enforcer-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>enforce-opencv</id>
-                                <goals>
-                                    <goal>enforce</goal>
-                                </goals>
-                                <phase>initialize</phase>
-                                <configuration>
-                                    <rules>
-                                        <requireFilesExist>
-                                            <message>Could not find ${opencv.java.jar}</message>
-                                            <files>
-                                                <file>${opencv.java.jar}</file>
-                                            </files>
-                                        </requireFilesExist>
-                                    </rules>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-install-plugin</artifactId>
-                        <version>3.0.0-M1</version>
-                        <executions>
-                            <execution>
-                                <id>install-opencv-jar</id>
-                                <goals>
-                                    <goal>install-file</goal>
-                                </goals>
-                                <phase>initialize</phase>
-                                <configuration>
-                                    <groupId>org.opencv</groupId>
-                                    <artifactId>opencv-java</artifactId>
-                                    <version>${opencv.full.version}</version>
-                                    <packaging>jar</packaging>
-                                    <file>${opencv.java.jar}</file>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-    </profiles>
 
 </project>
 

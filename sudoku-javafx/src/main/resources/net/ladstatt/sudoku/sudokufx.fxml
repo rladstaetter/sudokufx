@@ -6,111 +6,89 @@
 <?import javafx.scene.text.Font?>
 <VBox prefHeight="830.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ladstatt.sudoku.SudokuFXController">
-    <children>
-        <MenuBar VBox.vgrow="NEVER" fx:id="mainMenuBar">
-            <menus>
-                <Menu mnemonicParsing="false" text="SudokuFX">
-                    <items>
-                        <MenuItem mnemonicParsing="false" onAction="#showAbout" text="About SudokuFX"/>
-                    </items>
-                </Menu>
-            </menus>
-        </MenuBar>
-        <Accordion>
-            <panes>
-                <TitledPane text="Statistics">
-                    <content>
-                        <HBox>
-                            <children>
-                                <TitledPane text="Frame number">
-                                    <content>
+    <MenuBar VBox.vgrow="NEVER" fx:id="mainMenuBar">
+        <menus>
+            <Menu mnemonicParsing="false" text="SudokuFX">
+                <items>
+                    <MenuItem mnemonicParsing="false" onAction="#showAbout" text="About SudokuFX"/>
+                </items>
+            </Menu>
+        </menus>
+    </MenuBar>
+    <Accordion>
+        <panes>
+            <TitledPane text="Statistics">
+                <content>
+                    <HBox>
+                        <children>
+                            <TitledPane text="Frame number"/>
+                            <TitledPane text="Detected Sudokus"/>
+                            <TitledPane text="Last detection numbers"/>
+                            <TitledPane text="Frame rate"/>
+                        </children>
+                    </HBox>
+                </content>
+            </TitledPane>
 
+            <TitledPane text="Moar Statistics">
+                <content>
+                    <HBox>
+                        <children>
+                            <FlowPane fx:id="statsFlowPane"/>
+                            <FlowPane fx:id="resultFlowPane"/>
+                            <FlowPane fx:id="numberFlowPane"/>
+                            <Label fx:id="statusLabel" ellipsisString="" layoutX="11.0" layoutY="713.0"
+                                   text="State of the application" textFill="BLACK">
+                                <font>
+                                    <Font name="Alpha Echo" size="20.0"/>
+                                </font>
+                            </Label>
+                            <Button fx:id="resetButton" onAction="#resetState" text="reset"/>
+                            <ToolBar fx:id="templateToolBar" layoutY="135.0"
+                                     style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
+                            </ToolBar>
+                        </children>
+                    </HBox>
+                </content>
+            </TitledPane>
+            <TitledPane text="Phases">
+                <content>
+                    <ToolBar prefWidth="1280.0" prefHeight="30.0">
+                        <fx:define>
+                            <ToggleGroup fx:id="viewButtons"/>
+                        </fx:define>
+                        <items>
+                            <ToggleButton fx:id="inputButton" mnemonicParsing="false" text="Input"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="grayedButton" mnemonicParsing="false" text="Grayed"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="blurredButton" mnemonicParsing="false" text="Blurred"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="thresholdedButton" mnemonicParsing="false" text="Thresholded"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="invertedButton" mnemonicParsing="false" text="Inverted"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="dilatedButton" mnemonicParsing="false" text="Dilated"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="erodedButton" mnemonicParsing="false" text="Eroded"
+                                          toggleGroup="$viewButtons"/>
+                            <ToggleButton fx:id="solutionButton" mnemonicParsing="false" selected="true" text="Solution"
+                                          toggleGroup="$viewButtons"/>
+                            <ChoiceBox fx:id="contourModeChoiceBox"/>
+                            <ChoiceBox fx:id="contourMethodChoiceBox"/>
+                            <ChoiceBox fx:id="contourRatioChoiceBox"/>
+                        </items>
+                    </ToolBar>
+                </content>
+            </TitledPane>
+        </panes>
+    </Accordion>
+    <AnchorPane id="AnchorPane" fx:id="canvas">
+        <children>
+            <ImageView fx:id="videoView"
+                       pickOnBounds="true" preserveRatio="true"/>
+            <AnchorPane fx:id="polyArea"/>
+        </children>
+    </AnchorPane>
 
-                                    </content>
-                                </TitledPane>
-                                <TitledPane text="Detected Sudokus">
-                                    <content>
-
-                                    </content>
-                                </TitledPane>
-                                <TitledPane text="Last detection numbers">
-                                    <content>
-
-                                    </content>
-                                </TitledPane>
-                                <TitledPane text="Frame rate">
-                                    <content>
-
-                                    </content>
-                                </TitledPane>
-                            </children>
-                        </HBox>
-                    </content>
-                </TitledPane>
-
-                <TitledPane text="Moar Statistics">
-                    <content>
-                        <HBox>
-                            <children>
-                                <FlowPane fx:id="statsFlowPane"/>
-                                <FlowPane fx:id="resultFlowPane"/>
-                                <FlowPane fx:id="numberFlowPane"/>
-                                <Label fx:id="statusLabel" ellipsisString="" layoutX="11.0" layoutY="713.0"
-                                       text="State of the application" textFill="BLACK" textOverrun="ELLIPSIS"
-                                       underline="false">
-                                    <font>
-                                        <Font name="Alpha Echo" size="20.0"/>
-                                    </font>
-                                </Label>
-                                <Button fx:id="resetButton" onAction="#resetState" text="reset"/>
-                                <ToolBar fx:id="templateToolBar" layoutY="135.0"
-                                         style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
-                                    <items/>
-                                </ToolBar>
-                            </children>
-                        </HBox>
-                    </content>
-                </TitledPane>
-                <TitledPane text="Phases">
-                    <content>
-                        <ToolBar prefWidth="1280.0" prefHeight="30.0">
-                            <fx:define>
-                                <ToggleGroup fx:id="viewButtons"/>
-                            </fx:define>
-                            <items>
-                                <ToggleButton fx:id="inputButton" mnemonicParsing="false" text="Input"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="grayedButton" mnemonicParsing="false" text="Grayed"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="blurredButton" mnemonicParsing="false" text="Blurred"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="thresholdedButton" mnemonicParsing="false" text="Thresholded"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="invertedButton" mnemonicParsing="false" text="Inverted"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="dilatedButton" mnemonicParsing="false" text="Dilated"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="erodedButton" mnemonicParsing="false" text="Eroded"
-                                              toggleGroup="$viewButtons"/>
-                                <ToggleButton fx:id="solutionButton" mnemonicParsing="false" selected="true" text="Solution"
-                                              toggleGroup="$viewButtons"/>
-                                <ChoiceBox fx:id="contourModeChoiceBox"/>
-                                <ChoiceBox fx:id="contourMethodChoiceBox"/>
-                                <ChoiceBox fx:id="contourRatioChoiceBox"/>
-                            </items>
-                        </ToolBar>
-                    </content>
-                </TitledPane>
-            </panes>
-        </Accordion>
-        <AnchorPane id="AnchorPane" fx:id="canvas">
-            <children>
-                <ImageView fx:id="videoView"
-                           mouseTransparent="false" pickOnBounds="true" preserveRatio="true"
-                           smooth="true"/>
-                <AnchorPane fx:id="polyArea"/>
-            </children>
-        </AnchorPane>
-
-    </children>
 </VBox>

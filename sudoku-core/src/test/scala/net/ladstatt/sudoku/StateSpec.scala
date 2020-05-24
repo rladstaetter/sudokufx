@@ -1,16 +1,18 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.opencv.OpenCV
+import org.scalatest.wordspec.AnyWordSpecLike
+
+/*
 import org.opencv.core.{Mat, Rect}
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
   * Created by lad on 12.01.15.
   */
+
+ */
 class StateSpec extends AnyWordSpecLike {
-
-  OpenCV.loadNativeLib()
-
+/*
   def asMat(i: Int): Mat = TemplateLibrary.asSeq(i)
 
   val cellData = SudokuTestContext.frameSudoku_1
@@ -51,4 +53,7 @@ class StateSpec extends AnyWordSpecLike {
     }
   }
 
+
+
+ */
 }

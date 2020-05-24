@@ -1,9 +1,5 @@
 package net.ladstatt.sudoku
 
-/**
- * Copyright (c) 2013-2016, Robert Ladstätter @rladstaetter
- **/
-
 import java.io.File
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -13,21 +9,18 @@ import java.util.{Date, ResourceBundle}
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene._
 import _root_.javafx.scene.control._
-import _root_.javafx.stage.Stage
 import com.sun.javafx.perf.PerformanceTracker
 import javafx.animation.FadeTransition
-import javafx.application.Application
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
-import javafx.scene.image.{Image, ImageView}
-import javafx.scene.layout.{AnchorPane, FlowPane, VBox}
+import javafx.scene.image._
+import javafx.scene.layout.{AnchorPane, FlowPane}
 import javafx.scene.paint.Color
-import javafx.scene.shape.{Circle, Polygon, Polyline, Rectangle}
+import javafx.scene.shape.{Circle, Polyline, Rectangle}
 import net.ladstatt.core.CanLog
-import net.ladstatt.opencv.OpenCV
-import org.opencv.core.{Mat, MatOfPoint, Point}
-import org.opencv.videoio.VideoCapture
+import org.bytedeco.javacv.{Frame, OpenCVFrameConverter, OpenCVFrameGrabber}
+import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.Observable
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,51 +29,11 @@ import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-/**
- * For a discussion of the concepts of this application see http://ladstatt.blogspot.com/
- */
-object SudokuFX {
-
-  def main(args: Array[String]): Unit = {
-    Application.launch(classOf[SudokuFXApplication], args: _*)
-  }
-}
-
-class SudokuFXApplication extends Application with JfxUtils {
-
-  override def init(): Unit = {
-    OpenCV.loadNativeLib()
-  }
-
-  override def start(stage: Stage): Unit =
-    Try {
-      stage.setTitle("SudokuFX")
-
-      val fxmlLoader = mkFxmlLoader("/net/ladstatt/sudoku/sudokufx.fxml")
-      val parent = fxmlLoader.load[VBox]()
-      val controller = fxmlLoader.getController[SudokuFXController]
-      val scene = new Scene(parent)
-      controller.setPerformanceTracker(PerformanceTracker.getSceneTracker(scene))
-      stage.setScene(scene)
-
-      stage.setOnCloseRequest(mkEventHandler(_ => {
-        controller.shutdown()
-        stage.close()
-      }))
-      stage.show()
-
-    } match {
-      case Success(_) =>
-      case Failure(e) =>
-        e.printStackTrace()
-        System.err.println("Could not initialize SudokuFX application.")
-
-    }
-
-}
-
 
 class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
+
+  val javaCVConv = new OpenCVFrameConverter.ToMat
+
 
   @FXML var captureButton: ToggleButton = _
   @FXML var inputButton: ToggleButton = _
@@ -155,85 +108,75 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     historyMenu
   }
 
-  lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(toImage)
+  // lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(JavaCVPainter.toImage)
 
-  val videoCapture: VideoCapture = {
-    val v = new VideoCapture()
-    v.open(0)
-    v
+  val frameGrabber: OpenCVFrameGrabber = {
+    val grabber = new OpenCVFrameGrabber(0)
+    grabber.start()
+    grabber
   }
-
-  def aquireMat(): Mat = {
-    val image: Mat = new Mat()
-    if (videoCapture.isOpened) {
-      videoCapture.read(image)
-    } else {
-      logError("videocapture closed")
-    }
-    image
-  }
-
 
   val videoObservable: Observable[SResult] =
-    Observable[Mat](o => {
+    Observable[Frame](o => {
       new Thread(
         () => {
           while (getCameraActive) {
             Try {
-              val m = aquireMat()
-              //  Imgcodecs.imwrite(Paths.get("/Users/lad/Documents/sudokufx/target").resolve(UUID.randomUUID() + ".png").toAbsolutePath.toString, m)
-              m
+              frameGrabber.grab()
             } match {
               case Success(m) => o.onNext(m)
-              case Failure(e) => o.onError(e)
+              case Failure(e) =>
+                e.printStackTrace()
+                o.onError(e)
             }
           }
           logInfo("Shutting down video service ... ")
-          videoCapture.release()
+          frameGrabber.release()
           o.onCompleted()
         }).start()
     }).zipWithIndex.map {
       case (frame, index) =>
         val params: SParams = SParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
         val pipeline: FramePipeline = FramePipeline(frame, params)
+        /*
         pipeline.detectRectangle match {
           case None => pipeline
           case Some(rect) => SCandidate(index, pipeline, SRectangle(pipeline.frame, rect, pipeline.corners), getCurrentSudokuState)
-        }
+        } */
+        pipeline
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
+  /*
+    def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
+      val polys =
+        contours.map {
+          c =>
+            val p = new Polygon()
+            c.toList.asScala.foldLeft(p)((acc, p) => {
+              acc.getPoints.addAll(p.x, p.y)
+              acc
+            })
+            p.setStroke(Color.AQUAMARINE)
+            p
+        }
+      execOnUIThread({
+        polyArea.getChildren.clear()
+        polyArea.getChildren.addAll(polys.asJava)
+        ()
+      })
+    }
+  */
+  def display(framePipeline: FramePipeline): Unit = setVideoView(framePipeline.frame)
 
-  def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
-    val polys =
-      contours.map {
-        c =>
-          val p = new Polygon()
-          c.toList.asScala.foldLeft(p)((acc, p) => {
-            acc.getPoints.addAll(p.x, p.y)
-            acc
-          })
-          p.setStroke(Color.AQUAMARINE)
-          p
-      }
-    execOnUIThread({
-      polyArea.getChildren.clear()
-      polyArea.getChildren.addAll(polys.asJava)
-      ()
-    })
-  }
-
-  def display(f: FramePipeline): Unit = setVideoView(f.frame)
-
-  def process(result: SResult): Unit = {
+  def onResult(result: SResult): Unit = {
     result match {
-      case f: FramePipeline =>
-        display(f)
+      case f: FramePipeline => updateVideo(f, f.frame)
       case c: SCandidate =>
         for {
           (result, nextState) <- c.calc
         } {
           setCurrentSudokuState(nextState)
-          display(result)
+          updateDisplay(result)
         }
     }
   }
@@ -245,20 +188,19 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   def initializeCapturing(): Unit = {
-    require(viewButtons != null)
-    require(videoView != null)
-    require(solutionButton != null)
+    require(Option(viewButtons).isDefined)
+    require(Option(videoView).isDefined)
+    require(Option(solutionButton).isDefined)
   }
 
   def initializeSharedState(): Unit = {
-    require(statusLabel != null)
-
-    require(templateToolBar != null)
-    require(mainMenuBar != null)
+    require(Option(statusLabel).isDefined)
+    require(Option(templateToolBar).isDefined)
+    require(Option(mainMenuBar).isDefined)
 
     mainMenuBar.getMenus.add(historyMenu)
-    val imageViews = imageTemplates.map(new ImageView(_))
-    templateToolBar.getItems.addAll(imageViews.asJava)
+    // val imageViews = imageTemplates.map(new ImageView(_))
+    // templateToolBar.getItems.addAll(imageViews.asJava)
     canvas.getChildren.add(sudokuBorder)
     canvas.getChildren.addAll(analysisCellBounds.toList.asJava)
     canvas.getChildren.addAll(analysisCellCorners.toList.asJava)
@@ -276,7 +218,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     // show recognized digits
     execOnUIThread(
       for (i <- Parameters.range) {
-        digitLibrary(i + 1)._2.foreach(m => nrViews(i).setImage(toImage(m)))
+        digitLibrary(i + 1)._2.foreach(m => nrViews(i).setImage(JavaCVPainter.toImage(m)))
       })
   }
 
@@ -349,8 +291,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   def setWorkingDirectory(file: File): Unit = workingDirectoryProperty.set(file)
 
   def setVideoView(mat: Mat): Unit = {
-    val image: Image = toImage(mat)
-    videoView.setImage(image)
+    videoView.setImage(JavaCVPainter.toImage(mat))
   }
 
 
@@ -383,24 +324,25 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   /**
    * returns coordinates of the 100 cell corners
    */
-  def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
-    val Seq(ul, ur, lr, ll) = corners
-    val left = splitRange(ul.x, ul.y, ll.x, ll.y)
-    val right = splitRange(ur.x, ur.y, lr.x, lr.y)
-    if (left.size == 10) {
-      if (right.size == 10) {
-        (for (i <- 0 to 9) yield {
-          splitRange(left(i)._1, left(i)._2, right(i)._1, right(i)._2).toArray
-        }).flatten
-      } else {
-        logError(s"Right column had not 10 points, but ${right.size}. [$ur,$lr]")
-        Seq()
-      }
+  /*
+def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
+  val Seq(ul, ur, lr, ll) = corners
+  val left = splitRange(ul.x, ul.y, ll.x, ll.y)
+  val right = splitRange(ur.x, ur.y, lr.x, lr.y)
+  if (left.size == 10) {
+    if (right.size == 10) {
+      (for (i <- 0 to 9) yield {
+        splitRange(left(i)._1, left(i)._2, right(i)._1, right(i)._2).toArray
+      }).flatten
     } else {
-      logError(s"Left column had not 10 points, but ${left.size}. [$ul,$ll]")
+      logError(s"Right column had not 10 points, but ${right.size}. [$ur,$lr]")
       Seq()
     }
+  } else {
+    logError(s"Left column had not 10 points, but ${left.size}. [$ul,$ll]")
+    Seq()
   }
+} */
 
   /**
    * reduces 100 corners to 81 boundaries
@@ -419,94 +361,101 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
   }
 
-  def updateCellBounds(border: Seq[Point], cellBounds: Array[Polyline]): Unit = {
-    val cellCorners = mkCellCorners(border)
-    if (cellCorners.size == 100) {
-      val boundCoordinates = mkCellBounds(cellCorners)
-      if (boundCoordinates.size == 81) {
-        for (i <- 0 to 80) {
-          val line = cellBounds(i)
-          line.getPoints.clear()
-          line.getPoints.addAll(boundCoordinates(i).asJava)
+  /*
+    def updateCellBounds(border: Seq[Point], cellBounds: Array[Polyline]): Unit = {
+      val cellCorners = mkCellCorners(border)
+      if (cellCorners.size == 100) {
+        val boundCoordinates = mkCellBounds(cellCorners)
+        if (boundCoordinates.size == 81) {
+          for (i <- 0 to 80) {
+            val line = cellBounds(i)
+            line.getPoints.clear()
+            line.getPoints.addAll(boundCoordinates(i).asJava)
+          }
+        } else {
+          logError(s"Found ${boundCoordinates.size} bounds, expected 81 (border size: ${border.size})!")
         }
       } else {
-        logError(s"Found ${boundCoordinates.size} bounds, expected 81 (border size: ${border.size})!")
+        logError(s"Only found ${cellCorners.size} corners, expected 100 (border size: ${border.size})!")
       }
-    } else {
-      logError(s"Only found ${cellCorners.size} corners, expected 100 (border size: ${border.size})!")
     }
-  }
 
-  def updateCellCorners(corners: Seq[Point], cellCorners: Array[Circle]): Unit = {
-    mkCellCorners(corners).zipWithIndex.foreach {
-      case ((x, y), index) =>
-        cellCorners(index).setCenterX(x)
-        cellCorners(index).setCenterY(y)
-        mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play()
+    def updateCellCorners(corners: Seq[Point], cellCorners: Array[Circle]): Unit = {
+      mkCellCorners(corners).zipWithIndex.foreach {
+        case ((x, y), index) =>
+          cellCorners(index).setCenterX(x)
+          cellCorners(index).setCenterY(y)
+          mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play()
+      }
     }
-  }
+    def updateBorder(corners: List[Point]): Unit = {
+      sudokuBorder.getPoints.clear()
+      // sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners).asJava)
+      // borderFadeTransition.play()
+    }
+  */
 
-  def updateBorder(corners: List[Point]): Unit = {
-    sudokuBorder.getPoints.clear()
-    sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners).asJava)
-    borderFadeTransition.play()
-  }
-
-  def updateDisplay(stage: ProcessingStage, sudokuResult: SudokuResult): Unit = {
-
-    def updateVideo(stage: ProcessingStage, imageIoChain: FramePipeline, solutionMat: Mat): Unit = {
-      stage match {
-        case InputStage => setVideoView(imageIoChain.frame)
-        case GrayedStage => setVideoView(imageIoChain.grayed)
-        case BlurredStage => setVideoView(imageIoChain.blurred)
-        case ThresholdedStage => setVideoView(imageIoChain.thresholded)
-        case InvertedStage => setVideoView(imageIoChain.inverted)
-        case DilatedStage => setVideoView(imageIoChain.dilated)
-        case ErodedStage => setVideoView(imageIoChain.eroded)
+  def updateVideo(fp: FramePipeline, solutionMat: Mat): Unit = {
+    for {
+      selectedToggle <- Option(viewButtons.getSelectedToggle)
+      processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
+    } yield {
+      println(processingStage)
+      processingStage match {
+        case InputStage => setVideoView(fp.frame)
+        case GrayedStage => setVideoView(fp.grayed)
+        case BlurredStage => setVideoView(fp.blurred)
+        case ThresholdedStage => setVideoView(fp.thresholded)
+        case InvertedStage => setVideoView(fp.inverted)
+        case DilatedStage => setVideoView(fp.dilated)
+        case ErodedStage => setVideoView(fp.eroded)
         case SolutionStage => setVideoView(solutionMat)
       }
     }
+  }
 
-    displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
+  def updateDisplay(sudokuResult: SudokuResult): Unit = {
+    // displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
 
     sudokuResult match {
-      case SSuccess(sc : SCandidate, _, someSolution) =>
+      case SSuccess(sc: SCandidate, _, someSolution) =>
         if (someSolution.isDefined) {
           val sol = someSolution.get
-          updateVideo(stage, sc.pipeline, sol.solutionMat)
+          updateVideo(sc.pipeline, sol.solutionMat)
           displayResult(sol.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
         } else {
-          updateVideo(stage, sc.pipeline, sc.pipeline.frame)
+          updateVideo(sc.pipeline, sc.pipeline.frame)
         }
-      case SFailure(_, sc : SCandidate) =>
-        updateVideo(stage, sc.pipeline, sc.pipeline.frame)
+      case SFailure(_, sc: SCandidate) =>
+        updateVideo(sc.pipeline, sc.pipeline.frame)
     }
 
   }
 
-  def display(result: SudokuResult): Future[Unit] = execOnUIThread {
-    val selectedToggle = viewButtons.getSelectedToggle
-    if (selectedToggle != null) {
-      val userData = selectedToggle.getUserData
-      if (userData != null) {
-        updateDisplay(userData.asInstanceOf[ProcessingStage], result)
+  /*
+def display(result: SudokuResult): Future[Unit] = execOnUIThread {
+  for {
+    selectedToggle <- Option(viewButtons.getSelectedToggle)
+    processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
+  } yield {
+    updateDisplay(result)
+  }
+
+      setAnalysisMouseTransparent(false)
+
+      // updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren.asScala.toSeq))
+      result match {
+        case success: SSuccess if success.someSolution.isDefined =>
+          updateStatus(mkFps(success.inputFrame.pipeline.start), Color.GREEN)
+        case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
+          updateStatus(mkFps(onlyCorners.inputFrame.pipeline.start), Color.ORANGE)
+        // updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
+        // updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
+        case SFailure(_, SCandidate(_, framePipeline, _, SudokuState.DefaultState)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
       }
-    }
 
-
-    setAnalysisMouseTransparent(false)
-    updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren.asScala.toSeq))
-
-    result match {
-      case success: SSuccess if success.someSolution.isDefined =>
-        updateStatus(mkFps(success.inputFrame.pipeline.start), Color.GREEN)
-      case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
-        updateStatus(mkFps(onlyCorners.inputFrame.pipeline.start), Color.ORANGE)
-        updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
-        updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
-      case SFailure(_, SCandidate(_, framePipeline, _, SudokuState.DefaultState)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
-    }
-  }
+}
+   */
 
 
   def mkFps(start: Long): String = {
@@ -515,7 +464,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       (after - start) / 1000000
     }
 
-    s"FPS " + f"${getPerformanceTracker.getAverageFPS}%3.2f" + s" Frame: $mkDuration ms"
+    s"FPS " + f"${
+      getPerformanceTracker.getAverageFPS
+    }%3.2f" + s" Frame: $mkDuration ms"
   }
 
   def showAbout(): Unit = {
@@ -603,12 +554,18 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       }
     }
 
-    val sortedHitCountValues = hitCounts.toSeq.sortWith { case (a, b) => a._1 < b._1 }.map(_._2)
+    val sortedHitCountValues = hitCounts.toSeq.sortWith {
+      case (a, b) => a._1 < b._1
+    }.map(_._2)
 
-    for {(cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
-         (v, distribution) <- cellContent.toSeq} {
+    for {
+      (cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
+      (v, distribution) <- cellContent.toSeq
+    } {
       val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
-      cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${fontSize}px;")
+      cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${
+        fontSize
+      }px;")
     }
 
     // if there are ambiguities, display them in red
@@ -644,41 +601,36 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     initializeCapturing()
 
     // toggleButtons
-    require(inputButton != null)
-    require(grayedButton != null)
-    require(blurredButton != null)
-    require(thresholdedButton != null)
-    require(invertedButton != null)
-    require(dilatedButton != null)
-    require(erodedButton != null)
+    val toggleButtonsMap =
+      Map[ToggleButton, ProcessingStage](
+        inputButton -> InputStage
+        , grayedButton -> GrayedStage
+        , blurredButton -> BlurredStage
+        , thresholdedButton -> ThresholdedStage
+        , invertedButton -> InvertedStage
+        , dilatedButton -> DilatedStage
+        , erodedButton -> ErodedStage)
 
+    require(toggleButtonsMap.keySet.forall(b => Option(b).isDefined))
+    toggleButtonsMap.foreach {
+      case (tb, stage) => tb.setUserData(stage)
+    }
 
-    require(statsFlowPane != null)
-    require(resultFlowPane != null)
-    require(numberFlowPane != null)
+    val flowPanes = Set[FlowPane](statsFlowPane, resultFlowPane, numberFlowPane)
+    require(flowPanes.forall(fp => Option(fp).isDefined))
+
 
     initResultPane(resultFlowPane)
     initStatsPane(statsFlowPane)
     initNumberFlowPane(numberFlowPane)
     //    modeButtons.selectedToggleProperty.addListener(mkChangeListener(onModeChange))
 
-    inputButton.setUserData(InputStage)
-    grayedButton.setUserData(GrayedStage)
-    blurredButton.setUserData(BlurredStage)
-    thresholdedButton.setUserData(ThresholdedStage)
-    invertedButton.setUserData(InvertedStage)
-    dilatedButton.setUserData(DilatedStage)
-    solutionButton.setUserData(SolutionStage)
-    erodedButton.setUserData(ErodedStage)
-
-
     // startCapture
-    videoObservable.subscribe((result: SResult) => process(result),
+    videoObservable.subscribe(
+      onResult,
       t => t.printStackTrace(),
       () => logInfo("Videostream stopped..."))
     ()
   }
 
-
 }
-

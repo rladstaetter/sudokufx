@@ -1,11 +1,15 @@
 package net.ladstatt.sudoku
 
+import org.scalatest.wordspec.AnyWordSpecLike
 
+/*
 
 import scala.util.{Failure, Success, Try}
 import org.scalatest.wordspec.AnyWordSpecLike
-
+*/
 class SolverSpec extends AnyWordSpecLike {
+/*
+
 
   import net.ladstatt.sudoku.BruteForceSolver._
 
@@ -66,4 +70,5 @@ class SolverSpec extends AnyWordSpecLike {
   }
 
 
+*/
 }

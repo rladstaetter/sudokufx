@@ -1,7 +1,7 @@
 package net.ladstatt
 
-import org.opencv.core.Mat
 
+import org.bytedeco.opencv.opencv_core.Mat
 import scala.concurrent.Future
 
 /**

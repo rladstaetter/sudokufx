@@ -7,7 +7,7 @@ import scala.util.{Failure, Success, Try}
 /**
   * Created by lad on 26.10.14.
   */
-import net.ladstatt.opencv.OpenCV._
+import net.ladstatt.opencv.JavaCV._
 
 /**
   * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10

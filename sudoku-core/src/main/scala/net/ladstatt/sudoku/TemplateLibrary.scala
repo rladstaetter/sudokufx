@@ -3,8 +3,8 @@ package net.ladstatt.sudoku
 import java.io.InputStream
 
 import net.ladstatt.core.CanLog
-import net.ladstatt.opencv.OpenCV
-import org.opencv.core.{Mat, Size}
+import net.ladstatt.opencv.JavaCV
+import org.bytedeco.opencv.opencv_core.{Mat, Size}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -15,10 +15,10 @@ import scala.io.Source
   */
 object TemplateLibrary extends CanLog {
 
-  private val (templateWidth, templateHeight) = (25.0, 50.0)
+  private val (templateWidth, templateHeight) = (25, 50)
   val templateSize = new Size(templateWidth, templateHeight)
   val templateCanvasSize = new Size(templateWidth * Parameters.ssize, templateHeight * Parameters.ssize)
-  val warpedCorners = OpenCV.mkCorners(TemplateLibrary.templateCanvasSize)
+  val warpedCorners = JavaCV.mkCorners(TemplateLibrary.templateCanvasSize)
 
   var getResourceAsStream: String => InputStream = getClass.getResourceAsStream
   var templateResource: String = "templates.csv"
@@ -27,7 +27,7 @@ object TemplateLibrary extends CanLog {
     val digits: Seq[Array[Byte]] =
       Source.fromInputStream(getResourceAsStream(templateResource)).getLines().map(l => l.split(",").map(e => if (e == "0") 0.toByte else 255.toByte)).toSeq
 
-    digits.map(OpenCV.toMat(_, templateSize))
+    digits.map(b => JavaCV.toMat(b, templateSize))
   })
 
 
@@ -37,8 +37,8 @@ object TemplateLibrary extends CanLog {
     * @return
     */
   def detectNumber(candidate: Mat): Future[(Int, Double)] = {
-    val resizedCandidate = OpenCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
-    val matchHaystack: (Int, Mat) => Future[(Int, Double)] = OpenCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
+    val resizedCandidate = JavaCV.resize(candidate, TemplateLibrary.templateSize) // since templates are 25 x 50
+    val matchHaystack: (Int, Mat) => Future[(Int, Double)] = JavaCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
 
     val result: Future[(Int, Double)] =
       for {s <- Future.sequence(for {(needle, number) <- TemplateLibrary.asSeq.zipWithIndex} yield

@@ -17,8 +17,8 @@
             <artifactId>scala-library</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.opencv</groupId>
-            <artifactId>opencv-java</artifactId>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv-platform</artifactId>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>

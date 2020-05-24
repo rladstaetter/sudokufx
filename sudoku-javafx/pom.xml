@@ -18,6 +18,10 @@
             <artifactId>scala-library</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv-platform</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
         </dependency>
@@ -61,7 +65,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>net.ladstatt.sudoku.SudokuFX</mainClass>
+                            <mainClass>net.ladstatt.sudoku.SudokuFXApp</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
@@ -85,7 +89,6 @@
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
             </plugin>
-
         </plugins>
     </build>
 

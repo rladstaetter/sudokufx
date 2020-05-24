@@ -1,10 +1,10 @@
 package net.ladstatt.sudoku
 
 import net.ladstatt.core.CollectionUtils
-import net.ladstatt.opencv.OpenCV._
+import net.ladstatt.opencv.JavaCV._
 import net.ladstatt.sudoku.Parameters._
-import org.opencv.core._
-import org.opencv.imgproc.Imgproc
+import org.bytedeco.opencv.global.opencv_imgproc
+import org.bytedeco.opencv.opencv_core.{Mat, MatVector, Point, Rect, Scalar, Size}
 
 import scala.util.Random
 
@@ -121,14 +121,13 @@ object SudokuUtils {
      * @return
      */
     def determineMatParams(): Option[(Size, Int)] = {
-      digitLibrary.values.flatMap(_._2).headOption.map {
-        case m => (m.size, m.`type`)
-      }
+      digitLibrary.values.flatMap(_._2).headOption.map(m => (m.size, m.`type`))
     }
 
     for ((size, matType) <- determineMatParams()) yield {
-      val mat = new Mat(size.height.toInt, size.width.toInt, matType).setTo(new Scalar(255, 255, 255))
-      Imgproc.putText(mat, number.toString, new Point(size.width * 0.3, size.height * 0.9), Imgproc.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0))
+      val m = new Mat(new Scalar(new Scalar(255, 255, 255,255)))
+      val mat = new Mat(size.height, size.width, matType).setTo(m)
+      opencv_imgproc.putText(mat, number.toString, new Point((size.width * 0.3).toInt, (size.height * 0.9).toInt), opencv_imgproc.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0,255))
       mat
     }
   }
@@ -170,7 +169,7 @@ object SudokuUtils {
 
     digitLibrary ++
       (for (c <- optimal.values if digitLibrary(c.value)._1 > c.quality) yield {
-        val newData = Some(copyMat(sudokuCanvas.submat(c.roi)))
+        val newData = Some(copyMat(sudokuCanvas.apply(c.roi)))
         c.value -> ((c.quality, newData))
       }).toMap
   }
@@ -181,14 +180,15 @@ object SudokuUtils {
    *
    * @return detected contours
    */
-  def detectRectangle(corners1: MatOfPoint2f, params: SParams, contours: Seq[MatOfPoint]): Option[MatOfPoint2f] = {
-    import scala.jdk.CollectionConverters._
+  def detectRectangle(corners1: Mat, params: SParams, contours: MatVector): Option[Mat] = {
     val (contourArea, c) = extractCurveWithMaxArea(contours)
 
-    val minimumExpectedArea = Imgproc.contourArea(corners1) / params.contourRatio
+    val minimumExpectedArea: Double = opencv_imgproc.contourArea(corners1) / params.contourRatio
     if (contourArea > minimumExpectedArea) {
-      val approxCurve = mkApproximation(new MatOfPoint2f(c.toList.asScala.toSeq: _*))
+      val approxCurve: Mat = mkApproximation(c)
       if (has4Sides(approxCurve)) {
+        Option(approxCurve)
+/*
         val corners = mkSortedCorners(approxCurve)
         if (isSomewhatSquare(corners)) {
           Option(new MatOfPoint2f(corners: _*))
@@ -196,6 +196,8 @@ object SudokuUtils {
           logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
           None
         }
+
+ */
       } else {
         logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
         None

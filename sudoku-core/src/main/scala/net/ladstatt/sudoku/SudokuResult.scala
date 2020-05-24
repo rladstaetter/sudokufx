@@ -1,11 +1,10 @@
 package net.ladstatt.sudoku
 
-import org.opencv.core.Mat
+
+import org.bytedeco.opencv.opencv_core.Mat
 
 
 case class InputFrame(nr: Int, framePipeline: FramePipeline)
-
-
 
 case class SolutionFrame(solution: SudokuDigitSolution, solutionMat: Mat) {
   def solutionAsString: String = solution.sliding(9, 9).map(new String(_)).mkString("\n")
