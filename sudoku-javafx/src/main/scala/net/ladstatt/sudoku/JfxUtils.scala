@@ -37,7 +37,6 @@ object NxsJfxRuntime {
 
 trait JfxUtils extends CanLog {
 
-
   val logUi = false
 
   def execOnUiThread(f: => Unit): Unit = {
@@ -50,9 +49,7 @@ trait JfxUtils extends CanLog {
 
   private def execOnUiThreadWithoutLogging(f: => Unit): Unit = {
     if (!Platform.isFxApplicationThread) {
-      Platform.runLater(new Runnable {
-        override def run(): Unit = f
-      })
+      Platform.runLater(() => f)
     } else {
       f
     }
@@ -144,9 +141,7 @@ trait JfxUtils extends CanLog {
   }
 
   def execOnUIThread(f: => Unit): Future[Unit] = Future {
-    Platform.runLater(new Runnable {
-      override def run() = f
-    })
+    Platform.runLater(() => f)
   }
 
   /**

@@ -3,7 +3,6 @@ package net.ladstatt.sudoku
 import java.io.InputStream
 
 import net.ladstatt.core.CanLog
-import net.ladstatt.opencv.JavaCV
 import org.bytedeco.opencv.opencv_core.{Mat, Size}
 
 import scala.concurrent.ExecutionContext.Implicits.global

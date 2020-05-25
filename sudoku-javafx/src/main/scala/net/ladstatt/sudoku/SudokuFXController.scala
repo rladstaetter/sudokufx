@@ -19,7 +19,7 @@ import javafx.scene.layout.{AnchorPane, FlowPane}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polyline, Rectangle}
 import net.ladstatt.core.CanLog
-import org.bytedeco.javacv.{Frame, OpenCVFrameConverter, OpenCVFrameGrabber}
+import org.bytedeco.javacv.{Frame, OpenCVFrameGrabber}
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.Observable
 
@@ -29,11 +29,13 @@ import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
+object SudokuFXConstants {
+
+  val DefaultContourParams: ContourParams = ContourParams(3, 2, 30)
+
+}
 
 class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
-
-  val javaCVConv = new OpenCVFrameConverter.ToMat
-
 
   @FXML var captureButton: ToggleButton = _
   @FXML var inputButton: ToggleButton = _
@@ -68,7 +70,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   def getPerformanceTracker: PerformanceTracker = performanceTrackerProperty.get()
 
   def setPerformanceTracker(performanceTracker: PerformanceTracker): Unit = performanceTrackerProperty.set(performanceTracker)
-
 
   val currentSudokuState = new SimpleObjectProperty[SudokuState](SudokuState.DefaultState)
 
@@ -136,14 +137,22 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
         }).start()
     }).zipWithIndex.map {
       case (frame, index) =>
-        val params: SParams = SParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
-        val pipeline: FramePipeline = FramePipeline(frame, params)
-        /*
-        pipeline.detectRectangle match {
-          case None => pipeline
-          case Some(rect) => SCandidate(index, pipeline, SRectangle(pipeline.frame, rect, pipeline.corners), getCurrentSudokuState)
-        } */
-        pipeline
+        val params: ContourParams = ContourParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
+        val pipeline: FramePipeline = FramePipeline(frame)
+
+        val res: SResult =
+          Try(SudokuUtils.detectBiggestRectangle(pipeline, params) match {
+            case None => pipeline
+            case Some(rect) =>
+              val rectangle = SRectangle(pipeline.frame, rect, pipeline.corners)
+              SCandidate(index, pipeline, rectangle, getCurrentSudokuState)
+          }) match {
+            case Success(v) => v
+            case Failure(e) =>
+              e.printStackTrace()
+              ???
+          }
+        res
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
   /*
@@ -588,9 +597,9 @@ def display(result: SudokuResult): Future[Unit] = execOnUIThread {
     contourModeChoiceBox.getItems.addAll(0, 1, 2, 3)
     contourMethodChoiceBox.getItems.addAll(1, 2, 3, 4)
     contourRatioChoiceBox.getItems.addAll((0 to 60 by 5).asJava)
-    contourModeChoiceBox.setValue(3)
-    contourMethodChoiceBox.setValue(2)
-    contourRatioChoiceBox.setValue(30)
+    contourModeChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.contourMode)
+    contourMethodChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.contourMethod)
+    contourRatioChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.contourRatio)
   }
 
 

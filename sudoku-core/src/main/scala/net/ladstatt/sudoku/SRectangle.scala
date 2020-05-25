@@ -1,15 +1,15 @@
 package net.ladstatt.sudoku
 
-
-import net.ladstatt.opencv.JavaCV
-import net.ladstatt.opencv.JavaCV._
+import JavaCV._
 import org.bytedeco.opencv.opencv_core.{Mat, Rect}
 
 object SRectangle {
-
+/*
   def apply(pipeline: FramePipeline) : SRectangle = {
     SRectangle(pipeline.frame, pipeline.detectRectangle.get,pipeline.corners)
   }
+
+ */
 }
 /**
   * Created by lad on 01.05.16.

@@ -1,9 +1,8 @@
-package net.ladstatt.opencv
+package net.ladstatt.sudoku
 
 import java.io.File
 
 import net.ladstatt.core.CanLog
-import net.ladstatt.sudoku._
 import org.bytedeco.javacpp.{BytePointer, DoublePointer}
 import org.bytedeco.opencv.global._
 import org.bytedeco.opencv.global.opencv_core._
@@ -28,7 +27,12 @@ object JavaCV extends CanLog {
     opencv_imgproc.getStructuringElement(MORPH_RECT, new Size(3, 3))
   }
 
-
+  /**
+   * Clones a Mat and creates a new one.
+   *
+   * @param orig original Mat
+   * @return
+   */
   def copyMat(orig: Mat): Mat = {
     val dest = new Mat()
     orig.copyTo(dest)
@@ -90,20 +94,31 @@ object JavaCV extends CanLog {
     }
   }
 
+  /**
+   * mkCorners returns a Mat with 8 floats representing a rectangular shape with coordinates as follows:
+   *
+   *  0, 0
+   *  width, 0
+   *  width, height
+   *  0, height
+   *
+   *
+   * @param size give width and height of rectangular shape
+   * @return
+   */
   def mkCorners(size: Size): Mat = {
     val (width, height) = (size.width, size.height)
-    val m = new Mat()
-    m.push_back_(new Point(0, 0))
-    m.push_back_(new Point(width, 0))
-    m.push_back_(new Point(width, height))
-    m.push_back_(new Point(0, height))
-    m
+    val p = new Point2f(8)
+    p.put(0f, 0f
+      , width.toFloat, 0f
+      , width.toFloat, height.toFloat
+      , 0f, height.toFloat)
+    new Mat(p)
   }
 
 
   def toMat(buffer: Array[Byte], size: Size): Mat = {
     val x = size
-    println(x)
     val m = new Mat(new BytePointer(buffer: _*))
     m
   }
@@ -161,7 +176,7 @@ object JavaCV extends CanLog {
   def norm(mat: Mat): Future[Mat] = {
     for {
       b <- FramePipeline.gaussianblur(mat)
-      dilated <- FramePipeline.dilate(b, JavaCV.Kernel)
+      dilated <- FramePipeline.dilate(b)
       thresholded <- FramePipeline.adaptiveThreshold(dilated, 255, 9)
     } yield thresholded
   }

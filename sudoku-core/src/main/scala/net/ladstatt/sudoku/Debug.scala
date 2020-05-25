@@ -1,16 +1,15 @@
-package net.ladstatt.opencv
+package net.ladstatt.sudoku
 
 import java.io.File
 
-import net.ladstatt.sudoku.SCandidate
-import org.bytedeco.opencv.opencv_core.Mat
 import org.bytedeco.opencv.global.opencv_imgcodecs._
+import org.bytedeco.opencv.opencv_core.Mat
 
 object Debug {
 
   val Active = false
 
-  def writeDebug(sCandidate: SCandidate) = {
+  def writeDebug(sCandidate: SCandidate): Boolean = {
     val parent = new File(s"/Users/lad/Documents/sudokufx/target/${sCandidate.nr}")
     parent.mkdirs()
     //println("InputCorners:" + sCandidate.framePipeline.corners)
@@ -21,7 +20,6 @@ object Debug {
   }
 
   def writeMat(target: File, mat: Mat): Boolean = {
-    println(target)
     imwrite(target.getAbsolutePath + ".png", mat)
   }
 

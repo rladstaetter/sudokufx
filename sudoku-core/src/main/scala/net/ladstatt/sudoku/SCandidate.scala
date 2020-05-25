@@ -1,14 +1,13 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.opencv.{Debug, JavaCV}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 
-object SCandidate {
 
+object SCandidate {
+/*
   // todo remove
   def apply(nr: Int
             , pipeline: FramePipeline
@@ -21,10 +20,10 @@ object SCandidate {
         throw e
     }
   }
-
+*/
 }
 
-trait SResult
+
 
 /**
  *

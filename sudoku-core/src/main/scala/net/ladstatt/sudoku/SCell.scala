@@ -3,8 +3,7 @@ package net.ladstatt.sudoku
 import java.io.File
 import java.util.UUID
 
-import net.ladstatt.opencv.JavaCV
-import net.ladstatt.opencv.JavaCV._
+import JavaCV._
 import org.bytedeco.opencv.opencv_core.{Mat, Rect}
 
 import scala.concurrent.duration.Duration

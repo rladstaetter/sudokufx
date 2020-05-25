@@ -16,10 +16,6 @@ package object sudoku {
   //
   type HitCounters = Map[Int, Map[Int, Int]]
 
-  // a function which returns a detected number and a quality thereof
-  type DetectFn = Mat => Future[(Int, Double)]
-
-
   /**
     * records for each number from 0 to 9 the best hit (quality) along with its digital data
     */

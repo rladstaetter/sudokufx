@@ -1,5 +1,7 @@
-package net.ladstatt.opencv
+package net.ladstatt.sudoku
 
+import org.bytedeco.opencv.global.opencv_imgproc
+import org.bytedeco.opencv.opencv_core.{Mat, Size}
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /*
@@ -15,7 +17,19 @@ import org.scalatest.wordspec.AnyWordSpecLike
  * Created by lad on 22.02.16.
  */
 class JavaCVSpec extends AnyWordSpecLike {
-/*
+
+  /**
+   * shows how contourArea and mkCorners work
+   *
+   *
+   */
+  "opencv_imgproc.contourArea" in {
+    val m = JavaCV.mkCorners(new Size(10, 10))
+    val jo: Double = opencv_imgproc.contourArea(m)
+    assert(jo == 100.0)
+  }
+
+  /*
   val rect = new Rect(0, 0, 10, 10)
 
   "isEmpty" in {

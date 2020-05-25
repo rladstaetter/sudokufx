@@ -1,10 +1,10 @@
 package net.ladstatt.sudoku
 
 import net.ladstatt.core.CollectionUtils
-import net.ladstatt.opencv.JavaCV._
+import JavaCV._
 import net.ladstatt.sudoku.Parameters._
 import org.bytedeco.opencv.global.opencv_imgproc
-import org.bytedeco.opencv.opencv_core.{Mat, MatVector, Point, Rect, Scalar, Size}
+import org.bytedeco.opencv.opencv_core._
 
 import scala.util.Random
 
@@ -17,7 +17,7 @@ object SudokuUtils {
   def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] =
     BruteForceSolver.solve(solutionCandidate, maxDuration)
 
-  def withCap(cap: Int)(v: Int) = v >= cap
+  def withCap(cap: Int)(v: Int): Boolean = v >= cap
 
   def mkSudokuMatrix(hitCounts: HitCounters, cap: Int): SudokuDigitSolution = mkVM(hitCounts)(withCap(cap)(_))
 
@@ -34,14 +34,6 @@ object SudokuUtils {
   }
 
 
-  /**
-   * Performance:
-   *
-   * Benchmark                                          Mode   Samples         Mean   Mean error    Units
-   * n.l.a.s.SudokuBenchmark.measureToSolutionCells     avgt        10        0.009        0.000    ms/op
-   *
-   * @return
-   */
   def toSolutionCells(digitLibrary: DigitLibrary, digitSolution: SudokuDigitSolution): Cells = {
     val allCells: Cells =
       (for (pos <- cellRange) yield {
@@ -125,9 +117,9 @@ object SudokuUtils {
     }
 
     for ((size, matType) <- determineMatParams()) yield {
-      val m = new Mat(new Scalar(new Scalar(255, 255, 255,255)))
+      val m = new Mat(new Scalar(new Scalar(255, 255, 255, 255)))
       val mat = new Mat(size.height, size.width, matType).setTo(m)
-      opencv_imgproc.putText(mat, number.toString, new Point((size.width * 0.3).toInt, (size.height * 0.9).toInt), opencv_imgproc.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0,255))
+      opencv_imgproc.putText(mat, number.toString, new Point((size.width * 0.3).toInt, (size.height * 0.9).toInt), opencv_imgproc.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0, 255))
       mat
     }
   }
@@ -147,8 +139,6 @@ object SudokuUtils {
   }
 
 
-  // TODO add some sort of normalisation for each cell with such an effect that every cell has the same color 'tone'
-  // TODO remove sudokuCanvas from signature: just save roi's and calculate Mats on demand
   def mergeDigitLibrary(sudokuCanvas: Mat,
                         digitLibrary: DigitLibrary,
                         detectedCells: Seq[SCell]): DigitLibrary = {
@@ -164,7 +154,7 @@ object SudokuUtils {
 
     val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
     val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.value)
-//    import Ordering.Double.TotalOrdering
+    //    import Ordering.Double.TotalOrdering
     val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)(Ordering.Double.TotalOrdering) }
 
     digitLibrary ++
@@ -180,24 +170,23 @@ object SudokuUtils {
    *
    * @return detected contours
    */
-  def detectRectangle(corners1: Mat, params: SParams, contours: MatVector): Option[Mat] = {
+  def detectRectangle(corners1: Mat, contours: MatVector, ratio: Int): Option[Mat] = {
     val (contourArea, c) = extractCurveWithMaxArea(contours)
-
-    val minimumExpectedArea: Double = opencv_imgproc.contourArea(corners1) / params.contourRatio
+    val minimumExpectedArea: Double = opencv_imgproc.contourArea(corners1) / ratio
     if (contourArea > minimumExpectedArea) {
       val approxCurve: Mat = mkApproximation(c)
       if (has4Sides(approxCurve)) {
         Option(approxCurve)
-/*
-        val corners = mkSortedCorners(approxCurve)
-        if (isSomewhatSquare(corners)) {
-          Option(new MatOfPoint2f(corners: _*))
-        } else {
-          logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
-          None
-        }
+        /*
+                val corners = mkSortedCorners(approxCurve)
+                if (isSomewhatSquare(corners)) {
+                  Option(new MatOfPoint2f(corners: _*))
+                } else {
+                  logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
+                  None
+                }
 
- */
+         */
       } else {
         logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
         None
@@ -209,6 +198,17 @@ object SudokuUtils {
 
   }
 
+  /**
+   * Returns coordinates of the biggest rectangle found in input data.
+   *
+   * @param fp            framepipeline containing input data
+   * @param contourParams parameters to configure algorithm
+   * @return
+   */
+  def detectBiggestRectangle(fp: FramePipeline, contourParams: ContourParams): Option[Mat] = {
+    val contours = JavaCV.findContours(fp.dilated, contourParams.contourMode, contourParams.contourMethod)
+    detectRectangle(fp.corners, contours, contourParams.contourRatio)
+  }
 
 }
 
