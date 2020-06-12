@@ -1,51 +1,50 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.core.Utils
+import net.ladstatt.core.{CanLog, Utils}
 
+import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Created by lad on 26.10.14.
-  */
-import JavaCV._
 
 /**
-  * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
-  * I hope the author doesn't mind me reusing the code.
-  *
-  * http://scala-programming-language.1934581.n4.nabble.com/25-lines-Sudoku-solver-in-Scala-td1987506.html
-  *
-  * Also don't miss the very nice essay from peter norvig on solving sudokus
-  *
-  * http://norvig.com/net.ladstatt.apps.sudoku.html
-  *
-  */
-object BruteForceSolver {
+ * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
+ * I hope the author doesn't mind me reusing the code.
+ *
+ * http://scala-programming-language.1934581.n4.nabble.com/25-lines-Sudoku-solver-in-Scala-td1987506.html
+ *
+ * Also don't miss the very nice essay from peter norvig on solving sudokus
+ *
+ * http://norvig.com/sudoku.html
+ *
+ * Created by lad on 26.10.14.
+ */
+object BruteForceSolver extends CanLog {
 
   val description = "default"
 
-  def printTime(t: Long) = logInfo(s"solved in $t ms.")
+  def printTime(t: Long): Unit = logInfo(s"solved in $t ms.")
 
   /**
-    * give this function a net.ladstatt.apps.sudoku in the form
-    *
-    * 200080300
-    * 060070084
-    * 030500209
-    * 000105408
-    * 000000000
-    * 402706000
-    * 301007040
-    * 720040060
-    * 004010003
-    *
-    * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
-    *
-    */
+   * give this function a net.ladstatt.apps.sudoku in the form
+   *
+   * 200080300
+   * 060070084
+   * 030500209
+   * 000105408
+   * 000000000
+   * 402706000
+   * 301007040
+   * 720040060
+   * 004010003
+   *
+   * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
+   *
+   */
   def solve(mmx: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = Utils.time({
     val before = System.currentTimeMillis()
     var cnt = 0
     val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
+
     def isCancelled = {
       cnt = cnt + 1
       val duration = System.currentTimeMillis() - before
@@ -70,12 +69,14 @@ object BruteForceSolver {
     // The test for validity is performed by looping over i=0..8 and
     // testing the row, column and 3x3 square containing the given
     // coordinate
+    @tailrec
     def invalid(i: Int, x: Int, y: Int, n: Char): Boolean =
       i < 9 && (mx(y)(i) == n || mx(i)(x) == n ||
         mx(y / 3 * 3 + i / 3)(x / 3 * 3 + i % 3) == n || invalid(i + 1, x, y, n))
 
     // Looping over a half-closed range of consecutive integers [l..u)
     // is factored out into a higher-order function
+    @tailrec
     def fold(f: (Int, Int) => Int, accu: Int, l: Int, u: Int): Int =
       if (l == u) accu else fold(f, f(accu, l), l + 1, u)
 
@@ -94,8 +95,7 @@ object BruteForceSolver {
           fold((accu: Int, n: Int) =>
             if (invalid(0, x, y, (n + 48).toChar)) {
               accu
-            }
-            else {
+            } else {
               mx(y)(x) = (n + 48).toChar
               val newaccu = search(x + 1, y, f, accu)
               mx(y)(x) = '0'
@@ -119,6 +119,7 @@ object BruteForceSolver {
           Some(s)
         else {
           logWarn("Found solution, but is invalid.")
+          logWarn(s.sliding(9, 9).map(new String(_)).mkString("\n"))
           None
         }
       case Failure(e) =>

@@ -13,12 +13,12 @@ object ContourParams {
 
 
 /**
-  * Configures various aspects of the sudoku detection algorithm.
-  *
-  * @param contourMode
-  * @param contourMethod
-  * @param contourRatio
-  */
-case class ContourParams(contourMode: Int,
-                         contourMethod: Int,
+ * Configures various aspects of the sudoku detection algorithm.
+ *
+ * @param retrivalMode
+ * @param approximation
+ * @param contourRatio
+ */
+case class ContourParams(retrivalMode: Int,
+                         approximation: Int,
                          contourRatio: Int)

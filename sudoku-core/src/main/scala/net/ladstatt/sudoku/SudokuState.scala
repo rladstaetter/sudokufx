@@ -7,9 +7,6 @@ object SudokuState {
 
   import Parameters._
 
-  private val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
-  private val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
-
   val DefaultState: SudokuState =
     SudokuState(defaultHitCounters
       , defaultDigitLibrary
@@ -31,7 +28,7 @@ object SudokuState {
  */
 case class SudokuState(hitCounts: HitCounters,
                        library: DigitLibrary,
-                       cap: Int, // TODO NOT used?
+                       cap: Int,
                        minHits: Int,
                        maxSolvingDuration: Long,
                        someResult: Option[SudokuDigitSolution] = None,
@@ -50,21 +47,21 @@ case class SudokuState(hitCounts: HitCounters,
 
   val detections: Int = hitCounts.values.flatMap(filterHits(_, cap)).size
 
-  def merge(sRectangle: SRectangle): SudokuState = {
-    merge(sRectangle.normalized, sRectangle.cells, sRectangle.cellValues)
+  def update(sCanvas: SudokuCanvas): SudokuState = {
+    update(sCanvas.normalized, sCanvas.cells, sCanvas.cellValues)
   }
 
-  def merge(normalized: Mat,
-            detectedCells: Seq[SCell],
-            detectedCellValues: Seq[Int]): SudokuState = {
+  def update(normalized: Mat,
+             detectedCells: Seq[SCell],
+             detectedCellValues: Seq[Int]): SudokuState = {
     copy(
       library = SudokuUtils.mergeDigitLibrary(normalized, library, detectedCells),
       hitCounts = SudokuUtils.mergeHits(hitCounts, detectedCellValues))
   }
 
   def solve(): SudokuState = {
+    logInfo("NrDetections: " + detections + " minHits: " + minHits)
     if (detections >= minHits) {
-      logInfo("NrDetections: " + detections + " minHits: " + minHits)
       val sudoku2Solve: SudokuDigitSolution = SudokuUtils.mkSudokuMatrix(hitCounts, cap)
       val someResult: Option[SudokuDigitSolution] = SudokuUtils.solve(sudoku2Solve, maxSolvingDuration)
       val someCells: Option[Cells] = someResult.map(SudokuUtils.toSolutionCells(library, _))
@@ -72,7 +69,10 @@ case class SudokuState(hitCounts: HitCounters,
         logInfo("Resetting to DefaultState.")
         SudokuState.DefaultState
       })
-    } else this
+    } else {
+      logInfo("found enough info")
+      this
+    }
   }
 
 

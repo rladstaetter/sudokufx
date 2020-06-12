@@ -32,7 +32,6 @@ class SudokuFX extends Application with JfxUtils {
       val parent = fxmlLoader.load[VBox]()
       val controller = fxmlLoader.getController[SudokuFXController]
       val scene = new Scene(parent)
-      controller.setPerformanceTracker(PerformanceTracker.getSceneTracker(scene))
       stage.setScene(scene)
 
       stage.setOnCloseRequest(mkEventHandler(_ => {

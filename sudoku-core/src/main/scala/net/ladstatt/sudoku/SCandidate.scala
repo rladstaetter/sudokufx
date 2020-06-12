@@ -1,54 +1,34 @@
 package net.ladstatt.sudoku
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import org.bytedeco.opencv.opencv_core.Mat
+
 import scala.util.{Failure, Success, Try}
-
-
-
-object SCandidate {
-/*
-  // todo remove
-  def apply(nr: Int
-            , pipeline: FramePipeline
-            , state: SudokuState): SCandidate = {
-    Try {
-      new SCandidate(nr, pipeline, SRectangle(pipeline.frame, pipeline.detectRectangle.get, pipeline.corners), state)
-    } match {
-      case Success(x) => x
-      case Failure(e) =>
-        throw e
-    }
-  }
-*/
-}
-
 
 
 /**
  *
  * @param nr number of the frame
  */
-case class SCandidate(nr: Int,
-                      pipeline: FramePipeline,
-                      sRectangle: SRectangle,
-                      oldState: SudokuState) extends SResult {
+case class SCandidate(nr: Int
+                      , pipeline: FramePipeline
+                      , sCanvas: SudokuCanvas
+                      , currentState: SudokuState) extends SResult {
 
-  if (Debug.Active) Debug.writeDebug(this)
-
-  /**
-   * This function uses an input image and a detection method to calculate the sudoku.
-   */
-  lazy val calc: Future[(SudokuResult, SudokuState)] = {
-    val currentState = oldState.merge(sRectangle)
-    for {
-      solvedState <- Future(currentState.solve())
-      withSolution <- Future(sRectangle.paintSolution(solvedState.someCells, currentState.library))
-      annotatedSolution <- Future(SudokuUtils.paintCorners(withSolution, sRectangle.cellRois, solvedState.someCells, currentState.hitCounts, oldState.cap))
-      warped = JavaCV.warp(annotatedSolution, pipeline.corners, sRectangle.detectedCorners)
-      solutionMat <- Future(FramePipeline.copySrcToDestWithMask(warped, pipeline.frame, warped)) // copy solution mat to input mat
-    } yield {
-      (SSuccess(this, sRectangle, solvedState.someResult.map(s => SolutionFrame(s, solutionMat))), currentState)
+  lazy val calc: SudokuResult = {
+    Try {
+      val solvedState: SudokuState = currentState.update(sCanvas).solve()
+      for (r <- solvedState.someResult) yield {
+        val withSolution: Mat = sCanvas.paintSolution(solvedState.someCells, solvedState.library)
+        val annotatedSolution: Mat = SudokuUtils.paintCorners(withSolution, sCanvas.cellRois, solvedState.someCells, solvedState.hitCounts, currentState.cap)
+        val warped: Mat = JavaCV.unwarp(annotatedSolution, sCanvas.detectedCorners)
+        val solutionMat: Mat = FramePipeline.copySrcToDestWithMask(warped, sCanvas.inputFrame, warped)
+        SolutionFrame(r, solvedState, solutionMat)
+      }
+    } match {
+      case Failure(exception) =>
+        SFailure(this, exception.getMessage)
+      case Success(solution) =>
+        SSuccess(this, sCanvas, solution)
     }
   }
 

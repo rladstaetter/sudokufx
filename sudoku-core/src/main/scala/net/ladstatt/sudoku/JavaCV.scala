@@ -1,14 +1,26 @@
 package net.ladstatt.sudoku
 
 import java.io.File
+import java.nio.file.{Files, Path}
+import java.nio.{ByteBuffer, DoubleBuffer, FloatBuffer, IntBuffer}
 
 import net.ladstatt.core.CanLog
-import org.bytedeco.javacpp.{BytePointer, DoublePointer}
+import org.bytedeco.javacpp.{BytePointer, FloatPointer}
 import org.bytedeco.opencv.global._
-import org.bytedeco.opencv.global.opencv_core._
 import org.bytedeco.opencv.global.opencv_imgcodecs._
-import org.bytedeco.opencv.global.opencv_imgproc._
 import org.bytedeco.opencv.opencv_core.{Mat, Point, Point2f, Scalar, Size, _}
+
+/*
+import org.bytedeco.javacv.*;
+import org.bytedeco.javacpp.*;
+import org.bytedeco.javacpp.indexer.*;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_imgproc.*;
+import org.bytedeco.opencv.opencv_calib3d.*;
+import org.bytedeco.opencv.opencv_objdetect.*;
+*/
+import org.bytedeco.opencv.global.opencv_core._
+import org.bytedeco.opencv.global.opencv_imgproc._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -23,8 +35,43 @@ object JavaCV extends CanLog {
 
   lazy val EmptyCorners = new Point2f
 
+
+  def extractFloatPoints(m: Mat): Seq[PFloat] = {
+    val bf = m.createBuffer[FloatBuffer]
+    assert(bf.capacity() == 8) // we have at 4 coordinate pairs
+    val a: PFloat = PFloat(bf.get(0), bf.get(1))
+    val b: PFloat = PFloat(bf.get(2), bf.get(3))
+    val c: PFloat = PFloat(bf.get(4), bf.get(5))
+    val d: PFloat = PFloat(bf.get(6), bf.get(7))
+    val ps = Seq(a, b, c, d)
+    ps
+  }
+
+  def extractIntPoints(m: Mat): Seq[PInt] = {
+    val bf = m.createBuffer[IntBuffer]
+    assert(bf.capacity() == 8) // we have at 4 coordinate pairs
+    val a: PInt = PInt(bf.get(0), bf.get(1))
+    val b: PInt = PInt(bf.get(2), bf.get(3))
+    val c: PInt = PInt(bf.get(4), bf.get(5))
+    val d: PInt = PInt(bf.get(6), bf.get(7))
+    val ps = Seq(a, b, c, d)
+    ps
+  }
+
   lazy val Kernel: Mat = {
     opencv_imgproc.getStructuringElement(MORPH_RECT, new Size(3, 3))
+  }
+
+  def mkMat(path: Path): Mat = {
+    opencv_imgcodecs.imread(path.toAbsolutePath.toString)
+  }
+
+  def writeMat(target: Path, mat: Mat): Boolean = {
+    Files.createDirectories(target.getParent)
+    val path = target.toAbsolutePath.toString
+    val r = opencv_imgcodecs.imwrite(path, mat)
+    logInfo(s"Wrote $path")
+    r
   }
 
   /**
@@ -52,14 +99,14 @@ object JavaCV extends CanLog {
    * Given a list of curves, this function returns the curve with the biggest area which is described by the
    * contour.
    *
-   * @param curveList
+   * @param curveVector
    * @return
    */
-  def extractCurveWithMaxArea(curveList: MatVector): (Double, Mat) = {
-    if (curveList.size == 0) {
+  def extractCurveWithMaxArea(curveVector: MatVector): (Double, Mat) = {
+    if (curveVector.size == 0) {
       (0.0, new Mat)
     } else {
-      curveList.get().foldLeft[(Double, Mat)]((0.0, new Mat)) {
+      curveVector.get().foldLeft[(Double, Mat)]((0.0, new Mat)) {
         case ((area, c), curve) =>
           val cArea = opencv_imgproc.contourArea(curve)
           if (cArea >= area) (cArea, curve) else (area, c)
@@ -67,6 +114,18 @@ object JavaCV extends CanLog {
     }
   }
 
+  /**
+   * Given a mat serving as a canvas, and a mat which contains points, draws a polygon between those points
+   *
+   * @param canvas
+   * @param points
+   * @return
+   */
+  def drawContours(canvas: Mat
+                   , points: Mat): Mat = {
+    opencv_imgproc.drawContours(canvas, new MatVector(points), -1, AbstractScalar.BLUE)
+    canvas
+  }
 
   /**
    * (a,b,c,d)
@@ -97,16 +156,15 @@ object JavaCV extends CanLog {
   /**
    * mkCorners returns a Mat with 8 floats representing a rectangular shape with coordinates as follows:
    *
-   *  0, 0
-   *  width, 0
-   *  width, height
-   *  0, height
-   *
+   * 0, 0
+   * width, 0
+   * width, height
+   * 0, height
    *
    * @param size give width and height of rectangular shape
    * @return
    */
-  def mkCorners(size: Size): Mat = {
+  def mkCorners2(size: Size): Mat = {
     val (width, height) = (size.width, size.height)
     val p = new Point2f(8)
     p.put(0f, 0f
@@ -116,10 +174,25 @@ object JavaCV extends CanLog {
     new Mat(p)
   }
 
+  def mkCorners(m: Mat): Mat = mkCorners(m.size)
+
+  /** returns a Mat suitable for native operations (warp, perspective transform etc.)  */
+  def mkCorners(size: Size): Mat = {
+    mkCorners(size.width, size.height)
+  }
+
+  def mkCorners(width: Int, height: Int): Mat = {
+    val p = new FloatPointer(0f, 0f
+      , width.toFloat, 0f
+      , width.toFloat, height.toFloat
+      , 0f, height.toFloat)
+    new Mat(new Size(2, 4), CV_32F, p)
+  }
+
 
   def toMat(buffer: Array[Byte], size: Size): Mat = {
-    val x = size
-    val m = new Mat(new BytePointer(buffer: _*))
+    val bytePointer = new BytePointer(ByteBuffer.wrap(buffer))
+    val m = new Mat(size, CV_8U, bytePointer)
     m
   }
 
@@ -165,19 +238,18 @@ object JavaCV extends CanLog {
    * @param input
    * @return
    */
-  def equalizeHist(input: Mat): Future[Mat] =
-    Future {
-      val output = new Mat
-      opencv_imgproc.equalizeHist(input, output)
-      output
-    }
+  def equalizeHist(input: Mat): Mat = {
+    val output = new Mat
+    opencv_imgproc.equalizeHist(input, output)
+    output
+  }
 
 
   def norm(mat: Mat): Future[Mat] = {
     for {
-      b <- FramePipeline.gaussianblur(mat)
-      dilated <- FramePipeline.dilate(b)
-      thresholded <- FramePipeline.adaptiveThreshold(dilated, 255, 9)
+      b <- Future(FramePipeline.gaussianblur(mat))
+      dilated <- Future(FramePipeline.dilate(b))
+      thresholded <- Future(FramePipeline.adaptiveThreshold(dilated, 255, 9))
     } yield thresholded
   }
 
@@ -186,7 +258,9 @@ object JavaCV extends CanLog {
    *
    * @return
    */
-  def matchTemplate(candidate: Mat, number: Int, withNeedle: Mat): Future[(Int, Double)] = {
+  def matchTemplate(candidate: Mat
+                    , number: Int
+                    , withNeedle: Mat): Future[(Int, Double)] = {
 
     val normedCandidateF = norm(candidate)
     val normedNeedleF = norm(withNeedle)
@@ -195,18 +269,15 @@ object JavaCV extends CanLog {
       for {
         c <- normedCandidateF
         needle <- normedNeedleF
+      } yield {
+        val width = candidate.cols - withNeedle.cols + 1
+        val height = candidate.rows - withNeedle.rows + 1
+        val resultImage = new Mat(width, height, CV_32FC1)
+        opencv_imgproc.matchTemplate(c, needle, resultImage, opencv_imgproc.TM_SQDIFF)
+        val dbf = DoubleBuffer.wrap(Array[Double](1))
+        opencv_core.minMaxLoc(resultImage, dbf)
+        (number, dbf.get(0))
       }
-        yield {
-          val width = candidate.cols - withNeedle.cols + 1
-          val height = candidate.rows - withNeedle.rows + 1
-          val resultImage = new Mat(width, height, CV_32FC1)
-          opencv_imgproc.matchTemplate(c, needle, resultImage, opencv_imgproc.TM_SQDIFF)
-          val minValPointer = new DoublePointer()
-          opencv_core.minMaxLoc(resultImage, minValPointer)
-          //        OpenCV.persist(c, new File(s"target/${number}_${minMaxResult.minVal}_candidate_.png"))
-          //        OpenCV.persist(needle, new File(s"target/${number}_${minMaxResult.minVal}_needle_.png"))
-          (number, minValPointer.get())
-        }
     result
   }
 
@@ -216,38 +287,78 @@ object JavaCV extends CanLog {
     dest
   }
 
-  def resizeFuture(source: Mat, size: Size): Future[Mat] = Future(resize(source, size))
+  // def resizeFuture(source: Mat, size: Size): Future[Mat] = Future(resize(source, size))
 
+  /*
+    def warp2(imageMat: Mat, upLeft: Point, upRight: Point, downLeft: Point, downRight: Point): Mat = {
+      val originalImgWidth = imageMat.size.width
+      val originalImgHeight = imageMat.size.height
+      val srcCorners = new FloatPointer(upLeft.x, upLeft.y, upRight.x, upRight.y, downRight.x, downRight.y, downLeft.x, downLeft.y)
+      val dstCorners = new FloatPointer(0, 0, originalImgWidth.toInt, 0, originalImgWidth.toInt, originalImgHeight.toInt, 0, originalImgHeight.toInt)
+      val src = new Mat(new Size(2, 4), CV_32F, srcCorners)
+      val dst = new Mat(new Size(2, 4), CV_32F, dstCorners)
+      val perspective = getPerspectiveTransform(src, dst)
+      val result = new Mat
+      warpPerspective(imageMat, result, perspective, new Size(originalImgWidth.toInt, originalImgHeight.toInt))
+      src.release()
+      dst.release()
+      srcCorners.deallocate()
+      dstCorners.deallocate()
+      result
+    }
+  */
+  def p(n: String, w: Int, h: Int) = println(s"$n: $w / $h")
+
+  def convertTo32F(m: Mat): Mat = {
+    val dest = new Mat
+    m.convertTo(dest, CV_32F)
+    dest
+  }
 
   /**
    * warps image from to make feature extraction's life easier (time intensive call)
    */
-  def warp(input: Mat, srcCorners: Mat, destCorners: Mat): Mat = {
-    // require(srcCorners.toList.size == 4)
-    // require(destCorners.toList.size == 4)
+  def warp(input: Mat, srcCorners: Mat): Mat = {
+    val srcSize = srcCorners.size
 
-    val transformationMatrix: Mat = getPerspectiveTransform(srcCorners, destCorners)
+    // p("srcSize", srcSize.width, srcSize.height)
+    // p("m", mSize.width, mSize.height)
+    // p("destSize", destSize.width, destSize.height)
+    require(srcSize.width == 2)
+    require(srcSize.height == 4)
 
+    warpP(input, getPerspectiveTransform(srcCorners, normalizedCorners))
+  }
+
+  def unwarp(input: Mat, destCorners: Mat): Mat = {
+    warpP(input, getPerspectiveTransform(normalizedCorners, destCorners))
+  }
+
+  def warpP(input: Mat, transformationMatrix: Mat) = {
     val dest = new Mat()
-    warpPerspective(input, dest, transformationMatrix, input.size())
+    warpPerspective(input, dest, transformationMatrix, normalizedSize)
     dest
   }
 
-  // input mat will be altered by the findContours(...) function
+
   def findContours(original: Mat, mode: Int, method: Int): MatVector = {
-    val input: Mat = copyMat(original)
     val contours = new MatVector()
-    opencv_imgproc.findContours(input, contours, new Mat, mode, method)
+    opencv_imgproc.findContours(original, contours, new Mat, mode, method)
     contours
   }
 
-  def has4Sides(needle: Mat): Boolean = needle.size == new Size(1, 4)
-
-  def mkApproximation(curve: Mat, epsilon: Double = 0.02): Mat = {
-    val arcLength = opencv_imgproc.arcLength(curve, true)
-    val approxCurve = new Mat
-    opencv_imgproc.approxPolyDP(curve, approxCurve, epsilon * arcLength, true)
-    approxCurve
+  /**
+   * A Mat which contains lines, with 4 entries
+   *
+   * @param needle
+   * @return
+   */
+  def has4Sides(needle: Mat): Boolean = {
+    val width = needle.size.width
+    val height = needle.size.height
+    println(s"$width / $height")
+    width == 1 && height == 4
+    //    needle.size == new Size(1, 4)
   }
 
   def contourPredicate(sp: SpecialParam)(c: Mat): Boolean = {
@@ -308,21 +419,11 @@ def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
 }
 */
 
-  def threshold(input: Mat): Future[Mat] =
-  Future {
+  def threshold(input: Mat): Mat = {
     val output = new Mat
     opencv_imgproc.threshold(input, output, 30, 255, opencv_imgproc.THRESH_BINARY)
     output
   }
-
-
-  /*
-    def blur(input: Mat): Future[Mat] =
-      Future {
-        val dest = new Mat()
-        opencv_imgproc.blur(input, dest, new Size(20, 20), new Point(-1, -1))
-        dest
-      } */
 
 
   def filter2D(kernel: Mat)(input: Mat): Mat = {
@@ -333,41 +434,6 @@ def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
 
 
   case class SpecialParam(center: Point, minArea: Double, maxArea: Double)
-
-  // only search for contours in a subrange of the original cell to get rid of possible border lines
-  // TODO: remove, likely not really necessary
-  def specialize(cellRawData: Mat): Future[(Mat, SpecialParam)] =
-    Future {
-      val (width, height) = (cellRawData.size.width, cellRawData.size.height)
-      val cellData = new Mat(cellRawData, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
-      val cellArea = cellData.size().area
-      val (minArea, maxArea) = (0.15 * cellArea, 0.5 * cellArea)
-      val (centerX, centerY) = (cellData.size.width / 2, cellData.size.height / 2)
-      (cellData, SpecialParam(new Point(centerX, centerY), minArea, maxArea))
-    }
-
-
-  // filter out false positives
-  // use information known (size, position of digits)
-  // the bounding box of the contours must fit into some rough predicate, like follows:
-  // the area must be of a certain size
-  // the area must not be greater than a certain size
-  // the center of the image has to be part of the bounding rectangle
-  def extractContour(coloredCell: Mat): Future[Option[Mat]] = {
-    for {
-      cell <- FramePipeline.toGray(coloredCell)
-      (cellData, sp) <- specialize(cell)
-      equalized <- equalizeHist(cellData)
-      blurred <- FramePipeline.gaussianblur(equalized)
-      thresholded <- threshold(blurred)
-      a <- FramePipeline.bitwiseNot(thresholded)
-    } yield {
-      val someMat = findCellContour(a, sp, opencv_imgproc.RETR_TREE, opencv_imgproc.CHAIN_APPROX_SIMPLE)
-
-      //   someMat foreach (Imgcodecs.imwrite(new File("/Users/lad/Documents/sudokufx/sudoku-core/target/" + UUID.randomUUID().toString + ".png").getAbsolutePath, _))
-      someMat
-    }
-  }
 
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
 

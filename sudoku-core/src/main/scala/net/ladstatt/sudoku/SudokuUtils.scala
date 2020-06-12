@@ -1,20 +1,29 @@
 package net.ladstatt.sudoku
 
 import net.ladstatt.core.CollectionUtils
-import JavaCV._
+import net.ladstatt.sudoku.JavaCV._
 import net.ladstatt.sudoku.Parameters._
-import org.bytedeco.opencv.global.opencv_imgproc
+import org.bytedeco.javacpp.FloatPointer
+import org.bytedeco.opencv.global.{opencv_core, opencv_imgproc}
 import org.bytedeco.opencv.opencv_core._
 
 import scala.util.Random
 
+case class PFloat(x: Float, y: Float) {
+  val dist = Math.sqrt(x * x + y * y)
+}
+
+case class PInt(x: Int, y: Int) {
+  val dist = Math.sqrt(x * x + y * y)
+}
 
 /**
  * Contains most of the algorithms necessary for the SudokuFX application.
  */
 object SudokuUtils {
 
-  def solve(solutionCandidate: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] =
+  def solve(solutionCandidate: SudokuDigitSolution
+            , maxDuration: Long): Option[SudokuDigitSolution] =
     BruteForceSolver.solve(solutionCandidate, maxDuration)
 
   def withCap(cap: Int)(v: Int): Boolean = v >= cap
@@ -73,10 +82,7 @@ object SudokuUtils {
 
     // TODO update colors
     def color(freq4Index: Map[Int, Int], cap: Int): Scalar = {
-      println(freq4Index)
       val n = freq4Index.values.max.toDouble
-      println("n:" + n + "cap: " + cap)
-      // n % cap
       val r = freq4Index.size match {
         case 1 => 0
         case 2 => 100
@@ -134,8 +140,9 @@ object SudokuUtils {
     if (cellAmbiguities > Parameters.ambiCount) {
       logError(s"Too many ambiguities ($cellAmbiguities), resetting .. ")
       SudokuState.DefaultState.hitCounts
+    } else {
+      hits
     }
-    else hits
   }
 
 
@@ -164,50 +171,70 @@ object SudokuUtils {
       }).toMap
   }
 
+
+  /**
+   * goal is to reorganize inputs in a way that all 4 coordinate pairs are returned in following ordering:
+   *
+   * <ul>
+   * <li>left upper corner</li>
+   * <li>right uper corner</li>
+   * <li>right lower corner</li>
+   * <li>left lower corner</li>
+   * </ul>
+   *
+   * @param m
+   * @return
+   */
+  def sortCorners(m: Mat): Mat = {
+    val ps = JavaCV.extractIntPoints(m)
+
+    // idea: the top left corner has the smallest, the bottom right corner the biggest distance to (0,0).
+    // hence we have two points. for the other two points we just say that B has a smaller y coordinate
+    // than point D. Should work for most of the cases
+    val sortByDist = ps.sortWith((a, b) => a.dist < b.dist)
+    val A = sortByDist.head
+    val C = sortByDist.reverse.head
+    val rest = ps.toSet -- Set(A, C)
+    val sortByY = rest.toSeq.sortWith((a, b) => a.y < b.y)
+    val B = sortByY.head
+    val D = sortByY.tail.head
+
+    val fp = new FloatPointer(A.x, A.y
+      , B.x, B.y
+      , C.x, C.y
+      , D.x, D.y
+    )
+    new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
+  }
+
   /**
    * Awaits a preprocessed video frame and finds the corners of the biggest rectangle seen
    * in the input.
    *
    * @return detected contours
    */
-  def detectRectangle(corners1: Mat, contours: MatVector, ratio: Int): Option[Mat] = {
-    val (contourArea, c) = extractCurveWithMaxArea(contours)
-    val minimumExpectedArea: Double = opencv_imgproc.contourArea(corners1) / ratio
+  def detectRectangle(contours: MatVector, minimumExpectedArea: Double): Option[Mat] = {
+    val (contourArea, curve) = extractCurveWithMaxArea(contours)
     if (contourArea > minimumExpectedArea) {
-      val approxCurve: Mat = mkApproximation(c)
-      if (has4Sides(approxCurve)) {
-        Option(approxCurve)
-        /*
-                val corners = mkSortedCorners(approxCurve)
-                if (isSomewhatSquare(corners)) {
-                  Option(new MatOfPoint2f(corners: _*))
-                } else {
-                  logTrace(s"Detected ${approxCurve.size} shape, but it doesn't look like a rectangle.")
-                  None
-                }
-
-         */
-      } else {
-        logTrace(s"Detected only ${approxCurve.size} shape, but need 1x4!")
-        None
-      }
+      Option(FramePipeline.approximate(curve)).filter(has4Sides).map(m => sortCorners(m))
     } else {
       logTrace(s"The detected area of interest was too small ($contourArea < $minimumExpectedArea).")
       None
     }
-
   }
 
   /**
    * Returns coordinates of the biggest rectangle found in input data.
-   *
-   * @param fp            framepipeline containing input data
-   * @param contourParams parameters to configure algorithm
-   * @return
    */
-  def detectBiggestRectangle(fp: FramePipeline, contourParams: ContourParams): Option[Mat] = {
-    val contours = JavaCV.findContours(fp.dilated, contourParams.contourMode, contourParams.contourMethod)
-    detectRectangle(fp.corners, contours, contourParams.contourRatio)
+  def detectSudokuCanvas(sudoku: Sudoku): Option[SudokuCanvas] = {
+    detectSudokuCanvas(sudoku.contourParams)(sudoku.pipeline)
+  }
+
+  def detectSudokuCanvas(contourParams: ContourParams)(fp: FramePipeline): Option[SudokuCanvas] = {
+    val contours: MatVector = JavaCV.findContours(fp.dilated, contourParams.retrivalMode, contourParams.approximation)
+    val inputFrameCorners = JavaCV.mkCorners(fp.frame)
+    val minimumExpectedArea: Double = opencv_imgproc.contourArea(inputFrameCorners) / contourParams.contourRatio
+    detectRectangle(contours, minimumExpectedArea).map(detectedCorners => SudokuCanvas(fp.frame, detectedCorners))
   }
 
 }

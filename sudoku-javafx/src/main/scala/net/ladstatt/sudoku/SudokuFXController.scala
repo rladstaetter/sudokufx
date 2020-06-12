@@ -2,14 +2,12 @@ package net.ladstatt.sudoku
 
 import java.io.File
 import java.net.URL
-import java.text.SimpleDateFormat
+import java.util.ResourceBundle
 import java.util.concurrent.TimeUnit
-import java.util.{Date, ResourceBundle}
 
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene._
 import _root_.javafx.scene.control._
-import com.sun.javafx.perf.PerformanceTracker
 import javafx.animation.FadeTransition
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
 import javafx.geometry.Pos
@@ -23,19 +21,17 @@ import org.bytedeco.javacv.{Frame, OpenCVFrameGrabber}
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.Observable
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-object SudokuFXConstants {
-
-  val DefaultContourParams: ContourParams = ContourParams(3, 2, 30)
+trait DebugSudokuFX {
 
 }
 
-class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils {
+
+class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils with DebugSudokuFX {
 
   @FXML var captureButton: ToggleButton = _
   @FXML var inputButton: ToggleButton = _
@@ -65,11 +61,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   @FXML var contourRatioChoiceBox: ChoiceBox[Int] = _
   @FXML var polyArea: AnchorPane = _
 
-  val performanceTrackerProperty = new SimpleObjectProperty[PerformanceTracker]()
-
-  def getPerformanceTracker: PerformanceTracker = performanceTrackerProperty.get()
-
-  def setPerformanceTracker(performanceTracker: PerformanceTracker): Unit = performanceTrackerProperty.set(performanceTracker)
 
   val currentSudokuState = new SimpleObjectProperty[SudokuState](SudokuState.DefaultState)
 
@@ -91,26 +82,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
 
   def getCameraActive: Boolean = cameraActiveProperty.get
 
-  val basedir: File = new File("./target/runs/")
-  basedir.mkdirs()
-  val workingDirectory = new File(basedir, new SimpleDateFormat("yyyy-MM-dd-HH-mm").format(new Date()))
-  val history: Array[File] = basedir.listFiles()
-
-
-  val historyMenu: Menu = {
-    val historyMenu = new Menu("Previous runs")
-    val historyItems: Seq[MenuItem] = {
-      history.map(f => {
-        val i = new MenuItem(f.getName + s" (${f.list().length})")
-        i
-      }).toIndexedSeq
-    }
-    historyMenu.getItems.addAll(historyItems.asJava)
-    historyMenu
-  }
-
-  // lazy val imageTemplates: Seq[Image] = TemplateLibrary.asSeq.map(JavaCVPainter.toImage)
-
   val frameGrabber: OpenCVFrameGrabber = {
     val grabber = new OpenCVFrameGrabber(0)
     grabber.start()
@@ -122,9 +93,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       new Thread(
         () => {
           while (getCameraActive) {
-            Try {
-              frameGrabber.grab()
-            } match {
+            Try(frameGrabber.grab()) match {
               case Success(m) => o.onNext(m)
               case Failure(e) =>
                 e.printStackTrace()
@@ -139,21 +108,9 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       case (frame, index) =>
         val params: ContourParams = ContourParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
         val pipeline: FramePipeline = FramePipeline(frame)
-
-        val res: SResult =
-          Try(SudokuUtils.detectBiggestRectangle(pipeline, params) match {
-            case None => pipeline
-            case Some(rect) =>
-              val rectangle = SRectangle(pipeline.frame, rect, pipeline.corners)
-              SCandidate(index, pipeline, rectangle, getCurrentSudokuState)
-          }) match {
-            case Success(v) => v
-            case Failure(e) =>
-              e.printStackTrace()
-              ???
-          }
-        res
-    }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
+        Sudoku
+        SResult(index, getCurrentSudokuState, params, pipeline)
+    }.delaySubscription(Duration(1000, TimeUnit.MILLISECONDS))
 
   /*
     def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
@@ -177,15 +134,34 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   */
   def display(framePipeline: FramePipeline): Unit = setVideoView(framePipeline.frame)
 
-  def onResult(result: SResult): Unit = {
-    result match {
+  def onResult(sresult: SResult): Unit = {
+    sresult match {
       case f: FramePipeline => updateVideo(f, f.frame)
       case c: SCandidate =>
-        for {
-          (result, nextState) <- c.calc
-        } {
-          setCurrentSudokuState(nextState)
-          updateDisplay(result)
+        println("?=??")
+        Try(c.calc) match {
+          case Success(result) =>
+            result match {
+              case SSuccess(sc, _, someSolution) =>
+                println("!!")
+                someSolution match {
+                  case Some(solution) =>
+                    println("!XXXXXXXXX!")
+                    setCurrentSudokuState(solution.solvedState)
+                    updateVideo(sc.pipeline, solution.solutionMat)
+                    displayResult(solution.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
+                  case None =>
+                    println("!XXX!")
+                    updateVideo(sc.pipeline, sc.pipeline.frame)
+                }
+                displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
+              case SFailure(sc, msg) =>
+                println("???")
+                updateVideo(sc.pipeline, sc.pipeline.frame)
+                logTrace(s"No sudoku found: $msg")
+            }
+          case Failure(exception) =>
+            exception.printStackTrace()
         }
     }
   }
@@ -207,7 +183,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     require(Option(templateToolBar).isDefined)
     require(Option(mainMenuBar).isDefined)
 
-    mainMenuBar.getMenus.add(historyMenu)
     // val imageViews = imageTemplates.map(new ImageView(_))
     // templateToolBar.getItems.addAll(imageViews.asJava)
     canvas.getChildren.add(sudokuBorder)
@@ -286,18 +261,6 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   }
 
   val borderFadeTransition: FadeTransition = mkFadeTransition(500, sudokuBorder, 1.0, 0.0)
-
-
-  workingDirectory.mkdirs()
-
-  /**
-   * where application will put captured frames
-   */
-  val workingDirectoryProperty = new SimpleObjectProperty[File](workingDirectory)
-
-  def getWorkingDirectory: File = workingDirectoryProperty.get
-
-  def setWorkingDirectory(file: File): Unit = workingDirectoryProperty.set(file)
 
   def setVideoView(mat: Mat): Unit = {
     videoView.setImage(JavaCVPainter.toImage(mat))
@@ -409,7 +372,6 @@ def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
       selectedToggle <- Option(viewButtons.getSelectedToggle)
       processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
     } yield {
-      println(processingStage)
       processingStage match {
         case InputStage => setVideoView(fp.frame)
         case GrayedStage => setVideoView(fp.grayed)
@@ -421,24 +383,6 @@ def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
         case SolutionStage => setVideoView(solutionMat)
       }
     }
-  }
-
-  def updateDisplay(sudokuResult: SudokuResult): Unit = {
-    // displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
-
-    sudokuResult match {
-      case SSuccess(sc: SCandidate, _, someSolution) =>
-        if (someSolution.isDefined) {
-          val sol = someSolution.get
-          updateVideo(sc.pipeline, sol.solutionMat)
-          displayResult(sol.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
-        } else {
-          updateVideo(sc.pipeline, sc.pipeline.frame)
-        }
-      case SFailure(_, sc: SCandidate) =>
-        updateVideo(sc.pipeline, sc.pipeline.frame)
-    }
-
   }
 
   /*
@@ -466,17 +410,6 @@ def display(result: SudokuResult): Future[Unit] = execOnUIThread {
 }
    */
 
-
-  def mkFps(start: Long): String = {
-    def mkDuration: Long = {
-      val after = System.nanoTime
-      (after - start) / 1000000
-    }
-
-    s"FPS " + f"${
-      getPerformanceTracker.getAverageFPS
-    }%3.2f" + s" Frame: $mkDuration ms"
-  }
 
   def showAbout(): Unit = {
     /*
@@ -597,8 +530,8 @@ def display(result: SudokuResult): Future[Unit] = execOnUIThread {
     contourModeChoiceBox.getItems.addAll(0, 1, 2, 3)
     contourMethodChoiceBox.getItems.addAll(1, 2, 3, 4)
     contourRatioChoiceBox.getItems.addAll((0 to 60 by 5).asJava)
-    contourModeChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.contourMode)
-    contourMethodChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.contourMethod)
+    contourModeChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.retrivalMode)
+    contourMethodChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.approximation)
     contourRatioChoiceBox.setValue(SudokuFXConstants.DefaultContourParams.contourRatio)
   }
 
