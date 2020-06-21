@@ -6,9 +6,9 @@ package net.ladstatt.sudoku
 
 import _root_.javafx.scene._
 import _root_.javafx.stage.Stage
-import com.sun.javafx.perf.PerformanceTracker
 import javafx.application.Application
 import javafx.scene.layout.VBox
+import org.bytedeco.javacv.OpenCVFrameConverter
 
 import scala.util.{Failure, Success, Try}
 
@@ -16,6 +16,8 @@ import scala.util.{Failure, Success, Try}
  * For a discussion of the concepts and history of this application see http://ladstatt.blogspot.com/
  */
 object SudokuFXApp {
+
+  val javaCvConverter = new OpenCVFrameConverter.ToMat
 
   def main(args: Array[String]): Unit = {
     Application.launch(classOf[SudokuFX], args: _*)

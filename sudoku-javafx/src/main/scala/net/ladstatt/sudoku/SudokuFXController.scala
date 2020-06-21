@@ -1,6 +1,5 @@
 package net.ladstatt.sudoku
 
-import java.io.File
 import java.net.URL
 import java.util.ResourceBundle
 import java.util.concurrent.TimeUnit
@@ -16,8 +15,7 @@ import javafx.scene.image._
 import javafx.scene.layout.{AnchorPane, FlowPane}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Circle, Polyline, Rectangle}
-import net.ladstatt.core.CanLog
-import org.bytedeco.javacv.{Frame, OpenCVFrameGrabber}
+import org.bytedeco.javacv.OpenCVFrameGrabber
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.Observable
 
@@ -26,12 +24,8 @@ import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-trait DebugSudokuFX {
 
-}
-
-
-class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog with JfxUtils with DebugSudokuFX {
+class SudokuFXController extends Initializable with JfxUtils {
 
   @FXML var captureButton: ToggleButton = _
   @FXML var inputButton: ToggleButton = _
@@ -62,11 +56,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
   @FXML var polyArea: AnchorPane = _
 
 
-  val currentSudokuState = new SimpleObjectProperty[SudokuState](SudokuState.DefaultState)
+  val lastSolution = new SimpleObjectProperty[SolvedSudoku]()
 
-  def setCurrentSudokuState(sudokuState: SudokuState): Unit = currentSudokuState.set(sudokuState)
+  def clearSolution() : Unit = setLastSolution(null)
+  def setLastSolution(solution: SolvedSudoku): Unit = lastSolution.set(solution)
 
-  def getCurrentSudokuState: SudokuState = currentSudokuState.get
+  def getLastSolution: SolvedSudoku = lastSolution.get()
 
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
@@ -88,12 +83,12 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     grabber
   }
 
-  val videoObservable: Observable[SResult] =
-    Observable[Frame](o => {
+  val videoObservable: Observable[SudokuEnvironment] =
+    Observable[Mat](o => {
       new Thread(
         () => {
           while (getCameraActive) {
-            Try(frameGrabber.grab()) match {
+            Try(SudokuFXApp.javaCvConverter.convert(frameGrabber.grab())) match {
               case Success(m) => o.onNext(m)
               case Failure(e) =>
                 e.printStackTrace()
@@ -107,10 +102,17 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     }).zipWithIndex.map {
       case (frame, index) =>
         val params: ContourParams = ContourParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
-        val pipeline: FramePipeline = FramePipeline(frame)
-        Sudoku
-        SResult(index, getCurrentSudokuState, params, pipeline)
-    }.delaySubscription(Duration(1000, TimeUnit.MILLISECONDS))
+        Option(getLastSolution) match {
+          case None =>
+            // first call, create default Sudoku instance and fill it with current frame
+            SudokuEnvironment(s"sudoku", index, frame, Seq[Float](), params, Parameters.defaultHitCounters)
+          case Some(lastSolution) =>
+            // provide history of search such that we can differ between cells which are always identified
+            // and those who aren't. By choosing those cells with the most 'stable' configuration we assume
+            // that image recognition provided correct results
+            SudokuEnvironment("sudoku", index, frame, Seq[Float](), params, lastSolution.sudokuHistory, lastSolution.library)
+        }
+    } .delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
   /*
     def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
@@ -132,41 +134,62 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       })
     }
   */
-  def display(framePipeline: FramePipeline): Unit = setVideoView(framePipeline.frame)
-
-  def onResult(sresult: SResult): Unit = {
-    sresult match {
-      case f: FramePipeline => updateVideo(f, f.frame)
-      case c: SCandidate =>
-        println("?=??")
-        Try(c.calc) match {
-          case Success(result) =>
-            result match {
-              case SSuccess(sc, _, someSolution) =>
-                println("!!")
-                someSolution match {
-                  case Some(solution) =>
-                    println("!XXXXXXXXX!")
-                    setCurrentSudokuState(solution.solvedState)
-                    updateVideo(sc.pipeline, solution.solutionMat)
-                    displayResult(solution.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
-                  case None =>
-                    println("!XXX!")
-                    updateVideo(sc.pipeline, sc.pipeline.frame)
-                }
-                displayHitCounts(getCurrentSudokuState.hitCounts, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
-              case SFailure(sc, msg) =>
-                println("???")
-                updateVideo(sc.pipeline, sc.pipeline.frame)
-                logTrace(s"No sudoku found: $msg")
-            }
-          case Failure(exception) =>
-            exception.printStackTrace()
+  def onResult(env: SudokuEnvironment): Unit = {
+    env.optSudoku match {
+      case None =>
+        //logTrace("No sudoku / rectangle found ... ")
+        setVideoView(env.grayed)
+      case Some(sudoku) =>
+        setVideoView(env.frame)
+        sudoku.trySolve match {
+          case Some(solvedSudoku) =>
+            setVideoView(solvedSudoku.video)
+            setLastSolution(solvedSudoku)
+          case None =>
+            logTrace("Could not solve sudoku, resetting sudoku state.")
+            setVideoView(env.inverted)
+            clearSolution()
         }
+
+/*
+ */
     }
+
   }
 
-  def resetState(): Unit = setCurrentSudokuState(SudokuState.DefaultState)
+  /*
+      sresult match {
+        case f: FramePipeline => updateVideo(f, f.frame)
+        case c: SCandidate =>
+          println("?=??")
+          Try(c.calc) match {
+            case Success(result) =>
+              result match {
+                case SSuccess(sc, _, someSolution) =>
+                  println("!!")
+                  someSolution match {
+                    case Some(solution) =>
+                      println("!XXXXXXXXX!")
+                      setCurrentSudokuState(solution.solvedState)
+                      updateVideo(sc.pipeline, solution.solutionMat)
+                      displayResult(solution.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
+                    case None =>
+                      println("!XXX!")
+                      updateVideo(sc.pipeline, sc.pipeline.frame)
+                  }
+                  displayHitCounts(getCurrentSudokuState.hitCounters, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
+                case SFailure(sc, msg) =>
+                  println("???")
+                  updateVideo(sc.pipeline, sc.pipeline.frame)
+                  logTrace(s"No sudoku found: $msg")
+              }
+            case Failure(exception) =>
+              exception.printStackTrace()
+          }
+      }
+    }
+  */
+  def resetState(): Unit = setLastSolution(null)
 
   def shutdown(): Unit = {
     setCameraActive(false)
@@ -197,7 +220,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
     statusLabel.setTextFill(color)
     statusLabel.setText(message)
   }
-
+/*
   def updateDigitLibraryView(digitLibrary: DigitLibrary, nrViews: Seq[ImageView]): Future[Unit] = {
     // show recognized digits
     execOnUIThread(
@@ -206,6 +229,7 @@ class SudokuFXController extends Initializable with OpenCVJfxUtils with CanLog w
       })
   }
 
+ */
 
   val analysisCellCorners: Array[Circle] = Array.tabulate(100)(_ => mkCellCorner)
   val analysisCellBounds: Array[Polyline] = Array.tabulate(81)(mkCellBound)
@@ -366,25 +390,25 @@ def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
       // borderFadeTransition.play()
     }
   */
-
-  def updateVideo(fp: FramePipeline, solutionMat: Mat): Unit = {
-    for {
-      selectedToggle <- Option(viewButtons.getSelectedToggle)
-      processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
-    } yield {
-      processingStage match {
-        case InputStage => setVideoView(fp.frame)
-        case GrayedStage => setVideoView(fp.grayed)
-        case BlurredStage => setVideoView(fp.blurred)
-        case ThresholdedStage => setVideoView(fp.thresholded)
-        case InvertedStage => setVideoView(fp.inverted)
-        case DilatedStage => setVideoView(fp.dilated)
-        case ErodedStage => setVideoView(fp.eroded)
-        case SolutionStage => setVideoView(solutionMat)
+  /*
+    def updateVideo(fp: FramePipeline, solutionMat: Mat): Unit = {
+      for {
+        selectedToggle <- Option(viewButtons.getSelectedToggle)
+        processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
+      } yield {
+        processingStage match {
+          case InputStage => setVideoView(fp.frame)
+          case GrayedStage => setVideoView(fp.grayed)
+          case BlurredStage => setVideoView(fp.blurred)
+          case ThresholdedStage => setVideoView(fp.thresholded)
+          case InvertedStage => setVideoView(fp.inverted)
+          case DilatedStage => setVideoView(fp.dilated)
+          case ErodedStage => setVideoView(fp.eroded)
+          case SolutionStage => setVideoView(solutionMat)
+        }
       }
     }
-  }
-
+  */
   /*
 def display(result: SudokuResult): Future[Unit] = execOnUIThread {
   for {
@@ -484,41 +508,42 @@ def display(result: SudokuResult): Future[Unit] = execOnUIThread {
    * updates UI to show for each cell (there are 81 of them) which number was detected how often
    * In each flowpane there are 9 labels (representing each number)
    */
-  def displayHitCounts(hitCounts: HitCounters, displayItems: Seq[FlowPane]): Unit = {
+  /*
+def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]): Unit = {
 
-    // change colors of flowpanes such that if there are more than one hits it
-    // the pane should change to a orange color
-    def colory(count: Int): String = {
-      count match {
-        case 1 => "-fx-background-color:green;"
-        case 2 => "-fx-background-color:orange;"
-        case _ => "-fx-background-color:red;"
-      }
+  // change colors of flowpanes such that if there are more than one hits it
+  // the pane should change to a orange color
+  def colory(count: Int): String = {
+    count match {
+      case 1 => "-fx-background-color:green;"
+      case 2 => "-fx-background-color:orange;"
+      case _ => "-fx-background-color:red;"
     }
-
-    val sortedHitCountValues = hitCounts.toSeq.sortWith {
-      case (a, b) => a._1 < b._1
-    }.map(_._2)
-
-    for {
-      (cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
-      (v, distribution) <- cellContent.toSeq
-    } {
-      val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
-      cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${
-        fontSize
-      }px;")
-    }
-
-    // if there are ambiguities, display them in red
-    for ((cellDisplay, cellContent) <- displayItems zip sortedHitCountValues) {
-      val cssColor = colory(cellContent.size)
-      cellDisplay.setStyle(s"$cssColor;-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
-    }
-
-
   }
 
+  val sortedHitCountValues = hitCounts.sortWith {
+    case (a, b) => a._1 < b._1
+  }.map(_._2)
+
+  for {
+    (cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
+    (v, distribution) <- cellContent.toSeq
+  } {
+    val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
+    cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${
+      fontSize
+    }px;")
+  }
+
+  // if there are ambiguities, display them in red
+  for ((cellDisplay, cellContent) <- displayItems zip sortedHitCountValues) {
+    val cssColor = colory(cellContent.size)
+    cellDisplay.setStyle(s"$cssColor;-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
+  }
+
+
+}
+*/
 
   def initNumberFlowPane(numberFlowPane: FlowPane): Unit = {
     numberFlowPane.setMinWidth(3 * 142.0)

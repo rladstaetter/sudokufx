@@ -29,11 +29,12 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
         </dependency>
+        <!--
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
         </dependency>
-
+-->
         <dependency>
             <groupId>net.ladstatt.sudoku</groupId>
             <artifactId>sudoku-core</artifactId>
@@ -60,6 +61,7 @@
     </dependencies>
     <build>
         <plugins>
+            <!--
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
@@ -80,6 +82,16 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.3</version>
+                <configuration>
+                    <mainClass>net.ladstatt.sudoku.SudokuFXApp</mainClass>
+                    <includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>

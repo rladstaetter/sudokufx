@@ -1,6 +1,9 @@
 package net.ladstatt.sudoku
 
-import org.bytedeco.opencv.global.opencv_imgproc
+import java.nio.file.Paths
+
+import org.bytedeco.opencv.global.{opencv_core, opencv_imgproc}
+import org.bytedeco.opencv.opencv_core.Mat
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /*
@@ -19,13 +22,18 @@ class JavaCVSpec extends AnyWordSpecLike {
 
   /**
    * shows how contourArea and mkCorners work
-   *
-   *
    */
   "opencv_imgproc.contourArea" in {
-    val m = JavaCV.mkCorners(10,10)
+    val m = JavaCV.mkCorners(10, 10)
     val area: Double = opencv_imgproc.contourArea(m)
     assert(area == 100.0)
+  }
+
+  "JavaCV.loadMat" should {
+    "work for loading images from classpath" in {
+      val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/templates/classic/1.bmp"))
+      assert(Option(m).isDefined)
+    }
   }
 
   /*

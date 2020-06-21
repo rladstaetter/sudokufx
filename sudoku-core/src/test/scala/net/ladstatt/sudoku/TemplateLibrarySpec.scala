@@ -28,7 +28,8 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
     }
   }
 
-  val ts: Seq[Mat] = TemplateLibrary.classicTemplatesFromClasspath
+  val ts: Seq[Mat] = TemplateLibrary.classicClasspathTemplatesZipped
+
 
   "TemplateLibrary" should {
     "contains 9 template definitions" in assert(ts.size == 9)
@@ -40,7 +41,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
      * with im_write/im_read
      *
      **/
-    "deserializes correctly from csv" in {
+    "deserializes correctly from csv" ignore {
       writeTemplates()
       val templates = ts.zipWithIndex
       for (o <- 1 to 100) {
@@ -61,7 +62,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
       }
     }
     "detectNumber 1" in {
-      val (detectedNr, quality) = Await.result(TemplateLibrary.detectNumber(ts.head), Duration.Inf)
+      val (detectedNr, quality) = TemplateLibrary.detectNumber("SudokuSpec.detectNr", 0, Paths.get("target/"), ts.head)
       assert(1 == detectedNr)
     }
 
@@ -70,7 +71,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
      */
     "detectNumber works" in {
       for ((m, i) <- ts.zipWithIndex) {
-        val (detectedNr, _) = Await.result(TemplateLibrary.detectNumber(m), Duration.Inf)
+        val (detectedNr, quality) = TemplateLibrary.detectNumber("SudokuSpec.detectNumber", i, Paths.get("target/"), m)
         assert(detectedNr == (i + 1))
       }
     }

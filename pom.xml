@@ -16,7 +16,7 @@
         <scala.major.version>2.13</scala.major.version>
         <scala.full.version>${scala.major.version}.2</scala.full.version>
         <java.version>11</java.version>
-        <openjfx.version>15-ea+4</openjfx.version>
+        <openjfx.version>13.0.2</openjfx.version>
     </properties>
 
     <modules>
@@ -38,6 +38,22 @@
             </dependency>
             <dependency>
                 <groupId>org.openjfx</groupId>
+                <artifactId>javafx-base</artifactId>
+                <version>${openjfx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-graphics</artifactId>
+                <version>${openjfx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-graphics</artifactId>
+                <classifier>mac</classifier>
+                <version>${openjfx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
                 <artifactId>javafx-controls</artifactId>
                 <version>${openjfx.version}</version>
             </dependency>
@@ -46,11 +62,13 @@
                 <artifactId>javafx-fxml</artifactId>
                 <version>${openjfx.version}</version>
             </dependency>
+            <!--
             <dependency>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-swing</artifactId>
                 <version>${openjfx.version}</version>
             </dependency>
+            -->
             <dependency>
                 <groupId>org.bytedeco</groupId>
                 <artifactId>javacv-platform</artifactId>

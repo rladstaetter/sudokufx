@@ -1,30 +1,17 @@
 package net.ladstatt.sudoku
 
-import java.io.File
 import java.nio.file.{Files, Path}
 import java.nio.{ByteBuffer, DoubleBuffer, FloatBuffer, IntBuffer}
+import java.util.UUID
 
 import net.ladstatt.core.CanLog
+import org.apache.commons.io.IOUtils
 import org.bytedeco.javacpp.{BytePointer, FloatPointer}
 import org.bytedeco.opencv.global._
-import org.bytedeco.opencv.global.opencv_imgcodecs._
-import org.bytedeco.opencv.opencv_core.{Mat, Point, Point2f, Scalar, Size, _}
-
-/*
-import org.bytedeco.javacv.*;
-import org.bytedeco.javacpp.*;
-import org.bytedeco.javacpp.indexer.*;
-import org.bytedeco.opencv.opencv_core.*;
-import org.bytedeco.opencv.opencv_imgproc.*;
-import org.bytedeco.opencv.opencv_calib3d.*;
-import org.bytedeco.opencv.opencv_objdetect.*;
-*/
 import org.bytedeco.opencv.global.opencv_core._
 import org.bytedeco.opencv.global.opencv_imgproc._
+import org.bytedeco.opencv.opencv_core.{Mat, Point, Point2f, Scalar, Size, _}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.util.Try
 
 /**
  * Contains functions which are backed by JavaCV's API to OpenCV.
@@ -35,6 +22,57 @@ object JavaCV extends CanLog {
 
   lazy val EmptyCorners = new Point2f
 
+  val leftTop = new Point(1, 1)
+  val blackScalar = new Scalar(0)
+
+  def floodFillCorners(m: Mat): Mat = {
+    val s = m.size
+
+    if (s.width > 1 && s.height > 1) {
+      val rightTop = new Point(1, s.width - 1)
+      val leftLow = new Point(s.height - 1, 1)
+      val rightLow = new Point(s.height - 1, s.width - 1)
+
+      val floodFilled: Mat =
+        Seq(leftTop).foldLeft(m) {
+          // Seq(leftTop, rightTop, leftLow, rightLow).foldLeft(m) {
+          case (acc, point) => floodFill(acc, point, blackScalar)
+        }
+      floodFilled
+    } else {
+      logError("check input for floodFillCorners!")
+      m
+    }
+  }
+
+  def floodFill(m: Mat, p: Point, color: Scalar): Mat = {
+    opencv_imgproc.floodFill(m, p, color)
+    m
+  }
+
+  def imdecode(b: ByteBuffer, width: Int, height: Int): Mat = {
+    val mat = new Mat(width, height, opencv_core.CV_8UC1)
+    new Mat(width, height, CV_8U, new BytePointer(b))
+    mat.data(new BytePointer(b))
+    opencv_imgcodecs.imdecode(mat, opencv_imgcodecs.IMREAD_UNCHANGED)
+    mat
+  }
+
+  val erodeParam: Mat = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_CROSS,
+    new Size(1, 1),
+    new Point(0, 0))
+
+  def erode(input: Mat): Mat = {
+    val output = new Mat
+    opencv_imgproc.erode(input, output, erodeParam)
+    output
+  }
+
+  def copySrcToDestWithMask(source: Mat): Mat = {
+    val destination = new Mat
+    source.copyTo(destination, source) // use source as pattern as well
+    destination
+  }
 
   def extractFloatPoints(m: Mat): Seq[PFloat] = {
     val bf = m.createBuffer[FloatBuffer]
@@ -62,15 +100,33 @@ object JavaCV extends CanLog {
     opencv_imgproc.getStructuringElement(MORPH_RECT, new Size(3, 3))
   }
 
-  def mkMat(path: Path): Mat = {
-    opencv_imgcodecs.imread(path.toAbsolutePath.toString)
+  /** loads a mat from classpath */
+  def loadMat(clazz: Class[_], matCp: MatCp): Mat = {
+    if (matCp.existsUsingClassLoader(clazz)) {
+      opencv_imgcodecs.imdecode(new Mat(new BytePointer(ByteBuffer.wrap(IOUtils.toByteArray(matCp.inputStream(clazz))))), opencv_imgcodecs.IMREAD_COLOR)
+    } else {
+      logError(s"Classpath entry '${matCp.value}' not found.")
+      new Mat()
+    }
+  }
+
+  def loadMat(path: Path): Mat = {
+    if (Files.exists(path)) {
+      opencv_imgcodecs.imread(path.toAbsolutePath.toString)
+    } else {
+      throw new RuntimeException(path.toAbsolutePath.toString + " does not exist.")
+    }
   }
 
   def writeMat(target: Path, mat: Mat): Boolean = {
+    true
+  }
+
+  def wwriteMat(target: Path, mat: Mat): Boolean = {
     Files.createDirectories(target.getParent)
     val path = target.toAbsolutePath.toString
     val r = opencv_imgcodecs.imwrite(path, mat)
-    logInfo(s"Wrote $path")
+    // logTrace(s"Wrote $path")
     r
   }
 
@@ -86,7 +142,7 @@ object JavaCV extends CanLog {
     dest
   }
 
-  def copyTo(data: Mat, canvas: Mat, roi: Rect): Unit = {
+  def copyTo(canvas: Mat, data: Mat, roi: Rect): Unit = {
     val cellTarget = new Mat(canvas, roi)
     data.copyTo(cellTarget)
   }
@@ -196,17 +252,6 @@ object JavaCV extends CanLog {
     m
   }
 
-  def persist(mat: Mat, file: File): Try[File] =
-    Try {
-      logWithTimer(s"Wrote ${file.getAbsolutePath}", {
-        if (!imwrite(file.getAbsolutePath, mat)) {
-          throw new RuntimeException(s"Could not save to file $file")
-        } else {
-          file
-        }
-      })
-    }
-
   /*
     def alphaBlend(src: Mat, alpha: Mat): Mat = {
       val channels = new java.util.ArrayList[Mat]()
@@ -244,41 +289,61 @@ object JavaCV extends CanLog {
     output
   }
 
+  val dilateAnchor = new Point(-1, -1)
+  val dilateScalar = new Scalar(morphologyDefaultBorderValue())
 
-  def norm(mat: Mat): Future[Mat] = {
-    for {
-      b <- Future(FramePipeline.gaussianblur(mat))
-      dilated <- Future(FramePipeline.dilate(b))
-      thresholded <- Future(FramePipeline.adaptiveThreshold(dilated, 255, 9))
-    } yield thresholded
+  def dilate(input: Mat): Mat = {
+    val mat = new Mat
+    opencv_imgproc.dilate(input, mat, JavaCV.Kernel, dilateAnchor, 2, BORDER_CONSTANT, dilateScalar)
+    mat
+  }
+
+  def norm(operation: String
+           , id: String
+           , pos: Int
+           , path: Path
+           , mat: Mat): Mat = {
+    val b = gaussianblur(mat)
+    writeMat(s"7_gaussianblur-$operation", id, pos, path, b)
+    val dilated = dilate(b)
+    writeMat(s"8_dilated-$operation", id, pos, path, b)
+    val thresholded = adaptiveThreshold(dilated, 255, 9)
+    writeMat(s"9_thresholded-$operation", id, pos, path, b)
+    thresholded
+  }
+
+  def writeMat(operation: String
+               , id: String
+               , pos: Int
+               , parentFolder: Path, res: Mat): Boolean = {
+    val path = parentFolder.resolve(operation).resolve(s"$pos-$id-$operation-${UUID.randomUUID().toString}.png")
+    writeMat(path, res)
   }
 
   /**
-   * Returns position and value for a template for a given image
+   * Returns detected number and quality for a candidate
    *
    * @return
    */
   def matchTemplate(candidate: Mat
-                    , number: Int
-                    , withNeedle: Mat): Future[(Int, Double)] = {
+                    , template: Mat
+                    , id: String
+                    , pos: Int
+                    , path: Path
+                    , number: Int): (Int, Double) = {
 
-    val normedCandidateF = norm(candidate)
-    val normedNeedleF = norm(withNeedle)
 
-    val result =
-      for {
-        c <- normedCandidateF
-        needle <- normedNeedleF
-      } yield {
-        val width = candidate.cols - withNeedle.cols + 1
-        val height = candidate.rows - withNeedle.rows + 1
-        val resultImage = new Mat(width, height, CV_32FC1)
-        opencv_imgproc.matchTemplate(c, needle, resultImage, opencv_imgproc.TM_SQDIFF)
-        val dbf = DoubleBuffer.wrap(Array[Double](1))
-        opencv_core.minMaxLoc(resultImage, dbf)
-        (number, dbf.get(0))
-      }
-    result
+    // val c = norm("norm1", id, pos, path, candidate)
+    // val needle = norm("norm2", id, pos, path, withNeedle)
+
+    val width = candidate.cols - template.cols + 1
+    val height = candidate.rows - template.rows + 1
+
+    val resultImage = new Mat(width, height, CV_32FC1)
+    opencv_imgproc.matchTemplate(candidate, template, resultImage, opencv_imgproc.TM_SQDIFF)
+    val dbf = DoubleBuffer.wrap(Array[Double](1))
+    opencv_core.minMaxLoc(resultImage, dbf)
+    (number, dbf.get(0))
   }
 
   def resize(s: Mat, size: Size): Mat = {
@@ -347,6 +412,12 @@ object JavaCV extends CanLog {
     contours
   }
 
+  def gaussianblur(input: Mat): Mat = {
+    val mat = new Mat()
+    opencv_imgproc.GaussianBlur(input, mat, new Size(11, 11), 0)
+    mat
+  }
+
   /**
    * A Mat which contains lines, with 4 entries
    *
@@ -356,52 +427,65 @@ object JavaCV extends CanLog {
   def has4Sides(needle: Mat): Boolean = {
     val width = needle.size.width
     val height = needle.size.height
-    println(s"$width / $height")
     width == 1 && height == 4
     //    needle.size == new Size(1, 4)
   }
 
-  def contourPredicate(sp: SpecialParam)(c: Mat): Boolean = {
-    val boundingRect = opencv_imgproc.boundingRect(c)
-    val area = boundingRect.area
-    (sp.minArea < area) && (area < sp.maxArea) && boundingRect.contains(sp.center)
+
+  def adaptiveThreshold(input: Mat,
+                        maxValue: Double = 255,
+                        blockSize: Int = 5,
+                        c: Double = 2,
+                        adaptiveMethod: Int = opencv_imgproc.ADAPTIVE_THRESH_MEAN_C): Mat = {
+    val mat = new Mat()
+    opencv_imgproc.adaptiveThreshold(input, mat, maxValue, adaptiveMethod, opencv_imgproc.THRESH_BINARY, blockSize, c)
+    mat
   }
 
+  def bitwiseNot(input: Mat): Mat = {
+    val mat = new Mat
+    opencv_core.bitwise_not(input, mat)
+    mat
+  }
 
   /**
-   * Given a list of contours and a predicate function this function returns the "best fit"
-   * bounding rectangle like defined in the predicate function.
+   * copies source to destination Mat with given mask and returns the destination mat.
    *
-   * @param contours  the list of contours
-   * @param predicate the predicate function
+   * @param source
+   * @param destination
+   * @param pattern
    * @return
    */
-  def findBestFit(contours: MatVector, predicate: Mat => Boolean): Option[Rect] = {
-    contours.get().foldLeft[Option[(Double, Mat)]](None) {
-      case (acc, c) =>
-        if (predicate(c)) {
-          val area = opencv_imgproc.contourArea(c)
-          acc match {
-            case None => Some((area, c))
-            case Some((a, _)) =>
-              if (area > a) Some((area, c)) else acc
-          }
-        } else acc
-    } map {
-      case (_, contour) => opencv_imgproc.boundingRect(contour)
-    }
-
+  def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Mat = {
+    source.copyTo(destination, pattern)
+    destination
   }
 
+  /**
+   * converts the input mat to another color space
+   *
+   * @param input
+   * @return
+   */
+  def toGray(input: Mat): Mat = {
+    val mat = new Mat
+    opencv_imgproc.cvtColor(input, mat, opencv_imgproc.COLOR_BGR2GRAY)
+    mat
+  }
 
-  def findCellContour(original: Mat,
-                      specialParam: SpecialParam,
-                      contourMode: Int,
-                      contourMethod: Int): Option[Mat] = {
-    val contours: MatVector = findContours(original, contourMode, contourMethod)
-    val predicateFn: Mat => Boolean = contourPredicate(specialParam)
-    val maybeRect: Option[Rect] = findBestFit(contours, predicateFn)
-    maybeRect.map(r => original.apply(r))
+  /**
+   * Simplifies curve
+   *
+   * @param curve
+   * @return
+   */
+  def approximate(curve: Mat): Mat = {
+    val points = new Mat
+    opencv_imgproc.approxPolyDP(curve
+      , points
+      , 0.02 * opencv_imgproc.arcLength(curve, true)
+      , true)
+    points
   }
 
   /**
@@ -421,6 +505,7 @@ def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
 
   def threshold(input: Mat): Mat = {
     val output = new Mat
+    // opencv_imgproc.threshold(input, output, 30, 255, opencv_imgproc.THRESH_BINARY)
     opencv_imgproc.threshold(input, output, 30, 255, opencv_imgproc.THRESH_BINARY)
     output
   }
@@ -432,8 +517,6 @@ def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
     out
   }
 
-
-  case class SpecialParam(center: Point, minArea: Double, maxArea: Double)
 
   def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
 

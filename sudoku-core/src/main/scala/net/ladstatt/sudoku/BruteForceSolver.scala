@@ -3,6 +3,7 @@ package net.ladstatt.sudoku
 import net.ladstatt.core.{CanLog, Utils}
 
 import scala.annotation.tailrec
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
 
@@ -25,7 +26,7 @@ object BruteForceSolver extends CanLog {
   def printTime(t: Long): Unit = logInfo(s"solved in $t ms.")
 
   /**
-   * give this function a net.ladstatt.apps.sudoku in the form
+   * give this function sudoku in the form
    *
    * 200080300
    * 060070084
@@ -37,10 +38,10 @@ object BruteForceSolver extends CanLog {
    * 720040060
    * 004010003
    *
-   * and it will return the solved net.ladstatt.apps.sudoku (with zeros)
+   * and it will return the solved sudoku (without zeros)
    *
    */
-  def solve(mmx: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = Utils.time({
+  def solve(mmx: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = timeR({
     val before = System.currentTimeMillis()
     var cnt = 0
     val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
@@ -49,7 +50,7 @@ object BruteForceSolver extends CanLog {
       cnt = cnt + 1
       val duration = System.currentTimeMillis() - before
       if (duration > maxDuration) {
-        logWarn(s"CANCEL for sudoku calculation (timeout: $duration ms, count $cnt.)")
+        logWarn(s"CANCEL for sudoku calculation (duration $duration ms > maxduration $maxDuration), count $cnt.)")
         true
       } else false
     }
@@ -59,7 +60,7 @@ object BruteForceSolver extends CanLog {
     // of input to fill the board
     val solution: SudokuDigitSolution = Array.fill(Parameters.cellCount)('A')
 
-    def populateSolution() = {
+    def populateSolution(): Unit = {
       val mxx = mx.flatten
       for ((x, i) <- mxx.zipWithIndex) {
         solution(i) = x
@@ -115,18 +116,20 @@ object BruteForceSolver extends CanLog {
       solution
     } match {
       case Success(s) =>
-        if (405 == s.map(_.asDigit).sum.toLong)
+        val digits = s.map(_.asDigit).toSeq
+        if (405 == digits.sum.toLong)
           Some(s)
         else {
           logWarn("Found solution, but is invalid.")
-          logWarn(s.sliding(9, 9).map(new String(_)).mkString("\n"))
+          //println(digits)
+          //logWarn(SudokuHistory(digits).asSudokuString)
           None
         }
       case Failure(e) =>
         logError(e.getMessage)
         None
     }
-  }, printTime)
+  }, "solve")
 
 }
 

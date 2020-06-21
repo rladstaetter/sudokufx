@@ -1,33 +1,50 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.core.CanLog
+import java.nio.file.Path
+
+import net.ladstatt.core.ClasspathAddress
+import net.ladstatt.sudoku.JavaCV.writeMat
+import org.bytedeco.opencv.global.opencv_imgproc
 import org.bytedeco.opencv.opencv_core.{Mat, Size}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.io.Source
+
+
+case class MatCp(value: String) extends ClasspathAddress
 
 /**
  * Created by lad on 15.03.15.
  */
-object TemplateLibrary extends CanLog {
+object TemplateLibrary {
 
   private val templateWidth = 25
   private val templateHeight = 50
 
   val templateSize = new Size(templateWidth, templateHeight)
   val templateCanvasSize = new Size(templateWidth * Parameters.ssize, templateHeight * Parameters.ssize)
-  //val warpedCorners: Mat = JavaCV.mkCorners(TemplateLibrary.templateCanvasSize.width, TemplateLibrary.templateCanvasSize.height)
 
+  def fromCsv(csv: String): Mat = ???
 
-  // todo: Map[Int,Mat]
-  lazy val classicTemplatesFromClasspath: Seq[Mat] = {
+  def toCsv(mat: Mat) = ???
+
+  lazy val modernTemplatesfromMatCp: Seq[Mat] = {
+    val ts = for (i <- 1 to 9) yield {
+      val threeChannelBmp = JavaCV.loadMat(getClass, MatCp(s"/net/ladstatt/sudoku/templates/modern/$i.bmp"))
+      val res = new Mat
+      opencv_imgproc.cvtColor(threeChannelBmp, res, opencv_imgproc.COLOR_BGR2GRAY)
+      res
+    }
+    ts
+  }
+  lazy val classicTemplatesFromCsvCp: Seq[Mat] = {
     val digits: Seq[Array[Byte]] =
       Source.fromInputStream(getClass.getResourceAsStream("/net/ladstatt/sudoku/templates/classic/templates.csv")).getLines().map(l => l.split(",").map(e => if (e == "0") 0.toByte else 255.toByte)).toSeq
-    digits.map(b => JavaCV.toMat(b, templateSize))
+    val seq = digits.map(b => JavaCV.toMat(b, templateSize))
+    seq
   }
+  lazy val templatesFromCp: Seq[Mat] = modernTemplatesfromMatCp
 
-  lazy val classicClasspathTemplatesZipped: Seq[(Mat, Int)] = TemplateLibrary.classicTemplatesFromClasspath.zipWithIndex
+  lazy val classicClasspathTemplatesZipped: Seq[Mat] = TemplateLibrary.templatesFromCp
 
 
   /**
@@ -35,21 +52,45 @@ object TemplateLibrary extends CanLog {
    *
    * @return returns the best match for given mat when compared to the template library
    */
-  def detectNumber(library: Seq[(Mat, Int)], templateSize: Size)(candidate: Mat): Future[(Int, Double)] = {
-    val resizedCandidate = JavaCV.resize(candidate, templateSize)
-    val matchHaystack: (Int, Mat) => Future[(Int, Double)] = JavaCV.matchTemplate(resizedCandidate, _: Int, _: Mat)
+  def detectNumber(library: Seq[Mat], templateSize: Size)
+                  (id: String
+                   , pos: Int
+                   , path: Path
+                   , candidate: Mat): (Int, Double) = {
+    writeMat(s"7_candidate", id, pos, path, candidate)
 
-    val result: Future[(Int, Double)] =
-      for {s <- Future.sequence(for {(needle, number) <- library} yield
-        for {(number, quality) <- matchHaystack(number + 1, needle)} yield (number, quality))} yield s.sortWith((a, b) => a._2 < b._2).head
+    val (width, height) = (candidate.size.width, candidate.size.height)
 
-    result
+    // idea: only resize candidate if it is bigger than template to save time
+    // a list of numbers with their quality
+    val hayStack: Seq[(Int, Double)] =
+    for ((needle, idx) <- library.zipWithIndex) yield {
+      val number = idx + 1
+      if (needle.size().width > width || needle.size().height > height) {
+        val resizedNeedle = JavaCV.resize(needle, new Size(width, height))
+        writeMat(path.resolve(s"8_candidate-needleresized").resolve(number.toString + "-needle.png"), resizedNeedle)
+        JavaCV.matchTemplate(candidate, resizedNeedle, id, pos, path, number)
+      } else {
+        writeMat(path.resolve(s"8_candidate-needle").resolve(number.toString + "-needle.png"), needle)
+        JavaCV.matchTemplate(candidate, needle, id, pos, path, number)
+      }
+    }
+    for ((i, quality) <- hayStack) {
+    //  println(s"Number $i : Quality " + f"$quality%1.0f")
+    }
+    val (number, quality) = hayStack.sortWith((a, b) => a._2 < b._2).head
+
+    // println(s"took $number: " + f"$quality%1.0f")
+    (number, quality)
   }
 
-  val matToEventualTuple: Mat => Future[(Int, Double)] = detectNumber(classicClasspathTemplatesZipped, templateSize)
+  def min(a: Int, b: Int): Int = if (b < a) b else a
 
-  def detectNumber(candidate: Mat): Future[(Int, Double)] = {
-    matToEventualTuple(candidate)
+  def detectNumber(id: String
+                   , pos: Int
+                   , path: Path
+                   , candidate: Mat): (Int, Double) = {
+    detectNumber(classicClasspathTemplatesZipped, templateSize)(id, pos, path, candidate)
   }
 
 }

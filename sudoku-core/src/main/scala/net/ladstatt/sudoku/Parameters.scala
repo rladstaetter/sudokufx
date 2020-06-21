@@ -2,21 +2,23 @@ package net.ladstatt.sudoku
 
 import org.bytedeco.opencv.opencv_core.{Mat, Size}
 
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 
 object Parameters {
 
   val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
 
-  val defaultHitCounters: HitCounters = Map().withDefaultValue(Map[Int, Int]().withDefaultValue(0))
-
   /**
    * the maximum time the algorithm should search for a solution
    */
-  val maxSolvingDuration: Long = 5000L
+  val maxSolvingDuration: FiniteDuration = 5000 millis
 
   // least number of matches necessary to identify one number
   // if you have a good camera, take 1 to get fast response
-  val cap = 0
+  val cap = 3
 
   // number of different values a cell can have before the cell is label 'ambiguous'
   val ambiguitiesCount = 5
@@ -25,7 +27,7 @@ object Parameters {
   val ambiCount = 5
 
   // numbers won't get any larger in the status matrix than this number
-  val topCap = 5
+  val topCap = 15
 
 
   assert(topCap - cap > 0)
@@ -39,6 +41,8 @@ object Parameters {
   val digitRange: Seq[Int] = 0 to ssize
 
   val cellRange: Range = 0 until cellCount
+
+  val defaultHitCounters  = SudokuHistory()
 
   val colorRange: Seq[Int] = 0 to 256 by 16
 

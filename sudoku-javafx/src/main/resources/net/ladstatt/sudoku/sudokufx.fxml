@@ -59,7 +59,7 @@
                         </fx:define>
                         <items>
                             <ToggleButton fx:id="inputButton" mnemonicParsing="false" text="Input"
-                                          toggleGroup="$viewButtons"/>
+                                          toggleGroup="$viewButtons" selected="true"/>
                             <ToggleButton fx:id="grayedButton" mnemonicParsing="false" text="Grayed"
                                           toggleGroup="$viewButtons"/>
                             <ToggleButton fx:id="blurredButton" mnemonicParsing="false" text="Blurred"
@@ -72,7 +72,7 @@
                                           toggleGroup="$viewButtons"/>
                             <ToggleButton fx:id="erodedButton" mnemonicParsing="false" text="Eroded"
                                           toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="solutionButton" mnemonicParsing="false" selected="true" text="Solution"
+                            <ToggleButton fx:id="solutionButton" mnemonicParsing="false" text="Solution"
                                           toggleGroup="$viewButtons"/>
                             <ChoiceBox fx:id="contourModeChoiceBox"/>
                             <ChoiceBox fx:id="contourMethodChoiceBox"/>
@@ -85,8 +85,7 @@
     </Accordion>
     <AnchorPane id="AnchorPane" fx:id="canvas">
         <children>
-            <ImageView fx:id="videoView"
-                       pickOnBounds="true" preserveRatio="true"/>
+            <ImageView fx:id="videoView" pickOnBounds="true" preserveRatio="true"/>
             <AnchorPane fx:id="polyArea"/>
         </children>
     </AnchorPane>

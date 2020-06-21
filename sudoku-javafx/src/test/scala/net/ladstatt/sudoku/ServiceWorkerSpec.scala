@@ -6,7 +6,7 @@ import net.ladstatt.core.{CanLog, Utils}
 import org.bytedeco.opencv.opencv_core.Mat
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class ServiceWorkerSpec extends  JfxUtils with AnyWordSpecLike with CanLog {
+class ServiceWorkerSpec extends JfxUtils with AnyWordSpecLike with CanLog {
 
   val solverService = new SolverService
   val sudoku1 =
@@ -53,7 +53,7 @@ class ServiceWorkerSpec extends  JfxUtils with AnyWordSpecLike with CanLog {
       new Task[SudokuDigitSolution] {
         override def call(): SudokuDigitSolution = {
           logInfo("entering")
-          val someResult: Option[SudokuDigitSolution] = BruteForceSolver.solve(sudoku,5000L)
+          val someResult: Option[SudokuDigitSolution] = BruteForceSolver.solve(sudoku, Parameters.maxSolvingDuration.toMillis)
           if (isCancelled) {
             logInfo("i was cancelled")
             Thread.currentThread().interrupt()
