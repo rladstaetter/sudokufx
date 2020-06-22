@@ -17,8 +17,10 @@ object Sudoku {
    * for a given cell, detect at least minNrOfValueHits times a number 'to be sure' that it is really
    * the number we are after
    **/
-  val minNrOfValueHits = 20
+  val minNrOfValueHits = 5
 
+  /* a hit has to reach this quality at max */
+  val minQuality = 19500000
 
 }
 
@@ -101,6 +103,8 @@ case class Sudoku(id: String
     val updatedLibrary = SudokuUtils.mergeDigitLibrary(normalized, digitLibrary, cells)
     logInfo("NrDetections: " + updatedHitHistory.nrHits + " minHits: " + minHits)
     if (updatedHitHistory.isReadyToSolve) {
+      logInfo("Trying to solve:")
+      logInfo("\n" + updatedHitHistory.asSudokuString)
       val solvedSudoku = updatedHitHistory.solved
       if (solvedSudoku.isSolved) {
         val cNormalized: Mat = normalizeCanvas(normalized, solvedSudoku.currentValues, cellRois, updatedLibrary)

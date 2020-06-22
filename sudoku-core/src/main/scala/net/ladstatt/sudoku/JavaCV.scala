@@ -29,16 +29,24 @@ object JavaCV extends CanLog {
     val s = m.size
 
     if (s.width > 1 && s.height > 1) {
-      val rightTop = new Point(1, s.width - 1)
+      val a = floodFill(m, leftTop, blackScalar)
       val leftLow = new Point(s.height - 1, 1)
-      val rightLow = new Point(s.height - 1, s.width - 1)
+      val b = floodFill(m, leftLow, blackScalar)
+/*
+      val rightTop = new Point(1,s.width - 40)
+      val c = floodFill(m, rightTop, blackScalar)
+      val rightLow = new Point(s.height - 1, 1)
+      val d = floodFill(m, rightLow, blackScalar)
+*/
 
+      /*
       val floodFilled: Mat =
-        Seq(leftTop).foldLeft(m) {
-          // Seq(leftTop, rightTop, leftLow, rightLow).foldLeft(m) {
+        //Seq(leftTop).foldLeft(m) {
+           Seq(leftTop, rightTop, leftLow, rightLow).foldLeft(m) {
           case (acc, point) => floodFill(acc, point, blackScalar)
         }
-      floodFilled
+      */
+      m
     } else {
       logError("check input for floodFillCorners!")
       m

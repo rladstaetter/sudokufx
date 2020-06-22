@@ -143,6 +143,7 @@ class SudokuFXController extends Initializable with JfxUtils {
         setVideoView(env.frame)
         sudoku.trySolve match {
           case Some(solvedSudoku) =>
+            println(solvedSudoku.sudokuHistory.asSudokuString)
             setVideoView(solvedSudoku.video)
             setLastSolution(solvedSudoku)
           case None =>
@@ -150,45 +151,10 @@ class SudokuFXController extends Initializable with JfxUtils {
             setVideoView(env.inverted)
             clearSolution()
         }
-
-/*
- */
     }
 
   }
 
-  /*
-      sresult match {
-        case f: FramePipeline => updateVideo(f, f.frame)
-        case c: SCandidate =>
-          println("?=??")
-          Try(c.calc) match {
-            case Success(result) =>
-              result match {
-                case SSuccess(sc, _, someSolution) =>
-                  println("!!")
-                  someSolution match {
-                    case Some(solution) =>
-                      println("!XXXXXXXXX!")
-                      setCurrentSudokuState(solution.solvedState)
-                      updateVideo(sc.pipeline, solution.solutionMat)
-                      displayResult(solution.solution, as[Label](resultFlowPane.getChildren.asScala.toSeq))
-                    case None =>
-                      println("!XXX!")
-                      updateVideo(sc.pipeline, sc.pipeline.frame)
-                  }
-                  displayHitCounts(getCurrentSudokuState.hitCounters, as[FlowPane](statsFlowPane.getChildren.asScala.toSeq))
-                case SFailure(sc, msg) =>
-                  println("???")
-                  updateVideo(sc.pipeline, sc.pipeline.frame)
-                  logTrace(s"No sudoku found: $msg")
-              }
-            case Failure(exception) =>
-              exception.printStackTrace()
-          }
-      }
-    }
-  */
   def resetState(): Unit = setLastSolution(null)
 
   def shutdown(): Unit = {

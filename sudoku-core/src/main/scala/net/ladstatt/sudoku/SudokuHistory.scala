@@ -38,7 +38,13 @@ case class SudokuHistory(timestamp: Long
 
   def printlnHitHistory(): Unit = {
     for ((c, i) <- cells.zipWithIndex) {
-      println(s"$i $c")
+      val maybeTuple = c.find { case (number, frequency) => frequency >= Sudoku.minNrOfValueHits }
+      maybeTuple match {
+        case Some((n, f)) =>
+          println(s"$i hit: $n ($f)")
+        case None =>
+          println(s"$i candidate: $c")
+      }
     }
   }
 

@@ -76,7 +76,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     assert(cells.forall(_.detectedValue == number))
   }
 
-  private def detect(base: Path, number: Int) = {
+  private def detect(base: Path, number: Int): Seq[SCell] = {
     val files = Files.list(base.resolve(number.toString)).iterator.asScala.toSeq
     val withIndex = files.zipWithIndex
     val cells: Seq[SCell] =

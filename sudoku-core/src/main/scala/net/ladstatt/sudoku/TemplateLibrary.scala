@@ -82,6 +82,13 @@ object TemplateLibrary {
 
     // println(s"took $number: " + f"$quality%1.0f")
     (number, quality)
+
+    if (quality > Sudoku.minQuality) {
+      (0, 0)
+    } else {
+      (number, quality)
+    }
+
   }
 
   def min(a: Int, b: Int): Int = if (b < a) b else a
