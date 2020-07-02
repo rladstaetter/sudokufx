@@ -13,6 +13,33 @@ import org.bytedeco.opencv.global.opencv_imgproc._
 import org.bytedeco.opencv.opencv_core.{Mat, Point, Point2f, Scalar, Size, _}
 
 
+object Label {
+
+  def apply(i: Int, ibf: IntBuffer): Label = {
+    val a = Array(0, 0, 0, 0, 0)
+    ibf.get(a)
+    apply(i, a)
+  }
+
+  def apply(i: Int, a: Array[Int]): Label = {
+    assert(a.length == 5)
+    val Array(x, y, w, h, area) = a
+    Label(i, x, y, w, h, area)
+  }
+
+}
+
+case class Label(i: Int
+                 , x: Int
+                 , y: Int
+                 , w: Int
+                 , h: Int
+                 , a: Int) {
+
+  def touches(width: Int, height: Int): Boolean = {
+    x == 0 || y == 0 || x + w == width || y + h == height
+  }
+}
 /**
  * Contains functions which are backed by JavaCV's API to OpenCV.
  */
@@ -25,6 +52,44 @@ object JavaCV extends CanLog {
   val leftTop = new Point(1, 1)
   val blackScalar = new Scalar(0)
 
+
+  def removeBorderArtefacts(m : Mat) : Mat = {
+    val labels = new Mat
+    val stats = new Mat
+    val centroids = new Mat
+    opencv_imgproc.connectedComponentsWithStats(m, labels, stats, centroids, 8, opencv_core.CV_32S)
+    // opencv_core.greaterThan(stats, 40000).asMat()
+    // val match2 = opencv_core.equals(labels, 1).asMat
+    //printIntBf(labels)
+    //    printByteBf(match2)
+    //val labelCount: Int = stats.rows
+    //println("size:" + stats.size.width() + "/" + stats.size.height())
+    //println(labelCount)
+
+    val notTouchingBorder = (for {i <- 0 until stats.rows
+                                  ibf = stats.row(i).createBuffer[IntBuffer]()
+                                  } yield Label(i, ibf)).filter(!_.touches(m.size.width, m.size.height))
+
+
+    val toBeAnalyzed =
+      if (notTouchingBorder.size > 1) {
+        logWarn("Found more than one label, choosing the one with biggest area")
+        Seq(notTouchingBorder.sortWith((a, b) => a.a > b.a).head)
+      } else notTouchingBorder
+
+    val hitters =
+      toBeAnalyzed.headOption match {
+        case None =>
+          opencv_core.equals(labels, -1).asMat
+        case Some(l) => opencv_core.equals(labels, l.i).asMat
+      }
+   // printByteBf(hitters)
+    val out = new Mat
+    m.copyTo(out, hitters)
+    out
+
+  }
+
   def floodFillCorners(m: Mat): Mat = {
     val s = m.size
 
@@ -32,12 +97,13 @@ object JavaCV extends CanLog {
       val a = floodFill(m, leftTop, blackScalar)
       val leftLow = new Point(s.height - 1, 1)
       val b = floodFill(m, leftLow, blackScalar)
-/*
-      val rightTop = new Point(1,s.width - 40)
-      val c = floodFill(m, rightTop, blackScalar)
-      val rightLow = new Point(s.height - 1, 1)
-      val d = floodFill(m, rightLow, blackScalar)
-*/
+
+      /*
+            val rightTop = new Point(1,s.width - 40)
+            val c = floodFill(m, rightTop, blackScalar)
+            val rightLow = new Point(s.height - 1, 1)
+            val d = floodFill(m, rightLow, blackScalar)
+      */
 
       /*
       val floodFilled: Mat =
@@ -109,9 +175,9 @@ object JavaCV extends CanLog {
   }
 
   /** loads a mat from classpath */
-  def loadMat(clazz: Class[_], matCp: MatCp): Mat = {
+  def loadMat(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = {
     if (matCp.existsUsingClassLoader(clazz)) {
-      opencv_imgcodecs.imdecode(new Mat(new BytePointer(ByteBuffer.wrap(IOUtils.toByteArray(matCp.inputStream(clazz))))), opencv_imgcodecs.IMREAD_COLOR)
+      opencv_imgcodecs.imdecode(new Mat(new BytePointer(ByteBuffer.wrap(IOUtils.toByteArray(matCp.inputStream(clazz))))), codec)
     } else {
       logError(s"Classpath entry '${matCp.value}' not found.")
       new Mat()
@@ -126,15 +192,15 @@ object JavaCV extends CanLog {
     }
   }
 
-  def writeMat(target: Path, mat: Mat): Boolean = {
+  def swriteMat(target: Path, mat: Mat): Boolean = {
     true
   }
 
-  def wwriteMat(target: Path, mat: Mat): Boolean = {
+  def writeMat(target: Path, mat: Mat): Boolean = {
     Files.createDirectories(target.getParent)
     val path = target.toAbsolutePath.toString
     val r = opencv_imgcodecs.imwrite(path, mat)
-    // logTrace(s"Wrote $path")
+    logTrace(s"Wrote $path")
     r
   }
 
@@ -324,7 +390,7 @@ object JavaCV extends CanLog {
                , id: String
                , pos: Int
                , parentFolder: Path, res: Mat): Boolean = {
-    val path = parentFolder.resolve(operation).resolve(s"$pos-$id-$operation-${UUID.randomUUID().toString}.png")
+    val path = parentFolder.resolve(pos.toString).resolve(operation).resolve(s"$id-${UUID.randomUUID().toString}.png")
     writeMat(path, res)
   }
 
