@@ -4,6 +4,5 @@
 .idea/
 
 target/
-*.iml
 runs
 .flattened-pom.xml

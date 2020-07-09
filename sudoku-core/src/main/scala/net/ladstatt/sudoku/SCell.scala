@@ -1,78 +1,11 @@
 package net.ladstatt.sudoku
 
-import java.nio.file.{Path, Paths}
-
 import net.ladstatt.sudoku.JavaCV.findContours
 import org.bytedeco.opencv.global.opencv_imgproc
 import org.bytedeco.opencv.opencv_core.{Mat, Point, Range, Rect}
 
 
-/**
- * Represents a cell of the sudoku, that is one single number (a typical sudoku consists of 81)
- *
- * Every cell has its value, a region of interest and some other attributes.
- *
- * @param pos        cell position
- * @param cellMat    video input for this specific area
- * @param roi        region of interest; coordinates for this cell in main canvas
- * @param hitHistory what the image recognition thought in the past of this particular cell. a distribution of hits,
- *                   for example following entry: Map(1 -> 10) means that 10 times a '1' was detected for this
- *                   particular cell
- */
-case class SCell(id: String
-                 , pos: Int
-                 , cellMat: Mat
-                 , roi: Rect
-                 , hitHistory: Map[Int, Int]) {
-  private val targetPath: Path = Paths.get("target/sessions").resolve(System.currentTimeMillis().toString)
-
-  JavaCV.writeMat("0-cellmat", id, pos, targetPath, cellMat)
-
-  val cell = doitWith("1-grayed", JavaCV.toGray, targetPath)(cellMat)
-
-
-  // only search for contours in a subrange of the original cell to get rid of possible border lines
-  val (width, height) = (cell.size.width, cell.size.height)
-  val cellData = new Mat(cell, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
-  val cellArea = cellData.size().area
-  val (minArea, maxArea) = (0.05 * cellArea, 0.8 * cellArea)
-  private val cellCenter = new Point(cellData.size.width / 2, cellData.size.height / 2)
-
-  val blurred = doitWith("2-blurred", JavaCV.gaussianblur, targetPath)(cellData)
-  val equalized = doitWith("3-equalized", JavaCV.equalizeHist, targetPath)(blurred)
-  val thresholed = doitWith("4-threshold", JavaCV.threshold, targetPath)(equalized)
-  val bitNotted = doitWith("5-bitnotted", JavaCV.bitwiseNot, targetPath)(thresholed)
-  val flooded = doitWith("6-flooded", JavaCV.floodFillCorners, targetPath)(bitNotted)
-
-  def doitWith(name: String, op: Mat => Mat, parentFolder: Path)(mat: Mat): Mat = {
-    val res: Mat = op(mat)
-    JavaCV.writeMat(name, id, pos, parentFolder, res)
-    res
-  }
-
-  val optNumberCellMat: Option[Mat] = optNumberMat(flooded)
-
-  val (detectedValue, quality) =
-    optNumberCellMat.map {
-      m => TemplateLibrary.detectNumber(id, pos, targetPath, m)
-    }.getOrElse((0, 0.0))
-
-  /** adds current hit to history, ignoring 0 */
-  val updatedHits: Map[Int, Int] = {
-    if (detectedValue == 0) {
-      hitHistory
-    } else {
-      hitHistory + (detectedValue -> (hitHistory.getOrElse(detectedValue, 0) + 1))
-    }
-  }
-
-  /** returns Some(value) if a certain threshold of hits are made for this cell, else None */
-  val optValue: Option[Int] =
-    updatedHits.toSeq.find {
-      case (_, numberOfHits) => numberOfHits > Sudoku.minNrOfValueHits
-    }.map(_._1)
-
-
+object SCell {
   /**
    * detect false positives in a cell.
    *
@@ -86,15 +19,21 @@ case class SCell(id: String
    */
   def optNumberMat(floodedRawCell: Mat): Option[Mat] = {
 
+    val cellArea = floodedRawCell.size().area
+    val (minArea, maxArea) = (0.05 * cellArea, 0.8 * cellArea)
+    val cellCenter = new Point(floodedRawCell.size.width / 2, floodedRawCell.size.height / 2)
     // get all countours
     val allContours = findContours(floodedRawCell, opencv_imgproc.RETR_TREE, opencv_imgproc.CHAIN_APPROX_SIMPLE).get()
 
     // filter best contours and apply resulting rect to cellmat
-    findBoundingBox(allContours).map(floodedRawCell.apply)
+    findBoundingBox(allContours, minArea, maxArea, cellCenter).map(floodedRawCell.apply)
 
   }
 
-  private def findBoundingBox(detectedContours: Array[Mat]): Option[Rect] = {
+  private def findBoundingBox(detectedContours: Array[Mat]
+                              , minArea: Double
+                              , maxArea: Double
+                              , cellCenter: Point): Option[Rect] = {
     detectedContours.foldLeft[Option[(Double, Mat)]](None) {
       case (acc, contourMat) =>
         val boundingRect = opencv_imgproc.boundingRect(contourMat)
@@ -123,5 +62,68 @@ case class SCell(id: String
       case (_, bestContour) => opencv_imgproc.boundingRect(bestContour)
     }
   }
+
+}
+
+/**
+ * Represents a cell of the sudoku, that is one single number (a typical sudoku consists of 81)
+ *
+ * Every cell has its value, a region of interest and some other attributes.
+ *
+ * @param pos        cell position
+ * @param roi        region of interest; coordinates for this cell in main canvas
+ * @param hitHistory what the image recognition thought in the past of this particular cell. a distribution of hits,
+ *                   for example following entry: Map(1 -> 10) means that 10 times a '1' was detected for this
+ *                   particular cell
+ */
+case class SCell(id: String
+                 , frameNr: Int
+                 , pos: Int
+                 , origMat: Mat
+                 , roi: Rect
+                 , hitHistory: Map[Int, Int]) {
+
+  import Sudoku._
+
+  val (width, height) = (origMat.size.width, origMat.size.height)
+  val cellMat: Mat = init(origMat)
+  val cell: Mat = gray(cellMat)
+
+
+  // only search for contours in a subrange of the original cell to get rid of possible border lines
+  val cellData = new Mat(cell, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
+
+  val blurred = JavaCV.doitWith(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, targetPath)(cellData)
+  val equalized = JavaCV.doitWith(id, frameNr, pos, "3-equalized", JavaCV.equalizeHist, targetPath)(blurred)
+  val thresholed = JavaCV.doitWith(id, frameNr, pos, "4-threshold", JavaCV.threshold, targetPath)(equalized)
+  val bitNotted = JavaCV.doitWith(id, frameNr, pos, "5-bitnotted", JavaCV.bitwiseNot, targetPath)(thresholed)
+  val borderRemoved = JavaCV.doitWith(id, frameNr, pos, "6-borderremoved", JavaCV.removeBorderArtefacts, targetPath)(bitNotted)
+
+  def init(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "0-cellMat", m => m, targetPath)(m)
+
+  def gray(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "1-grayed", JavaCV.toGray, targetPath)(m)
+
+  val optNumberCellMat: Option[Mat] = SCell.optNumberMat(borderRemoved)
+
+  val (detectedValue, quality) =
+    optNumberCellMat.map {
+      m => TemplateLibrary.detectNumber(id, frameNr, pos, targetPath, m)
+    }.getOrElse((0, 0.0))
+
+  /** adds current hit to history, ignoring 0 */
+  val updatedHits: Map[Int, Int] = {
+    if (detectedValue == 0) {
+      hitHistory
+    } else {
+      hitHistory + (detectedValue -> (hitHistory.getOrElse(detectedValue, 0) + 1))
+    }
+  }
+
+  /** returns Some(value) if a certain threshold of hits are made for this cell, else None */
+  val optValue: Option[Int] =
+    updatedHits.toSeq.find {
+      case (_, numberOfHits) => numberOfHits > Sudoku.minNrOfValueHits
+    }.map(_._1)
+
 
 }

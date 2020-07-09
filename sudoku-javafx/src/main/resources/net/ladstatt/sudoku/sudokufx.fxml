@@ -6,15 +6,6 @@
 <?import javafx.scene.text.Font?>
 <VBox prefHeight="830.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ladstatt.sudoku.SudokuFXController">
-    <MenuBar VBox.vgrow="NEVER" fx:id="mainMenuBar">
-        <menus>
-            <Menu mnemonicParsing="false" text="SudokuFX">
-                <items>
-                    <MenuItem mnemonicParsing="false" onAction="#showAbout" text="About SudokuFX"/>
-                </items>
-            </Menu>
-        </menus>
-    </MenuBar>
     <Accordion>
         <panes>
             <TitledPane text="Statistics">

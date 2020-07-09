@@ -11,7 +11,7 @@ import org.bytedeco.opencv.opencv_core._
  */
 case class FramePipeline(frame: Mat) {
 
-  val working: Mat = JavaCV.copySrcToDestWithMask(frame)
+  val working: Mat = JavaCV.copyMat(frame)
   val grayed: Mat = JavaCV.toGray(working)
   val blurred: Mat = JavaCV.gaussianblur(grayed)
   val thresholded: Mat = JavaCV.adaptiveThreshold(blurred)

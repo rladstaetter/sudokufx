@@ -6,9 +6,6 @@ import org.bytedeco.opencv.global.{opencv_core, opencv_imgcodecs}
 import org.bytedeco.opencv.opencv_core.Mat
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 class TemplateLibrarySpec extends AnyWordSpecLike {
 
   lazy val classicTemplatesFromBmps: Map[Int, Mat] = {
@@ -62,7 +59,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
       }
     }
     "detectNumber 1" in {
-      val (detectedNr, quality) = TemplateLibrary.detectNumber("SudokuSpec.detectNr", 0, Paths.get("target/"), ts.head)
+      val (detectedNr, quality) = TemplateLibrary.detectNumber("SudokuSpec.detectNr", 0, 0, Sudoku.targetPath, ts.head)
       assert(1 == detectedNr)
     }
 
@@ -71,7 +68,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
      */
     "detectNumber works" in {
       for ((m, i) <- ts.zipWithIndex) {
-        val (detectedNr, quality) = TemplateLibrary.detectNumber("SudokuSpec.detectNumber", i, Paths.get("target/"), m)
+        val (detectedNr, quality) = TemplateLibrary.detectNumber("SudokuSpec.detectNumber", 0, i, Sudoku.targetPath, m)
         assert(detectedNr == (i + 1))
       }
     }

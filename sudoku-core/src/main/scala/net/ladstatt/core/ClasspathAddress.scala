@@ -85,7 +85,7 @@ trait ClasspathAddress extends CanLog {
       IOUtils.toByteArray(clazz.getResourceAsStream(value))
     } else {
       // logError("Could not load " + value)
-      logError(s"${value} does not exist.")
+      logError(s"$value does not exist.")
       throw new RuntimeException("Could not load " + value)
     }
   }

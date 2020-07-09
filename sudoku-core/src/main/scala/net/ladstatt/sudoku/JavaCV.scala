@@ -10,42 +10,15 @@ import org.bytedeco.javacpp.{BytePointer, FloatPointer}
 import org.bytedeco.opencv.global._
 import org.bytedeco.opencv.global.opencv_core._
 import org.bytedeco.opencv.global.opencv_imgproc._
-import org.bytedeco.opencv.opencv_core.{Mat, Point, Point2f, Scalar, Size, _}
+import org.bytedeco.opencv.opencv_core._
+
+import scala.math.{abs, atan2}
 
 
-object Label {
-
-  def apply(i: Int, ibf: IntBuffer): Label = {
-    val a = Array(0, 0, 0, 0, 0)
-    ibf.get(a)
-    apply(i, a)
-  }
-
-  def apply(i: Int, a: Array[Int]): Label = {
-    assert(a.length == 5)
-    val Array(x, y, w, h, area) = a
-    Label(i, x, y, w, h, area)
-  }
-
-}
-
-case class Label(i: Int
-                 , x: Int
-                 , y: Int
-                 , w: Int
-                 , h: Int
-                 , a: Int) {
-
-  def touches(width: Int, height: Int): Boolean = {
-    x == 0 || y == 0 || x + w == width || y + h == height
-  }
-}
 /**
  * Contains functions which are backed by JavaCV's API to OpenCV.
  */
 object JavaCV extends CanLog {
-
-  import Parameters._
 
   lazy val EmptyCorners = new Point2f
 
@@ -53,7 +26,7 @@ object JavaCV extends CanLog {
   val blackScalar = new Scalar(0)
 
 
-  def removeBorderArtefacts(m : Mat) : Mat = {
+  def removeBorderArtefacts(m: Mat): Mat = {
     val labels = new Mat
     val stats = new Mat
     val centroids = new Mat
@@ -73,7 +46,7 @@ object JavaCV extends CanLog {
 
     val toBeAnalyzed =
       if (notTouchingBorder.size > 1) {
-        logWarn("Found more than one label, choosing the one with biggest area")
+        // logWarn("Found more than one label, choosing the one with biggest area")
         Seq(notTouchingBorder.sortWith((a, b) => a.a > b.a).head)
       } else notTouchingBorder
 
@@ -83,7 +56,7 @@ object JavaCV extends CanLog {
           opencv_core.equals(labels, -1).asMat
         case Some(l) => opencv_core.equals(labels, l.i).asMat
       }
-   // printByteBf(hitters)
+    // printByteBf(hitters)
     val out = new Mat
     m.copyTo(out, hitters)
     out
@@ -142,12 +115,6 @@ object JavaCV extends CanLog {
     output
   }
 
-  def copySrcToDestWithMask(source: Mat): Mat = {
-    val destination = new Mat
-    source.copyTo(destination, source) // use source as pattern as well
-    destination
-  }
-
   def extractFloatPoints(m: Mat): Seq[PFloat] = {
     val bf = m.createBuffer[FloatBuffer]
     assert(bf.capacity() == 8) // we have at 4 coordinate pairs
@@ -173,10 +140,23 @@ object JavaCV extends CanLog {
   lazy val Kernel: Mat = {
     opencv_imgproc.getStructuringElement(MORPH_RECT, new Size(3, 3))
   }
-
+/*
+  def loadMat2(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = {
+    val is = matCp.inputStream(clazz)
+    var nRead = 0
+    val data = new Array[Byte](16 * 1024)
+    val buffer = new Nothing
+    while ( {
+      (nRead = is.read(data, 0, data.length)) != -1
+    }) buffer.write(data, 0, nRead)
+    val bytes = buffer.toByteArray
+    val mat = imdecode(new Nothing(bytes), CV_LOAD_IMAGE_UNCHANGED)
+  }
+  */
   /** loads a mat from classpath */
-  def loadMat(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = {
+  def loadMat(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = synchronized {
     if (matCp.existsUsingClassLoader(clazz)) {
+
       opencv_imgcodecs.imdecode(new Mat(new BytePointer(ByteBuffer.wrap(IOUtils.toByteArray(matCp.inputStream(clazz))))), codec)
     } else {
       logError(s"Classpath entry '${matCp.value}' not found.")
@@ -192,16 +172,15 @@ object JavaCV extends CanLog {
     }
   }
 
-  def swriteMat(target: Path, mat: Mat): Boolean = {
-    true
-  }
 
   def writeMat(target: Path, mat: Mat): Boolean = {
-    Files.createDirectories(target.getParent)
-    val path = target.toAbsolutePath.toString
-    val r = opencv_imgcodecs.imwrite(path, mat)
-    logTrace(s"Wrote $path")
-    r
+    if (Sudoku.writeFiles) synchronized {
+      Files.createDirectories(target.getParent)
+      val path = target.toAbsolutePath.toString
+      val r = opencv_imgcodecs.imwrite(path, mat)
+      logTrace(s"Wrote $path")
+      r
+    } else true
   }
 
   /**
@@ -265,7 +244,6 @@ object JavaCV extends CanLog {
    */
   def isSomewhatSquare(corners: Seq[Point]): Boolean = {
 
-    import scala.math.{abs, atan2}
 
     def calcAngle(a: Point, b: Point) = {
       atan2((b.y - a.y).toDouble
@@ -312,11 +290,8 @@ object JavaCV extends CanLog {
   }
 
   def mkCorners(width: Int, height: Int): Mat = {
-    val p = new FloatPointer(0f, 0f
-      , width.toFloat, 0f
-      , width.toFloat, height.toFloat
-      , 0f, height.toFloat)
-    new Mat(new Size(2, 4), CV_32F, p)
+    val p = new FloatPointer(0, 0, width, 0, width, height, 0, height)
+    new Mat(new Size(2, 4), opencv_core.CV_32F, p)
   }
 
 
@@ -374,24 +349,41 @@ object JavaCV extends CanLog {
 
   def norm(operation: String
            , id: String
+           , frameNr: Int
            , pos: Int
            , path: Path
            , mat: Mat): Mat = {
     val b = gaussianblur(mat)
-    writeMat(s"7_gaussianblur-$operation", id, pos, path, b)
+    writeMat(s"7_gaussianblur-$operation", id, frameNr, pos, path, b)
     val dilated = dilate(b)
-    writeMat(s"8_dilated-$operation", id, pos, path, b)
+    writeMat(s"8_dilated-$operation", id, frameNr, pos, path, b)
     val thresholded = adaptiveThreshold(dilated, 255, 9)
-    writeMat(s"9_thresholded-$operation", id, pos, path, b)
+    writeMat(s"9_thresholded-$operation", id, frameNr, pos, path, b)
     thresholded
   }
 
   def writeMat(operation: String
                , id: String
+               , frameNr: Int
                , pos: Int
-               , parentFolder: Path, res: Mat): Boolean = {
-    val path = parentFolder.resolve(pos.toString).resolve(operation).resolve(s"$id-${UUID.randomUUID().toString}.png")
+               , parentFolder: Path
+               , res: Mat): Boolean = {
+    val path = parentFolder.resolve(frameNr.toString).resolve(pos.toString).resolve(operation).resolve(s"$id-${
+      UUID.randomUUID().toString
+    }.png")
     writeMat(path, res)
+  }
+
+  def doitWith(target: Path, op: Mat => Mat)(mat: Mat): Mat = {
+    val res: Mat = op(mat)
+    // JavaCV.writeMat(target, res)
+    res
+  }
+
+  def doitWith(id: String, frameNr: Int, pos: Int, name: String, op: Mat => Mat, parentFolder: Path)(mat: Mat): Mat = {
+    val res: Mat = op(mat)
+    // JavaCV.writeMat(name, id, frameNr, pos, parentFolder, res)
+    res
   }
 
   /**
@@ -457,25 +449,29 @@ object JavaCV extends CanLog {
   /**
    * warps image from to make feature extraction's life easier (time intensive call)
    */
-  def warp(input: Mat, srcCorners: Mat): Mat = {
-    val srcSize = srcCorners.size
+  def warp(input: Mat, srcCorners: Mat): Mat = synchronized {
+    /*
+      val srcSize = srcCorners.size
 
-    // p("srcSize", srcSize.width, srcSize.height)
-    // p("m", mSize.width, mSize.height)
-    // p("destSize", destSize.width, destSize.height)
-    require(srcSize.width == 2)
-    require(srcSize.height == 4)
-
-    warpP(input, getPerspectiveTransform(srcCorners, normalizedCorners))
+      // p("srcSize", srcSize.width, srcSize.height)
+      // p("m", mSize.width, mSize.height)
+      // p("destSize", destSize.width, destSize.height)
+      require(srcSize.width == 2)
+      require(srcSize.height == 4)
+  */
+    val transformationMatrix = opencv_imgproc.getPerspectiveTransform(srcCorners, Parameters.normalizedCorners)
+    val dest = new Mat()
+    opencv_imgproc.warpPerspective(input, dest, transformationMatrix, Parameters.size1280x720)
+    dest
   }
 
   def unwarp(input: Mat, destCorners: Mat): Mat = {
-    warpP(input, getPerspectiveTransform(normalizedCorners, destCorners))
+    warpP(input, getPerspectiveTransform(Parameters.normalizedCorners, destCorners))
   }
 
-  def warpP(input: Mat, transformationMatrix: Mat) = {
+  def warpP(input: Mat, transformationMatrix: Mat): Mat = {
     val dest = new Mat()
-    warpPerspective(input, dest, transformationMatrix, normalizedSize)
+    opencv_imgproc.warpPerspective(input, dest, transformationMatrix, Parameters.size1280x720)
     dest
   }
 
@@ -563,6 +559,39 @@ object JavaCV extends CanLog {
   }
 
   /**
+   * goal is to reorganize inputs in a way that all 4 coordinate pairs are returned in following ordering:
+   *
+   * <ul>
+   * <li>left upper corner</li>
+   * <li>right uper corner</li>
+   * <li>right lower corner</li>
+   * <li>left lower corner</li>
+   * </ul>
+   *
+   * @param m
+   * @return
+   */
+  def sortCorners(m: Mat): Mat = {
+    val ps: Seq[PInt] = JavaCV.extractIntPoints(m)
+
+    // idea: the top left corner has the smallest, the bottom right corner the biggest distance to (0,0).
+    // hence we have two points. for the other two points we just say that B has a smaller y coordinate
+    // than point D. Should work for most of the cases
+    val sortByDist = ps.sortWith((a, b) => a.dist < b.dist)
+    val A = sortByDist.head
+    val C = sortByDist.reverse.head
+    val rest = ps.toSet -- Set(A, C)
+    val sortByY = rest.toSeq.sortWith((a, b) => a.y < b.y)
+    val B = sortByY.head
+    val D = sortByY.tail.head
+
+    val fp = new FloatPointer(A.x, A.y, B.x, B.y, C.x, C.y, D.x, D.y)
+    println(s"!!!: ${A.x}, ${A.y}, ${B.x}, ${B.y}, ${C.x}, ${C.y}, ${D.x}, ${D.y}")
+    new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
+  }
+
+
+  /**
    * sort points in following order:
    * topleft, topright, bottomright, bottomleft
    */
@@ -592,7 +621,7 @@ def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
   }
 
 
-  def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / ssize, sudokuSize.height / ssize)
+  def mkCellSize(sudokuSize: Size): Size = new Size(sudokuSize.width / Parameters.ssize, sudokuSize.height / Parameters.ssize)
 
   def mkRect(i: Int, width: Int, height: Int): Rect = new Rect(Parameters.col(i) * width, Parameters.row(i) * height, width, height)
 

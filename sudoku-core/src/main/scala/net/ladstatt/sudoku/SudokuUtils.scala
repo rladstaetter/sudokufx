@@ -43,7 +43,8 @@ object SudokuUtils {
   }
 
 
-  def toSolutionCells(digitLibrary: DigitLibrary
+  def toSolutionCells(frameNr: Int
+                      , digitLibrary: DigitLibrary
                       , sudokuHistory: SudokuHistory): Seq[SCell] = {
     (for (pos <- cellRange) yield {
       val value = sudokuHistory.currentValues(pos)
@@ -54,7 +55,7 @@ object SudokuUtils {
           (if (someM.isEmpty) {
             digitLibrary(value)._2
           } else someM)
-            .map(m => SCell("fixmeid", pos, m, new Rect, sudokuHistory.cells(pos)))
+            .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.cells(pos)))
         } else None
       x
     }).flatten

@@ -47,7 +47,7 @@ object Sudokus {
     )
 
   /* sudoku with 100% hit rate */
-  lazy val sudoku1Empty =
+  val sudoku1Empty =
     SudokuEnvironment("sudoku1"
       , 1
       , frame1
@@ -93,7 +93,7 @@ object Sudokus {
         , 719.0f, 170.0f
         , 738.0f, 571.0f
         , 349.0f, 588.0f
-      ), hitCounters = Parameters.defaultHitCounters)
+      ), hitCounters = SudokuHistory())
 
   /** a map with paths to original images and coordinates of sudoku area to detect */
   lazy val validSudokus: Seq[SudokuEnvironment] = Seq(sudoku1Empty, sudoku2CurrentBest)

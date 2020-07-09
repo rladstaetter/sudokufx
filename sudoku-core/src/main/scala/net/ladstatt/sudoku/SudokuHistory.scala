@@ -28,7 +28,7 @@ object SudokuHistory {
 case class SudokuHistory(timestamp: Long
                          , cells: Seq[Map[Int, Int]]) extends CanLog {
 
-  assert(cells.size == Parameters.cellCount)
+  //  assert(cells.size == Parameters.cellCount)
 
   /** converts cells to a hitcounter Seq which contains all cells and a hitcount set to minHitCount
    * in order to trigger a solution attempt with given numbers */
@@ -56,9 +56,10 @@ case class SudokuHistory(timestamp: Long
 
   lazy val isSolved: Boolean = 405 == currentValues.sum
 
+  /** number of hits and keeping information from previous runs in mind */
   lazy val nrHits: Int = currentValues.count(_ != 0)
 
-  lazy val isReadyToSolve: Boolean = nrHits > Sudoku.minNrOfDetectedCells
+  lazy val isReadyToSolve: Boolean = nrHits >= Sudoku.minNrOfDetectedCells
 
   /** adds given history to current one */
   def add(other: SudokuHistory): SudokuHistory = {
@@ -97,11 +98,5 @@ case class SudokuHistory(timestamp: Long
     } else 0
   }
 
-  /*
-  def optBestNumber(m: Map[Int, Int]): Int =
-    m.toSeq.sortWith((a, b) => a._2 > b._2).
-      headOption.filter {
-      case (_, hits) => hits >= Sudoku.minNrOfValueHits
-    }.mdap(_._1).getOrElse(0)
-*/
+
 }

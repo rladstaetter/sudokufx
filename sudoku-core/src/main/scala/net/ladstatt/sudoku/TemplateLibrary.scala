@@ -54,10 +54,11 @@ object TemplateLibrary {
    */
   def detectNumber(library: Seq[Mat], templateSize: Size)
                   (id: String
+                   , frameNr: Int
                    , pos: Int
                    , path: Path
                    , candidate: Mat): (Int, Double) = {
-    writeMat(s"7_candidate", id, pos, path, candidate)
+    //writeMat(s"7_candidate", id, frameNr, pos, path, candidate)
 
     val (width, height) = (candidate.size.width, candidate.size.height)
 
@@ -68,15 +69,15 @@ object TemplateLibrary {
       val number = idx + 1
       if (needle.size().width > width || needle.size().height > height) {
         val resizedNeedle = JavaCV.resize(needle, new Size(width, height))
-        writeMat(path.resolve(s"8_candidate-needleresized").resolve(number.toString + "-needle.png"), resizedNeedle)
+       // writeMat(s"8_candidate-needleresized", id, frameNr, pos, path, resizedNeedle)
         JavaCV.matchTemplate(candidate, resizedNeedle, id, pos, path, number)
       } else {
-        writeMat(path.resolve(s"8_candidate-needle").resolve(number.toString + "-needle.png"), needle)
+       // writeMat(s"8_candidate-needle", id, frameNr, pos, path, needle)
         JavaCV.matchTemplate(candidate, needle, id, pos, path, number)
       }
     }
     for ((i, quality) <- hayStack) {
-    //  println(s"Number $i : Quality " + f"$quality%1.0f")
+      // println(s"Number $i : Quality " + f"$quality%1.0f")
     }
     val (number, quality) = hayStack.sortWith((a, b) => a._2 < b._2).head
 
@@ -94,10 +95,11 @@ object TemplateLibrary {
   def min(a: Int, b: Int): Int = if (b < a) b else a
 
   def detectNumber(id: String
+                  , frameNr:Int
                    , pos: Int
                    , path: Path
                    , candidate: Mat): (Int, Double) = {
-    detectNumber(classicClasspathTemplatesZipped, templateSize)(id, pos, path, candidate)
+    detectNumber(classicClasspathTemplatesZipped, templateSize)(id, frameNr, pos, path, candidate)
   }
 
 }

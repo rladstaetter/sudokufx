@@ -32,7 +32,6 @@ object Parameters {
 
   assert(topCap - cap > 0)
 
-  val minHits = 22
 
   val ssize = 9
   val cellCount: Int = ssize * ssize
@@ -42,8 +41,6 @@ object Parameters {
 
   val cellRange: Range = 0 until cellCount
 
-  val defaultHitCounters  = SudokuHistory()
-
   val colorRange: Seq[Int] = 0 to 256 by 16
 
   private val leftRange: Seq[Int] = Seq(0, 1, 2)
@@ -52,8 +49,8 @@ object Parameters {
   val sectors: Seq[Seq[Int]] = Seq(leftRange, middleRange, rightRange)
 
   /** size of internal representation of sudoku */
-  val normalizedSize = new Size(1280, 720)
-  val normalizedCorners: Mat = JavaCV.mkCorners(normalizedSize)
+  val size1280x720 = new Size(1280, 720)
+  val normalizedCorners: Mat = JavaCV.mkCorners(size1280x720.width, size1280x720.height)
 
   def row(i: Int): Int = i / 9
 
