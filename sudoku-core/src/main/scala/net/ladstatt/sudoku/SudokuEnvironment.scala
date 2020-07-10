@@ -48,7 +48,7 @@ case class SudokuEnvironment(id: String
                             ) extends CanLog {
 
 
-  val grayed: Mat = JavaCV.toGray(JavaCV.copyMat(frame))
+  val grayed: Mat = JavaCV.toGray(frame)
   val blurred: Mat = JavaCV.gaussianblur(grayed)
   val thresholded: Mat = JavaCV.adaptiveThreshold(blurred)
   val inverted: Mat = JavaCV.bitwiseNot(thresholded)
@@ -70,7 +70,7 @@ case class SudokuEnvironment(id: String
     val contours: MatVector = JavaCV.findContours(dilated, contourParams.retrivalMode, contourParams.approximation)
     val minimumExpectedArea: Double = opencv_imgproc.contourArea(inputFrameCorners) / contourParams.contourRatio
     detectRectangle(contours, minimumExpectedArea).map(detectedCorners => {
-      val normalized = JavaCV.warp(JavaCV.copyMat(frame), detectedCorners)
+      val normalized = JavaCV.warp(frame, detectedCorners)
       if ((frameNr % 25) == 0) {
         JavaCV.writeMat(targetPath.resolve(frameNr + "-frame.png"), frame)
         JavaCV.writeMat(targetPath.resolve(frameNr + "-normalized.png"), normalized)
