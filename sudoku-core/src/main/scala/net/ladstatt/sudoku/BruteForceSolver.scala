@@ -1,9 +1,8 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.core.{CanLog, Utils}
+import net.ladstatt.core.CanLog
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
 
@@ -86,24 +85,29 @@ object BruteForceSolver extends CanLog {
     // The function is itself a higher-order fold, accumulating the value
     // accu by applying the given function f to it whenever a solution m
     // is found
-    def search(x: Int, y: Int, f: Int => Int, accu: Int): Int = (x, y) match {
-      case (9, _) if !isCancelled => search(0, y + 1, f, accu) // next row
-      case (0, 9) if !isCancelled => f(accu) // found a solution
-      case (_, _) if !isCancelled =>
-        if (mx(y)(x) != '0') {
-          search(x + 1, y, f, accu)
-        } else {
-          fold((accu: Int, n: Int) =>
-            if (invalid(0, x, y, (n + 48).toChar)) {
-              accu
+    def search(x: Int, y: Int, f: Int => Int, accu: Int): Int = {
+      if (!isCancelled) {
+        (x, y) match {
+          case (9, _) => search(0, y + 1, f, accu) // next row
+          case (0, 9) => f(accu) // found a solution
+          case (_, _) =>
+            if (mx(y)(x) != '0') {
+              search(x + 1, y, f, accu)
             } else {
-              mx(y)(x) = (n + 48).toChar
-              val newaccu = search(x + 1, y, f, accu)
-              mx(y)(x) = '0'
-              newaccu
-            }, accu, 1, 10)
+              fold((accu: Int, n: Int) =>
+                if (invalid(0, x, y, (n + 48).toChar)) {
+                  accu
+                } else {
+                  mx(y)(x) = (n + 48).toChar
+                  val newaccu = search(x + 1, y, f, accu)
+                  mx(y)(x) = '0'
+                  newaccu
+                }, accu, 1, 10)
+            }
         }
-      case _ => throw new RuntimeException("Was cancelled.")
+      } else {
+        throw new RuntimeException("Computation was cancelled.")
+      }
     }
 
     // The main part of the program uses the search function to accumulate

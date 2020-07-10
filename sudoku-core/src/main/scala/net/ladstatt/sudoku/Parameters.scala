@@ -50,7 +50,8 @@ object Parameters {
 
   /** size of internal representation of sudoku */
   val size1280x720 = new Size(1280, 720)
-  val normalizedCorners: Mat = JavaCV.mkCorners(size1280x720.width, size1280x720.height)
+  /** has to be a def since we get trouble with memory allocation / corruption with JavaCV */
+  def normalizedCorners: Mat = JavaCV.mkCorners(size1280x720.width, size1280x720.height)
 
   def row(i: Int): Int = i / 9
 

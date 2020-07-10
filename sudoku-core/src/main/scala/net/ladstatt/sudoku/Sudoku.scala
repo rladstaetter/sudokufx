@@ -13,10 +13,10 @@ object Sudoku {
   val debug = false
 
   /** if set to true, sudokufx will write debug files / images */
-  val writeFiles = true
+  val writeFiles = false
 
   /** don't try to solve sudoku until a certain amount of cells containing numbers are detected */
-  val minNrOfDetectedCells = 19
+  val minNrOfDetectedCells = 25
 
   /**
    * for a given cell, detect at least minNrOfValueHits times a number 'to be sure' that it is really
@@ -25,8 +25,9 @@ object Sudoku {
   val minNrOfValueHits = 10
 
   /* a hit has to reach this quality in order to be used as a value */
-  val minQuality = 15500000
-  //val minQuality = 12500000
+  val minQuality = 20000000
+  //val minQuality = 15500000
+  // val minQuality = 12500000
   //val minQuality = 3500000
 
 }

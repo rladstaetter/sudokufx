@@ -2,16 +2,8 @@ package net.ladstatt.sudoku
 
 import org.scalatest.wordspec.AnyWordSpecLike
 
-/*
 
-import scala.util.{Failure, Success, Try}
-import org.scalatest.wordspec.AnyWordSpecLike
-*/
 class SolverSpec extends AnyWordSpecLike {
-/*
-
-
-  import net.ladstatt.sudoku.BruteForceSolver._
 
   val solved =
     """483921657
@@ -24,22 +16,38 @@ class SolverSpec extends AnyWordSpecLike {
       |814253769
       |695417382""".stripMargin.replaceAll("\n", "")
 
-  "testSum" in  {
-    assert(405 ==  solved.toArray.map(_.asDigit).sum.toLong)
-  }
-
   def solveReadableSudoku(sudokuWithNewLines: String): Option[SudokuDigitSolution] = {
-    solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray, 5000L)
+    BruteForceSolver.solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray, 5000L)
   }
 
- "testSolving" in{
+  "testSum" in {
+    assert(405 == solved.toArray.map(_.asDigit).sum.toLong)
+  }
+
+
+  "solve sudoku 1" in {
+    val detectedNumbers =
+      """608001020
+        |009302580
+        |000890300
+        |000200090
+        |300080007
+        |040006000
+        |003025000
+        |094103200
+        |070600903
+        |""".stripMargin
+    assert(solveReadableSudoku(detectedNumbers).isDefined)
+  }
+/*
+  "testSolving" in {
     Try {
       val solvedSudokus: Array[Option[SudokuDigitSolution]] =
         for (sudokuAsString <- SudokuTestContext.easySudokus.split("========"))
           yield solveReadableSudoku(sudokuAsString)
 
       for (fs <- solvedSudokus.flatten) {
-        assert(405 ==  fs.map(_.asDigit).sum.toLong)
+        assert(405 == fs.map(_.asDigit).sum.toLong)
       }
     } match {
       case Success(_) =>
@@ -47,11 +55,11 @@ class SolverSpec extends AnyWordSpecLike {
     }
 
   }
-
+*/
   /**
-    * Test shows what happenes if we try to solve an malformed input
-    */
-  "SolveWrongInput" in{
+   * Test shows what happens if we try to solve an malformed input
+   */
+  "SolveWrongInput" in {
     val sudokuInput =
       """003020601
         |900305001
@@ -70,5 +78,4 @@ class SolverSpec extends AnyWordSpecLike {
   }
 
 
-*/
 }

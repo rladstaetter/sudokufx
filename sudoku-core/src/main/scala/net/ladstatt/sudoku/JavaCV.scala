@@ -157,7 +157,11 @@ object JavaCV extends CanLog {
   def loadMat(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = synchronized {
     if (matCp.existsUsingClassLoader(clazz)) {
 
-      opencv_imgcodecs.imdecode(new Mat(new BytePointer(ByteBuffer.wrap(IOUtils.toByteArray(matCp.inputStream(clazz))))), codec)
+      val stream = matCp.inputStream(clazz)
+      val bytes = IOUtils.toByteArray(stream)
+      stream.close()
+      val buffer = ByteBuffer.wrap(bytes)
+      opencv_imgcodecs.imdecode(new Mat(new BytePointer(buffer)), codec)
     } else {
       logError(s"Classpath entry '${matCp.value}' not found.")
       new Mat()
@@ -586,7 +590,7 @@ object JavaCV extends CanLog {
     val D = sortByY.tail.head
 
     val fp = new FloatPointer(A.x, A.y, B.x, B.y, C.x, C.y, D.x, D.y)
-    println(s"!!!: ${A.x}, ${A.y}, ${B.x}, ${B.y}, ${C.x}, ${C.y}, ${D.x}, ${D.y}")
+    //println(s"!!!: ${A.x}, ${A.y}, ${B.x}, ${B.y}, ${C.x}, ${C.y}, ${D.x}, ${D.y}")
     new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
   }
 

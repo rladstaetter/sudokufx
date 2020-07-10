@@ -3,6 +3,7 @@ package net.ladstatt.sudoku
 import java.nio.file.{Files, Path, Paths}
 
 import net.ladstatt.core.CanLog
+import net.ladstatt.sudoku.Parameters.size1280x720
 import org.bytedeco.javacpp.FloatPointer
 import org.bytedeco.opencv.global.{opencv_core, opencv_imgproc}
 import org.bytedeco.opencv.opencv_core.{Mat, Rect, Size}
@@ -148,16 +149,15 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     }
 
     "why does warp feel so really bad" in {
-      val fp = new FloatPointer(862, 283, 1240, 339, 1172, 711, 804, 640)
-      val srcCorners = new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
-      for (i <- 1 to 100) {
+
+      //val m: Mat = JavaCV.loadMat(Paths.get("/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/testdata/frame1.png"))
+      for (i <- 1 to 1000) {
+        val srcCorners = new Mat(new Size(2, 4), opencv_core.CV_32F, new FloatPointer(862f, 283f, 1240f, 339f, 1172f, 711f, 804f, 640f))
+        val transformationMatrix = opencv_imgproc.getPerspectiveTransform(srcCorners, JavaCV.mkCorners(Parameters.size1280x720.width, Parameters.size1280x720.height))
         val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/testdata/frame1.png"))
-        //val m: Mat = JavaCV.loadMat(Paths.get("/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/testdata/frame1.png"))
-        val transformationMatrix = opencv_imgproc.getPerspectiveTransform(srcCorners, Parameters.normalizedCorners)
         val res = new Mat()
-        Thread.sleep(10)
         opencv_imgproc.warpPerspective(m, res, transformationMatrix, Parameters.size1280x720)
-        if ((i % 25) == 0) {
+        if ((i % 100) == 0) {
           JavaCV.writeMat(Sudoku.targetPath.resolve(s"$i-warped.png"), res)
         }
       }
@@ -182,7 +182,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
       val envComputed =
         envs.foldLeft(sudoku1Empty) {
           case (acc, env) =>
-            println("!!!!!!!!!!!!!!")
+           // println("!!!!!!!!!!!!!!")
             env.copy(history = acc.history).optSudoku match {
               case None =>
                 ???
