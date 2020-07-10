@@ -1,84 +1,91 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
+<?import javafx.scene.control.Accordion?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
-<VBox prefHeight="830.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="net.ladstatt.sudoku.SudokuFXController">
+
+<VBox prefHeight="830.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ladstatt.sudoku.SudokuFXController">
     <Accordion>
         <panes>
             <TitledPane text="Statistics">
-                <content>
-                    <HBox>
-                        <children>
-                            <TitledPane text="Frame number"/>
-                            <TitledPane text="Detected Sudokus"/>
-                            <TitledPane text="Last detection numbers"/>
-                            <TitledPane text="Frame rate"/>
-                        </children>
-                    </HBox>
-                </content>
+                <HBox>
+                    <TitledPane text="Frame number" />
+                    <TitledPane text="Detected Sudokus" />
+                    <TitledPane text="Last detection numbers" />
+                    <TitledPane text="Frame rate" />
+                </HBox>
             </TitledPane>
 
             <TitledPane text="Moar Statistics">
-                <content>
-                    <HBox>
-                        <children>
-                            <FlowPane fx:id="statsFlowPane"/>
-                            <FlowPane fx:id="resultFlowPane"/>
-                            <FlowPane fx:id="numberFlowPane"/>
-                            <Label fx:id="statusLabel" ellipsisString="" layoutX="11.0" layoutY="713.0"
-                                   text="State of the application" textFill="BLACK">
-                                <font>
-                                    <Font name="Alpha Echo" size="20.0"/>
-                                </font>
-                            </Label>
-                            <Button fx:id="resetButton" onAction="#resetState" text="reset"/>
-                            <ToolBar fx:id="templateToolBar" layoutY="135.0"
-                                     style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
-                            </ToolBar>
-                        </children>
-                    </HBox>
-                </content>
+                <HBox>
+                    <FlowPane fx:id="statsFlowPane" />
+                    <FlowPane fx:id="resultFlowPane" />
+                    <FlowPane fx:id="numberFlowPane" />
+                    <Label fx:id="statusLabel" ellipsisString="" layoutX="11.0" layoutY="713.0" text="State of the application" textFill="BLACK">
+                        <font>
+                            <Font name="Alpha Echo" size="20.0" />
+                        </font>
+                    </Label>
+                    <ToolBar fx:id="templateToolBar" layoutY="135.0" style="-fx-padding: 0 0 0 0;-fx-margin: 0 0 0 0;">
+                    </ToolBar>
+                </HBox>
             </TitledPane>
             <TitledPane text="Phases">
                 <content>
-                    <ToolBar prefWidth="1280.0" prefHeight="30.0">
-                        <fx:define>
-                            <ToggleGroup fx:id="viewButtons"/>
-                        </fx:define>
+                    <ToolBar prefHeight="30.0" prefWidth="1280.0">
                         <items>
-                            <ToggleButton fx:id="inputButton" mnemonicParsing="false" text="Input"
-                                          toggleGroup="$viewButtons" selected="true"/>
-                            <ToggleButton fx:id="grayedButton" mnemonicParsing="false" text="Grayed"
-                                          toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="blurredButton" mnemonicParsing="false" text="Blurred"
-                                          toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="thresholdedButton" mnemonicParsing="false" text="Thresholded"
-                                          toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="invertedButton" mnemonicParsing="false" text="Inverted"
-                                          toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="dilatedButton" mnemonicParsing="false" text="Dilated"
-                                          toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="erodedButton" mnemonicParsing="false" text="Eroded"
-                                          toggleGroup="$viewButtons"/>
-                            <ToggleButton fx:id="solutionButton" mnemonicParsing="false" text="Solution"
-                                          toggleGroup="$viewButtons"/>
-                            <ChoiceBox fx:id="contourModeChoiceBox"/>
-                            <ChoiceBox fx:id="contourMethodChoiceBox"/>
-                            <ChoiceBox fx:id="contourRatioChoiceBox"/>
+                            <ToggleButton fx:id="inputButton" mnemonicParsing="false" selected="true" text="Input">
+                                <toggleGroup>
+                                    <ToggleGroup fx:id="viewButtons" />
+                                </toggleGroup>
+                            </ToggleButton>
+                            <ToggleButton fx:id="grayedButton" mnemonicParsing="false" text="Grayed" toggleGroup="$viewButtons" />
+                            <ToggleButton fx:id="blurredButton" mnemonicParsing="false" text="Blurred" toggleGroup="$viewButtons" />
+                            <ToggleButton fx:id="thresholdedButton" mnemonicParsing="false" text="Thresholded" toggleGroup="$viewButtons" />
+                            <ToggleButton fx:id="invertedButton" mnemonicParsing="false" text="Inverted" toggleGroup="$viewButtons" />
+                            <ToggleButton fx:id="dilatedButton" mnemonicParsing="false" text="Dilated" toggleGroup="$viewButtons" />
+                            <ToggleButton fx:id="erodedButton" mnemonicParsing="false" text="Eroded" toggleGroup="$viewButtons" />
+                            <ToggleButton fx:id="solutionButton" mnemonicParsing="false" text="Solution" toggleGroup="$viewButtons" />
+                            <ChoiceBox fx:id="contourModeChoiceBox" />
+                            <ChoiceBox fx:id="contourMethodChoiceBox" />
+                            <ChoiceBox fx:id="contourRatioChoiceBox" />
                         </items>
                     </ToolBar>
                 </content>
             </TitledPane>
         </panes>
     </Accordion>
-    <AnchorPane id="AnchorPane" fx:id="canvas">
-        <children>
-            <ImageView fx:id="videoView" pickOnBounds="true" preserveRatio="true"/>
-            <AnchorPane fx:id="polyArea"/>
-        </children>
-    </AnchorPane>
+    <BorderPane>
+        <left>
+            <AnchorPane id="AnchorPane" fx:id="canvas" BorderPane.alignment="CENTER">
+                <children>
+                    <ImageView fx:id="videoView" fitWidth="850.0" pickOnBounds="true" preserveRatio="true" />
+                    <AnchorPane fx:id="polyArea" />
+                </children>
+            </AnchorPane>
+        </left>
+        <right>
+            <AnchorPane id="AnchorPane" fx:id="normalizedCanvas" BorderPane.alignment="CENTER">
+                <children>
+                    <ImageView fx:id="normalizedView" fitWidth="430.0" pickOnBounds="true" preserveRatio="true" />
+                </children>
+            </AnchorPane>
+        </right>
+      <bottom>
+              <Button fx:id="resetButton" onAction="#resetState" text="reset" BorderPane.alignment="CENTER" />
+      </bottom>
+    </BorderPane>
 
 </VBox>

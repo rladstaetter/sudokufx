@@ -89,7 +89,7 @@ case class SudokuEnvironment(id: String
           , x4, y4)
       }
       //logTrace("corners: " + corners)
-      Sudoku(id, frameNr, frame.clone, normalized, corners, detectedCorners, history, library)
+      Sudoku(id, frameNr, frame, normalized, corners, detectedCorners, history, library)
     })
   }
 

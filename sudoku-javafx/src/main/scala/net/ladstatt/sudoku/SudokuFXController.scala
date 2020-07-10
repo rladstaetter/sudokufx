@@ -15,7 +15,7 @@ import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image._
 import javafx.scene.layout.{AnchorPane, FlowPane}
 import javafx.scene.paint.Color
-import javafx.scene.shape.{Circle, Polyline, Rectangle}
+import javafx.scene.shape.{Polyline, Rectangle}
 import org.bytedeco.javacv.OpenCVFrameGrabber
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.{Observable, Subscriber}
@@ -43,6 +43,7 @@ class SudokuFXController extends Initializable with JfxUtils {
   @FXML var canvas: AnchorPane = _
 
   @FXML var videoView: ImageView = _
+  @FXML var normalizedView: ImageView = _
   @FXML var solutionButton: ToggleButton = _
   @FXML var viewButtons: ToggleGroup = _
   @FXML var statusLabel: Label = _
@@ -53,7 +54,7 @@ class SudokuFXController extends Initializable with JfxUtils {
   @FXML var contourModeChoiceBox: ChoiceBox[Int] = _
   @FXML var contourMethodChoiceBox: ChoiceBox[Int] = _
   @FXML var contourRatioChoiceBox: ChoiceBox[Int] = _
- // @FXML var polyArea: AnchorPane = _
+  // @FXML var polyArea: AnchorPane = _
 
 
   val lastSolution = new SimpleObjectProperty[SolvedSudoku]()
@@ -121,9 +122,12 @@ class SudokuFXController extends Initializable with JfxUtils {
         //val fName = Sudoku.targetPath.resolve("session").resolve(index.toString + ".png")
         // JavaCV.writeMat(fName, frame)
         val params: ContourParams = getCurrentParams
+        // can be null if :
+        // - first call
+        // - last solution was reset by user
         Option(getLastSolution) match {
           case None =>
-            // first call, create default Sudoku instance and fill it with current frame
+            // , create default Sudoku instance and fill it with current frame
             SudokuEnvironment(s"sudoku", index, frame, Seq[Float](), params, SudokuHistory())
           case Some(lastSolution) =>
             // provide history of search such that we can differ between cells which are always identified
@@ -147,12 +151,16 @@ class SudokuFXController extends Initializable with JfxUtils {
       case None =>
         //logTrace("No sudoku / rectangle found ... ")
         setVideoView(env.grayed)
+        //setNormalizedView(env.dilated)
       case Some(sudoku) =>
         setVideoView(env.frame)
+        setNormalizedView(sudoku.normalized)
         // todo: if sudoku is already solved, we would just have to apply warp
         // transformations to current image
         if (sudoku.isSolved) {
-          ???
+          println()
+          println(sudoku.sHistory.asSudokuString)
+          println()
         } else
           sudoku.trySolve match {
             case Some(solvedSudoku) =>
@@ -177,6 +185,7 @@ class SudokuFXController extends Initializable with JfxUtils {
   def initializeCapturing(): Unit = {
     require(Option(viewButtons).isDefined)
     require(Option(videoView).isDefined)
+    require(Option(normalizedView).isDefined)
     require(Option(solutionButton).isDefined)
   }
 
@@ -259,6 +268,10 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   val borderFadeTransition: FadeTransition = mkFadeTransition(500, sudokuBorder, 1.0, 0.0)
 
+  def setNormalizedView(mat: Mat): Unit = {
+     normalizedView.setImage(JavaCVPainter.toImage(mat))
+  }
+
   def setVideoView(mat: Mat): Unit = {
     videoView.setImage(JavaCVPainter.toImage(mat))
   }
@@ -316,20 +329,20 @@ def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
   /**
    * reduces 100 corners to 81 boundaries
    */
-    /*
-  def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
+  /*
+def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
 
-    def extractBound(index: Int): Seq[java.lang.Double] = {
-      IndexedSeq(cellCorners(index)._1, cellCorners(index)._2,
-        cellCorners(index + 1)._1, cellCorners(index + 1)._2,
-        cellCorners(index + 11)._1, cellCorners(index + 11)._2,
-        cellCorners(index + 10)._1, cellCorners(index + 10)._2,
-        cellCorners(index)._1, cellCorners(index)._2)
-    }
-
-    val exclusions = 9 to 79 by 10
-    for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
+  def extractBound(index: Int): Seq[java.lang.Double] = {
+    IndexedSeq(cellCorners(index)._1, cellCorners(index)._2,
+      cellCorners(index + 1)._1, cellCorners(index + 1)._2,
+      cellCorners(index + 11)._1, cellCorners(index + 11)._2,
+      cellCorners(index + 10)._1, cellCorners(index + 10)._2,
+      cellCorners(index)._1, cellCorners(index)._2)
   }
+
+  val exclusions = 9 to 79 by 10
+  for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
+}
 */
 
   /*
@@ -545,7 +558,7 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
   }
 
 
-  override def initialize(location: URL, resources: ResourceBundle): Unit  = {
+  override def initialize(location: URL, resources: ResourceBundle): Unit = {
 
     initializeChoiceBoxes()
     initializeSharedState()
@@ -567,8 +580,8 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
       case (tb, stage) => tb.setUserData(stage)
     }
 
-   // val flowPanes = Set[FlowPane](statsFlowPane, resultFlowPane, numberFlowPane)
-   // require(flowPanes.forall(fp => Option(fp).isDefined))
+    // val flowPanes = Set[FlowPane](statsFlowPane, resultFlowPane, numberFlowPane)
+    // require(flowPanes.forall(fp => Option(fp).isDefined))
 
 
     //initResultPane(resultFlowPane)

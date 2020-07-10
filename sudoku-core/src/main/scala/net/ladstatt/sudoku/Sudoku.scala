@@ -94,7 +94,7 @@ case class Sudoku(id: String
     if (updatedHitHistory.isReadyToSolve) {
       logInfo("Trying to solve:")
       logInfo("\n" + updatedHitHistory.asSudokuString)
-      val solvedSudoku = updatedHitHistory.solved
+      val solvedSudoku: SudokuHistory = updatedHitHistory.solved
       if (solvedSudoku.isSolved) {
         Option(SolvedSudoku(frameNr, frame, normalized, detectedCorners, cellRois, solvedSudoku, updatedLibrary))
       } else {
