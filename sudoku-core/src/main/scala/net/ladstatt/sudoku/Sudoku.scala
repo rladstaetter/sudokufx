@@ -6,9 +6,16 @@ import java.nio.file.{Path, Paths}
 import net.ladstatt.sudoku.JavaCV._
 import org.bytedeco.opencv.opencv_core.{Mat, Rect}
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 object Sudoku {
 
   val targetPath: Path = Paths.get("target/sessions").resolve(System.currentTimeMillis().toString)
+  /**
+   * the maximum time the algorithm should search for a solution
+   */
+  val maxSolvingDuration: FiniteDuration = 1000 millis
 
   /** if set to true, take input from testsession */
   val debug = false
@@ -23,7 +30,7 @@ object Sudoku {
    * for a given cell, detect at least minNrOfValueHits times a number 'to be sure' that it is really
    * the number we are after
    **/
-  val minNrOfValueHits = 10
+  val minNrOfValueHits = 20
 
   /* a hit has to reach this quality in order to be used as a value */
   val minQuality = 20000000
@@ -57,7 +64,27 @@ object Sudoku {
         , x3, y3
         , x4, y4)
     }
-    Sudoku(id, frameNr, frame, normalized, corners, detectedCorners, history, library)
+    /**
+     * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
+     */
+    val cellRois: Seq[Rect] = Parameters.cellRange.map(JavaCV.mkRect(_, JavaCV.mkCellSize(normalized.size)))
+
+    val cells: Seq[SCell] = cellRois.zipWithIndex.map {
+      case (r, i) => SCell(id, frameNr, i, normalized.apply(r), r, history.cells(i))
+    }
+    val updatedLibrary = SudokuUtils.mergeDigitLibrary(normalized, library, cells)
+    val updatedHistory = history.add(SudokuHistory(0, cells.map(_.updatedHits)))
+
+    Sudoku(id
+      , frameNr
+      , frame
+      , normalized
+      , corners
+      , detectedCorners
+      , cellRois
+      , cells
+      , updatedHistory
+      , updatedLibrary)
   }
 }
 
@@ -73,37 +100,12 @@ case class Sudoku(id: String
                   , normalized: Mat
                   , corners: Seq[Float]
                   , detectedCorners: Mat
-                  , sHistory: SudokuHistory
+                  , cellRois: Seq[Rect]
+                  , cells: Seq[SCell]
+                  , history: SudokuHistory
                   , digitLibrary: DigitLibrary) {
 
-  val isSolved: Boolean = sHistory.isSolved
-
-  /**
-   * the cellRois denote the region of interests for every sudoku cell (there are 81 of them for every sudoku)
-   */
-  val cellRois: Seq[Rect] = Parameters.cellRange.map(JavaCV.mkRect(_, JavaCV.mkCellSize(normalized.size)))
-
-  val cells: Seq[SCell] = cellRois.zipWithIndex.map {
-    case (r, i) => SCell(id, frameNr, i, normalized.apply(r), r, sHistory.cells(i))
-  }
-
-  /** contains hithistory */
-  val updatedHitHistory: SudokuHistory = SudokuHistory(0, cells.map(_.updatedHits))
-
-  /**
-   * paints the solution to the canvas.
-   *
-   * returns the modified canvas with the solution painted upon.
-   *
-   * detectedCells contains values from 0 to 9, with 0 being the cells which are 'empty' and thus have to be filled up
-   * with numbers.
-   *
-   * uses digitData as lookup table to paint onto the canvas, thus modifying the canvas.
-   */
-  // lazy val solvedCanvasNormalized: Mat = ssolvedCanvasNormalized(normalized, cellValues, cellRois)
-
-
-  // lazy val annotated = SudokuUtils.paintCorners(solvedCanvasNormalized, cellRois, hitHistory, cap)
+  val isSolved: Boolean = history.isSolved
 
 
   // implicitly perform all calculations, provide new image recognition situation
@@ -118,14 +120,14 @@ case class Sudoku(id: String
     //println("- Updated hit history")
     //println("-" * 80)
     // change templates to the better
-    val updatedLibrary = SudokuUtils.mergeDigitLibrary(normalized, digitLibrary, cells)
-    logInfo("NrDetections: " + updatedHitHistory.nrHits + " minHits: " + Sudoku.minNrOfDetectedCells)
-    if (updatedHitHistory.isReadyToSolve) {
+
+    logInfo("NrDetections: " + history.nrHits + " minHits: " + Sudoku.minNrOfDetectedCells)
+    if (history.isReadyToSolve) {
       logInfo("Trying to solve:")
-      logInfo("\n" + updatedHitHistory.asSudokuString)
-      val solvedSudoku: SudokuHistory = updatedHitHistory.solved
+      logInfo("\n" + history.asSudokuString)
+      val solvedSudoku: SudokuHistory = history.solved
       if (solvedSudoku.isSolved) {
-        Option(SolvedSudoku(frameNr, frame, normalized, detectedCorners, cellRois, solvedSudoku, updatedLibrary))
+        Option(SolvedSudoku(frameNr, frame, normalized, detectedCorners, cellRois, solvedSudoku, digitLibrary))
       } else {
         logWarn("Could not verify solution, resetting ...")
         /*        Option(SolvedSudoku(inputFrame
@@ -141,8 +143,8 @@ case class Sudoku(id: String
       Option(SolvedSudoku(frame
         , None
         , detectedCorners
-        , updatedHitHistory
-        , updatedLibrary))
+        , history
+        , digitLibrary))
     }
   }
 
@@ -191,7 +193,7 @@ object SolvedSudoku {
 
 }
 
-case class SolvedSudoku(video: Mat
+case class SolvedSudoku(frameWithSolution: Mat
                         , optCNormalized: Option[Mat]
                         , detectedCorners: Mat
                         , sudokuHistory: SudokuHistory

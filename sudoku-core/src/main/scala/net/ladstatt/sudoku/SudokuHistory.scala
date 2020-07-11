@@ -76,15 +76,11 @@ case class SudokuHistory(timestamp: Long
     if (isSolved) {
       this
     } else
-      SudokuUtils.solve(currentValues.map(x => (x + 48).toChar).toArray, Parameters.maxSolvingDuration) match {
+      SudokuUtils.solve(currentValues.map(x => (x + 48).toChar).toArray, Sudoku.maxSolvingDuration) match {
         case None =>
           logWarn("Could not solve sudoku.")
           this
-        case Some(solution) =>
-          logTrace("Solved sudoku")
-          val solutionAsDigits: Seq[Int] = solution.map(_.asDigit).toSeq
-          SudokuHistory(solutionAsDigits, Sudoku.minNrOfValueHits)
-        //          add(solvedSudoku)
+        case Some(solutionAsDigits) => solutionAsDigits
       }
   }
 

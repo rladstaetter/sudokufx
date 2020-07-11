@@ -11,10 +11,6 @@ object Parameters {
 
   val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
 
-  /**
-   * the maximum time the algorithm should search for a solution
-   */
-  val maxSolvingDuration: FiniteDuration = 5000 millis
 
   // least number of matches necessary to identify one number
   // if you have a good camera, take 1 to get fast response

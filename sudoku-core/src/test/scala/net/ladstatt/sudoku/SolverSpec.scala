@@ -17,7 +17,7 @@ class SolverSpec extends AnyWordSpecLike {
       |695417382""".stripMargin.replaceAll("\n", "")
 
   def solveReadableSudoku(sudokuWithNewLines: String): Option[SudokuDigitSolution] = {
-    BruteForceSolver.solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray, 5000L)
+    BruteForceSolver.solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray, Sudoku.maxSolvingDuration.toMillis)
   }
 
   "testSum" in {

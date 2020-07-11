@@ -23,8 +23,9 @@ case class PInt(x: Int, y: Int) {
 object SudokuUtils {
 
   def solve(solutionCandidate: SudokuDigitSolution
-            , maxDuration: FiniteDuration): Option[SudokuDigitSolution] =
-    BruteForceSolver.solve(solutionCandidate, maxDuration.toMillis)
+            , maxDuration: FiniteDuration): Option[SudokuHistory] = {
+    BruteForceSolver.solve(solutionCandidate, maxDuration.toMillis).map(solution => SudokuHistory(solution.map(_.asDigit).toSeq, Sudoku.minNrOfValueHits))
+  }
 
   def withCap(cap: Int)(v: Int): Boolean = v >= cap
 

@@ -13,7 +13,7 @@ import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, Simp
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image._
-import javafx.scene.layout.FlowPane
+import javafx.scene.layout.{FlowPane, GridPane}
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Polyline, Rectangle}
 import org.bytedeco.javacv.OpenCVFrameGrabber
@@ -51,7 +51,7 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   @FXML var templateToolBar: ToolBar = _
   @FXML var modeButtons: ToggleGroup = _
-
+  @FXML var libraryGridPane: GridPane = _
   @FXML var contourModeChoiceBox: ChoiceBox[Int] = _
   @FXML var contourMethodChoiceBox: ChoiceBox[Int] = _
   @FXML var contourRatioChoiceBox: ChoiceBox[Int] = _
@@ -141,11 +141,14 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   }
 
+
   val envObservable: Observable[SudokuEnvironment] = {
     if (Sudoku.debug) {
       mkObservable(s1.subscribe)
     } else mkObservable(fromWebCam)
   }
+
+  var cnt: Int = 100
 
   def onResult(env: SudokuEnvironment): Unit = {
     env.optSudoku match {
@@ -154,27 +157,31 @@ class SudokuFXController extends Initializable with JfxUtils {
         setVideoView(env.grayed)
       //setNormalizedView(env.dilated)
       case Some(sudoku) =>
-        setVideoView(env.frame)
-        setNormalizedView(sudoku.normalized)
+        // setNormalizedView(sudoku.normalized)
         // todo: if sudoku is already solved, we would just have to apply warp
         // transformations to current image
         if (sudoku.isSolved) {
-          println()
-          println(sudoku.sHistory.asSudokuString)
+          cnt = cnt - 1
+          if (cnt == 0) {
+            cnt = 300
+            clearSolution()
+          }
+          println(sudoku.history.asSudokuString)
           println()
         } else
-          sudoku.trySolve match {
-            case Some(solvedSudoku) =>
-              println(solvedSudoku.sudokuHistory.asSudokuString)
-              setVideoView(solvedSudoku.video)
-              // TODO triggers exception
-              solvedSudoku.optCNormalized.foreach(setSolutionView)
-              setLastSolution(solvedSudoku)
-            case None =>
-              logTrace("Could not solve sudoku, resetting sudoku state.")
-              setVideoView(env.inverted)
-              clearSolution()
-          }
+          setVideoView(env.frame)
+        sudoku.trySolve match {
+          case Some(solvedSudoku) =>
+            println(solvedSudoku.sudokuHistory.asSudokuString)
+            setVideoView(solvedSudoku.frameWithSolution)
+            // TODO triggers exception
+            //solvedSudoku.optCNormalized.foreach(setSolutionView)
+            setLastSolution(solvedSudoku)
+          case None =>
+            logTrace("Could not solve sudoku, resetting sudoku state.")
+            setVideoView(env.inverted)
+            clearSolution()
+        }
     }
 
   }

@@ -80,9 +80,9 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
 
   private def detect(base: Path, number: Int): Seq[SCell] = {
     val files = Files.list(base.resolve(number.toString)).iterator.asScala.toSeq
-    val withIndex = files.zipWithIndex
     val cells: Seq[SCell] =
-      (for ((p, i) <- withIndex) yield {
+      (for ((p, i) <- files.zipWithIndex) yield {
+        println(p.getFileName.toString)
         SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0))
       })
     cells
@@ -129,19 +129,37 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
       }
     }
 
-    "solve exact number at ease" in {
-      sudoku1ReadyToSolve.optSudoku match {
+
+    def solve(toSolve: SudokuEnvironment, onSuccess: SolvedSudoku => Unit): Unit = {
+      toSolve.optSudoku match {
         case Some(value) =>
           value.trySolve match {
-            case Some(value) =>
-              assert(value.sudokuHistory.isSolved)
-              assert(value.sudokuHistory == Sudokus.sudokuSolved)
+            case Some(value) => onSuccess(value)
             case None =>
               fail()
           }
         case None =>
           fail()
       }
+    }
+
+    "create solved image" in {
+      solve(sudoku1ReadyToSolve, {
+        solvedSudoku =>
+          solvedSudoku.optCNormalized match {
+            case Some(value) =>
+              JavaCV.writeMat(Sudoku.targetPath.resolve("cNormalized.png"), value)
+            case None =>
+              fail()
+          }
+      })
+    }
+    "solve exact number at ease" in {
+      solve(sudoku1ReadyToSolve, {
+        value =>
+          assert(value.sudokuHistory.isSolved)
+          assert(value.sudokuHistory == Sudokus.sudokuSolved)
+      })
     }
 
     "why does warp feel so really bad" in {
@@ -173,7 +191,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     }
     "find and solve a sudoku for a single frame n times applied" in {
       val envs: Seq[SudokuEnvironment] =
-        for (i <- 0 to 300) yield sudoku1Empty.copy(frameNr = i)
+        for (i <- 0 to 100) yield sudoku1Empty.copy(frameNr = i)
 
       val envComputed =
         envs.foldLeft(sudoku1Empty) {
@@ -183,7 +201,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
               case None =>
                 ???
               case Some(s) =>
-                acc.copy(history = s.updatedHitHistory)
+                acc.copy(history = s.history)
             }
         }
       logInfo("\n" + envComputed.history.asSudokuString)
