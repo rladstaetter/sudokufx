@@ -83,7 +83,6 @@ class ServiceWorkerSpec extends JfxUtils with AnyWordSpecLike with CanLog {
         Thread.sleep(10)
       }, t => logInfo(s"Finished turn in $t ms."))
 
-    Thread.sleep(1000)
   }
 }
 

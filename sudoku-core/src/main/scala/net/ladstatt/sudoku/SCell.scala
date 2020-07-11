@@ -109,7 +109,11 @@ case class SCell(id: String
     optNumberCellMat.map {
       m => TemplateLibrary.detectNumber(id, frameNr, pos, targetPath, m)
     }.getOrElse((0, 0.0))
-
+/*
+  if (detectedValue == 7) {
+    JavaCV.writeMat(targetPath.resolve(detectedValue.toString).resolve(s"$detectedValue-$frameNr.png"), origMat)
+  }
+*/
   /** adds current hit to history, ignoring 0 */
   val updatedHits: Map[Int, Int] = {
     if (detectedValue == 0) {

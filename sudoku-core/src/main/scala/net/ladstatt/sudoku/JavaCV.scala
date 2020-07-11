@@ -378,15 +378,9 @@ object JavaCV extends CanLog {
     writeMat(path, res)
   }
 
-  def doitWith(target: Path, op: Mat => Mat)(mat: Mat): Mat = {
-    val res: Mat = op(mat)
-    // JavaCV.writeMat(target, res)
-    res
-  }
-
   def doitWith(id: String, frameNr: Int, pos: Int, name: String, op: Mat => Mat, parentFolder: Path)(mat: Mat): Mat = {
     val res: Mat = op(mat)
-    // JavaCV.writeMat(name, id, frameNr, pos, parentFolder, res)
+    JavaCV.writeMat(name, id, frameNr, pos, parentFolder, res)
     res
   }
 

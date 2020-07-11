@@ -3,7 +3,6 @@ package net.ladstatt.sudoku
 import java.nio.file.{Files, Path, Paths}
 
 import net.ladstatt.core.CanLog
-import net.ladstatt.sudoku.Parameters.size1280x720
 import org.bytedeco.javacpp.FloatPointer
 import org.bytedeco.opencv.global.{opencv_core, opencv_imgproc}
 import org.bytedeco.opencv.opencv_core.{Mat, Rect, Size}
@@ -92,16 +91,13 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
   /** tests that given more than one image, the image recognition yields expectedNumber overall */
   def detectOverall(base: Path, expectedNumber: Int): Assertion = {
     val files = Files.list(base.resolve(expectedNumber.toString)).iterator.asScala.toSeq
-    println(base)
-    println(files)
+    //    files.foreach(println)
+    //   println(files)
     val res: Map[Int, Int] =
-      files.zipWithIndex.foldLeft(Map[Int, Int]().withDefaultValue(0)) {
-        case (acc, (p, i)) =>
-          // println("loading S:" + p.toAbsolutePath.toString)
-          val s = SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc).updatedHits
-          //println("loading F:" + p.toAbsolutePath.toString)
-          s
-      }
+    files.zipWithIndex.foldLeft(Map[Int, Int]().withDefaultValue(0)) {
+      case (acc, (p, i)) =>
+        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc).updatedHits
+    }
     println(res)
     val (detectedNumber, _) =
       res.toSeq.sortWith {
@@ -151,7 +147,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     "why does warp feel so really bad" in {
 
       //val m: Mat = JavaCV.loadMat(Paths.get("/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/testdata/frame1.png"))
-      for (i <- 1 to 1000) {
+      for (i <- 1 to 100) {
         val srcCorners = new Mat(new Size(2, 4), opencv_core.CV_32F, new FloatPointer(862f, 283f, 1240f, 339f, 1172f, 711f, 804f, 640f))
         val transformationMatrix = opencv_imgproc.getPerspectiveTransform(srcCorners, JavaCV.mkCorners(Parameters.size1280x720.width, Parameters.size1280x720.height))
         val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/testdata/frame1.png"))
@@ -163,12 +159,12 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
       }
     }
 
-    "why does warp feel so bad" ignore {
-      val fp = new FloatPointer(862, 283, 1240, 339, 1172, 711, 804, 640)
-      val srcCorners = new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
-      val transformationMatrix = opencv_imgproc.getPerspectiveTransform(srcCorners, Parameters.normalizedCorners)
-      val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/testdata/frame1.png"))
-      for (i <- 1 to 1000) {
+    "why does warp feel so bad" in {
+      for (i <- 1 to 100) {
+        val fp = new FloatPointer(862, 283, 1240, 339, 1172, 711, 804, 640)
+        val srcCorners = new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
+        val transformationMatrix = opencv_imgproc.getPerspectiveTransform(srcCorners, Parameters.normalizedCorners)
+        val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/testdata/frame1.png"))
         val res = JavaCV.warpP(m, transformationMatrix)
         if ((i % 25) == 0) {
           JavaCV.writeMat(Sudoku.targetPath.resolve(s"$i-warped.png"), res)
@@ -182,7 +178,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
       val envComputed =
         envs.foldLeft(sudoku1Empty) {
           case (acc, env) =>
-           // println("!!!!!!!!!!!!!!")
+            // println("!!!!!!!!!!!!!!")
             env.copy(history = acc.history).optSudoku match {
               case None =>
                 ???
