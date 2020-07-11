@@ -9,7 +9,6 @@
 <?import javafx.scene.control.ToggleGroup?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
@@ -69,23 +68,19 @@
     </Accordion>
     <BorderPane>
         <left>
-            <AnchorPane id="AnchorPane" fx:id="canvas" BorderPane.alignment="CENTER">
-                <children>
-                    <ImageView fx:id="videoView" fitWidth="850.0" pickOnBounds="true" preserveRatio="true" />
-                    <AnchorPane fx:id="polyArea" />
-                </children>
-            </AnchorPane>
+            <ImageView fx:id="videoView" fitWidth="850.0" pickOnBounds="true" preserveRatio="true" />
         </left>
         <right>
-            <AnchorPane id="AnchorPane" fx:id="normalizedCanvas" BorderPane.alignment="CENTER">
-                <children>
-                    <ImageView fx:id="normalizedView" fitWidth="430.0" pickOnBounds="true" preserveRatio="true" />
-                </children>
-            </AnchorPane>
+         <VBox>
+            <children>
+                  <ImageView fx:id="normalizedView" fitWidth="430.0" pickOnBounds="true" preserveRatio="true" />
+               <ImageView fx:id="solutionView" fitWidth="430.0" pickOnBounds="true" preserveRatio="true" />
+            </children>
+         </VBox>
         </right>
-      <bottom>
-              <Button fx:id="resetButton" onAction="#resetState" text="reset" BorderPane.alignment="CENTER" />
-      </bottom>
+        <bottom>
+            <Button fx:id="resetButton" onAction="#resetState" text="reset" BorderPane.alignment="CENTER" />
+        </bottom>
     </BorderPane>
 
 </VBox>

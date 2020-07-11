@@ -1,5 +1,6 @@
 package net.ladstatt.sudoku
 
+import java.nio.FloatBuffer
 import java.nio.file.{Path, Paths}
 
 import net.ladstatt.sudoku.JavaCV._
@@ -30,12 +31,40 @@ object Sudoku {
   // val minQuality = 12500000
   //val minQuality = 3500000
 
+  def apply(id: String
+            , frameNr: Int
+            , frame: Mat
+            , detectedCorners: Mat
+            , history: SudokuHistory
+            , library: DigitLibrary): Sudoku = {
+    val normalized = JavaCV.warp(frame, detectedCorners)
+    /*
+    if ((frameNr % 25) == 0) {
+      JavaCV.writeMat(targetPath.resolve(frameNr + "-frame.png"), frame)
+      JavaCV.writeMat(targetPath.resolve(frameNr + "-normalized.png"), normalized)
+      JavaCV.writeMat(Sudoku.targetPath.resolve(frameNr + "-dilated.png"), dilated)
+    }
+    */
+    /* sudoku outer rectangle */
+    val corners: Seq[Float] = {
+      val bf = detectedCorners.createBuffer[FloatBuffer]
+      val (x1, y1) = (bf.get(0), bf.get(1))
+      val (x2, y2) = (bf.get(2), bf.get(3))
+      val (x3, y3) = (bf.get(4), bf.get(5))
+      val (x4, y4) = (bf.get(6), bf.get(7))
+      Seq(x1, y1
+        , x2, y2
+        , x3, y3
+        , x4, y4)
+    }
+    Sudoku(id, frameNr, frame, normalized, corners, detectedCorners, history, library)
+  }
 }
 
 /**
  * Created by lad on 01.05.16.
  *
- * @param frame      video input
+ * @param frame           video input
  * @param detectedCorners corner points of detected sudoku
  */
 case class Sudoku(id: String
@@ -110,6 +139,7 @@ case class Sudoku(id: String
     } else {
       logTrace("did not yet find enough hits to solve sudoku")
       Option(SolvedSudoku(frame
+        , None
         , detectedCorners
         , updatedHitHistory
         , updatedLibrary))
@@ -153,6 +183,7 @@ object SolvedSudoku {
     JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-solution.png"), solutionMat)
 
     SolvedSudoku(solutionMat
+      , Option(cNormalized)
       , detectedCorners
       , solvedSudoku
       , updatedLibrary)
@@ -161,6 +192,7 @@ object SolvedSudoku {
 }
 
 case class SolvedSudoku(video: Mat
+                        , optCNormalized: Option[Mat]
                         , detectedCorners: Mat
                         , sudokuHistory: SudokuHistory
                         , library: DigitLibrary)

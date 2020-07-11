@@ -1,14 +1,11 @@
 package net.ladstatt.sudoku
 
-import java.nio.FloatBuffer
 import java.nio.file.Path
 
 import net.ladstatt.core.CanLog
 import net.ladstatt.sudoku.JavaCV.{extractCurveWithMaxArea, has4Sides}
-import net.ladstatt.sudoku.Sudoku.targetPath
-import org.bytedeco.javacpp.FloatPointer
-import org.bytedeco.opencv.global.{opencv_core, opencv_imgproc}
-import org.bytedeco.opencv.opencv_core.{Mat, MatVector, Size}
+import org.bytedeco.opencv.global.opencv_imgproc
+import org.bytedeco.opencv.opencv_core.{Mat, MatVector}
 
 /**
  * In this class all data for a sudoku is saved an passed through the algorithmic steps.
@@ -55,41 +52,19 @@ case class SudokuEnvironment(id: String
   val dilated: Mat = JavaCV.dilate(inverted)
   //
 
-
-  /**
-   * This mat contains an 'unstretched' version of the detected sudoku outer rectangle.
-   *
-   * In this representation it is easier to paint upon. After painting this Mat will be retransformed
-   * to the original appearance again.
-   */
+  lazy val someRectangle: Option[Mat] = {
+    val inputFrameCorners = JavaCV.mkCorners(frame)
+    val contours: MatVector = JavaCV.findContours(dilated, contourParams.retrivalMode, contourParams.approximation)
+    val minimumExpectedArea: Double = opencv_imgproc.contourArea(inputFrameCorners) / contourParams.contourRatio
+    val maybeMat = detectRectangle(contours, minimumExpectedArea)
+    maybeMat
+  }
 
 
   /** frames without rectangles get filtered out to a None, otherwise start processing Sudoku */
   lazy val optSudoku: Option[Sudoku] = {
-    val inputFrameCorners = JavaCV.mkCorners(frame)
-    val contours: MatVector = JavaCV.findContours(dilated, contourParams.retrivalMode, contourParams.approximation)
-    val minimumExpectedArea: Double = opencv_imgproc.contourArea(inputFrameCorners) / contourParams.contourRatio
-    detectRectangle(contours, minimumExpectedArea).map(detectedCorners => {
-      val normalized = JavaCV.warp(frame, detectedCorners)
-      if ((frameNr % 25) == 0) {
-        JavaCV.writeMat(targetPath.resolve(frameNr + "-frame.png"), frame)
-        JavaCV.writeMat(targetPath.resolve(frameNr + "-normalized.png"), normalized)
-        JavaCV.writeMat(Sudoku.targetPath.resolve(frameNr + "-dilated.png"), dilated)
-      }
-      /* sudoku outer rectangle */
-      val corners: Seq[Float] = {
-        val bf = detectedCorners.createBuffer[FloatBuffer]
-        val (x1, y1) = (bf.get(0), bf.get(1))
-        val (x2, y2) = (bf.get(2), bf.get(3))
-        val (x3, y3) = (bf.get(4), bf.get(5))
-        val (x4, y4) = (bf.get(6), bf.get(7))
-        Seq(x1, y1
-          , x2, y2
-          , x3, y3
-          , x4, y4)
-      }
-      //logTrace("corners: " + corners)
-      Sudoku(id, frameNr, frame, normalized, corners, detectedCorners, history, library)
+    someRectangle.map(detectedCorners => {
+      Sudoku(id, frameNr, frame, detectedCorners, history, library)
     })
   }
 

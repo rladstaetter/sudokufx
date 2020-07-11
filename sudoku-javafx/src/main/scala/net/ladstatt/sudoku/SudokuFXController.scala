@@ -13,7 +13,7 @@ import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, Simp
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image._
-import javafx.scene.layout.{AnchorPane, FlowPane}
+import javafx.scene.layout.FlowPane
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Polyline, Rectangle}
 import org.bytedeco.javacv.OpenCVFrameGrabber
@@ -40,10 +40,11 @@ class SudokuFXController extends Initializable with JfxUtils {
   @FXML var resultFlowPane: FlowPane = _
 
   @FXML var numberFlowPane: FlowPane = _
-  @FXML var canvas: AnchorPane = _
 
   @FXML var videoView: ImageView = _
   @FXML var normalizedView: ImageView = _
+  @FXML var solutionView: ImageView = _
+
   @FXML var solutionButton: ToggleButton = _
   @FXML var viewButtons: ToggleGroup = _
   @FXML var statusLabel: Label = _
@@ -151,7 +152,7 @@ class SudokuFXController extends Initializable with JfxUtils {
       case None =>
         //logTrace("No sudoku / rectangle found ... ")
         setVideoView(env.grayed)
-        //setNormalizedView(env.dilated)
+      //setNormalizedView(env.dilated)
       case Some(sudoku) =>
         setVideoView(env.frame)
         setNormalizedView(sudoku.normalized)
@@ -166,6 +167,8 @@ class SudokuFXController extends Initializable with JfxUtils {
             case Some(solvedSudoku) =>
               println(solvedSudoku.sudokuHistory.asSudokuString)
               setVideoView(solvedSudoku.video)
+              // TODO triggers exception
+              solvedSudoku.optCNormalized.foreach(setSolutionView)
               setLastSolution(solvedSudoku)
             case None =>
               logTrace("Could not solve sudoku, resetting sudoku state.")
@@ -186,13 +189,13 @@ class SudokuFXController extends Initializable with JfxUtils {
     require(Option(viewButtons).isDefined)
     require(Option(videoView).isDefined)
     require(Option(normalizedView).isDefined)
+    require(Option(solutionView).isDefined)
     require(Option(solutionButton).isDefined)
   }
 
   def initializeSharedState(): Unit = {
     require(Option(statusLabel).isDefined)
     require(Option(templateToolBar).isDefined)
-    canvas.getChildren.add(sudokuBorder)
     ()
   }
 
@@ -268,13 +271,11 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   val borderFadeTransition: FadeTransition = mkFadeTransition(500, sudokuBorder, 1.0, 0.0)
 
-  def setNormalizedView(mat: Mat): Unit = {
-     normalizedView.setImage(JavaCVPainter.toImage(mat))
-  }
+  def setVideoView(mat: Mat): Unit = videoView.setImage(JavaCVPainter.toImage(mat))
 
-  def setVideoView(mat: Mat): Unit = {
-    videoView.setImage(JavaCVPainter.toImage(mat))
-  }
+  def setNormalizedView(mat: Mat): Unit = normalizedView.setImage(JavaCVPainter.toImage(mat))
+
+  def setSolutionView(mat: Mat): Unit = solutionView.setImage(JavaCVPainter.toImage(mat))
 
   /*
     def mkRange(a: Double, b: Double, nrCells: Int = 9): Seq[Double] = {
