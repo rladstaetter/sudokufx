@@ -199,9 +199,10 @@ object JavaCV extends CanLog {
     dest
   }
 
-  def copyTo(canvas: Mat, data: Mat, roi: Rect): Unit = {
+  def copyTo(canvas: Mat, data: Mat, roi: Rect): Mat = {
     val cellTarget = new Mat(canvas, roi)
     data.copyTo(cellTarget)
+    canvas
   }
 
   def paintRect(canvas: Mat, rect: Rect, color: Scalar, thickness: Int): Unit = {

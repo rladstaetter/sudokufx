@@ -109,7 +109,7 @@ object SudokuUtils {
    */
   def mkFallback(number: Int, digitLibrary: DigitLibrary): Option[Mat] = {
     /**
-     * returns size and type of Mat's contained int he digitLibrary
+     * returns size and type of Mat's contained in digitLibrary
      *
      * @return
      */

@@ -157,15 +157,28 @@ object SolvedSudoku {
                       , cellValues: Seq[Int]
                       , cellRois: Seq[Rect]
                       , digitLibrary: DigitLibrary): Mat = {
-    for ((s, r) <- cellValues zip cellRois if s != 0) {
-      val someNormalizedCell: Option[Mat] =
-        for {d <- digitLibrary(s)._2
-             fb <- SudokuUtils.mkFallback(s, digitLibrary)} yield fb
-      someNormalizedCell foreach {
-        normalizedCell => copyTo(normalized, normalizedCell, r)
-      }
+
+    (cellValues zip cellRois).foldLeft(normalized) {
+      case (norm, (s, r)) =>
+        val cell =
+          digitLibrary(s)._2 match {
+            case None => SudokuUtils.mkFallback(s, digitLibrary).get
+            case Some(s) => s
+          }
+        copyTo(norm, cell, r)
     }
-    normalized
+/*
+    for ((s, r) <- cellValues zip cellRois if s != 0) {
+      val cell: Mat = {
+        digitLibrary(s)._2 match {
+          case None => SudokuUtils.mkFallback(s, digitLibrary).get
+          case Some(s) => s
+        }
+      }
+      copyTo(normalized, cell, r)
+    }
+    // will be mutated during for loop
+    normalized*/
   }
 
   def apply(frameNr: Int
@@ -174,8 +187,8 @@ object SolvedSudoku {
             , detectedCorners: Mat
             , cellRois: Seq[Rect]
             , solvedSudoku: SudokuHistory
-            , updatedLibrary: DigitLibrary): SolvedSudoku = {
-    val cNormalized: Mat = normalizeCanvas(normalized, solvedSudoku.currentValues, cellRois, updatedLibrary)
+            , digitLibrary: DigitLibrary): SolvedSudoku = {
+    val cNormalized: Mat = normalizeCanvas(normalized, solvedSudoku.currentValues, cellRois, digitLibrary)
     // val cells: Seq[SCell] = SudokuUtils.toSolutionCells(updatedLibrary, solvedSudoku)
     JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-solvedCanvasNormalized.png"), cNormalized)
 
@@ -188,7 +201,7 @@ object SolvedSudoku {
       , Option(cNormalized)
       , detectedCorners
       , solvedSudoku
-      , updatedLibrary)
+      , digitLibrary)
   }
 
 }
