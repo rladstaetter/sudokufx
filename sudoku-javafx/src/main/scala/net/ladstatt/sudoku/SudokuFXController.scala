@@ -13,7 +13,7 @@ import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, Simp
 import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image._
-import javafx.scene.layout.{FlowPane, GridPane}
+import javafx.scene.layout.FlowPane
 import javafx.scene.paint.Color
 import javafx.scene.shape.{Polyline, Rectangle}
 import org.bytedeco.javacv.OpenCVFrameGrabber
@@ -49,9 +49,12 @@ class SudokuFXController extends Initializable with JfxUtils {
   @FXML var viewButtons: ToggleGroup = _
   @FXML var statusLabel: Label = _
 
+  // used templates
   @FXML var templateToolBar: ToolBar = _
+  // current digits which are to be displayed
+  @FXML var digitToolBar: ToolBar = _
+
   @FXML var modeButtons: ToggleGroup = _
-  @FXML var libraryGridPane: GridPane = _
   @FXML var contourModeChoiceBox: ChoiceBox[Int] = _
   @FXML var contourMethodChoiceBox: ChoiceBox[Int] = _
   @FXML var contourRatioChoiceBox: ChoiceBox[Int] = _
@@ -151,6 +154,7 @@ class SudokuFXController extends Initializable with JfxUtils {
   var cnt: Int = 100
 
   def onResult(env: SudokuEnvironment): Unit = {
+    displayDigitLibrary(env.library)
     env.optSudoku match {
       case None =>
         //logTrace("No sudoku / rectangle found ... ")
@@ -597,6 +601,10 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
     //initNumberFlowPane(numberFlowPane)
     //    modeButtons.selectedToggleProperty.addListener(mkChangeListener(onModeChange))
 
+    for (i <- 0 to 9) {
+      digitToolBar.getItems.add(new ImageView)
+    }
+
     // startCapture
     envObservable.subscribe(
       onResult,
@@ -606,6 +614,19 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
         System.exit(0)
       })
     ()
+  }
+
+  def asImage(m: Mat): Image = JavaCVPainter.toImage(m)
+
+  def displayDigitLibrary(digitLibrary: DigitLibrary): Unit = {
+    for ((i, (q, optM)) <- digitLibrary) {
+      println(i)
+      optM match {
+        case None => logError(s"No data found for digit $i")
+        case Some(m) =>
+          digitToolBar.getItems.get(i).asInstanceOf[ImageView].setImage(asImage(m))
+      }
+    }
   }
 
 }
