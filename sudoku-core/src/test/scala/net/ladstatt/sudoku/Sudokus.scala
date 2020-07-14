@@ -31,7 +31,8 @@ object Sudokus {
         , 1240f, 339f
         , 1172f, 711f
         , 804f, 640f)
-      , s1ReadyToSolve.assumeReadyToSolve)
+      , s1ReadyToSolve.assumeReadyToSolve
+      , Parameters.defaultDigitLibrary)
 
   val sudokuSolved: SudokuHistory =
     SudokuHistory(
@@ -55,7 +56,8 @@ object Sudokus {
         , 1240f, 339f
         , 1172f, 711f
         , 804f, 640f)
-      , s1ReadyToSolve)
+      , s1ReadyToSolve
+      , Parameters.defaultDigitLibrary)
 
   /** what the image processing thinks it sees for frame1 */
   /*
@@ -71,18 +73,18 @@ object Sudokus {
          |094203200
          |070600900""".stripMargin)
   */
-/*
-  lazy val sudoku2CurrentBestConfiguration: SudokuHistory = SudokuHistory(
-    """|608001020
-       |009302580
-       |000890300
-       |000200090
-       |300080007
-       |040006000
-       |003025000
-       |094103200
-       |070600903""".stripMargin)
-  */
+  /*
+    lazy val sudoku2CurrentBestConfiguration: SudokuHistory = SudokuHistory(
+      """|608001020
+         |009302580
+         |000890300
+         |000200090
+         |300080007
+         |040006000
+         |003025000
+         |094103200
+         |070600903""".stripMargin)
+    */
   /** what the image processing thinks it sees for frame2 */
   lazy val sudoku2CurrentBest =
     SudokuEnvironment("sudoku2"
@@ -93,7 +95,8 @@ object Sudokus {
         , 719.0f, 170.0f
         , 738.0f, 571.0f
         , 349.0f, 588.0f
-      ), hitCounters = SudokuHistory())
+      ), history = SudokuHistory()
+      , Parameters.defaultDigitLibrary)
 
   /** a map with paths to original images and coordinates of sudoku area to detect */
   lazy val validSudokus: Seq[SudokuEnvironment] = Seq(sudoku1Empty, sudoku2CurrentBest)

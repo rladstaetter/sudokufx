@@ -32,7 +32,7 @@ case class SudokuHistory(timestamp: Long
 
   /** converts cells to a hitcounter Seq which contains all cells and a hitcount set to minHitCount
    * in order to trigger a solution attempt with given numbers */
-  def assumeReadyToSolve =
+  def assumeReadyToSolve: SudokuHistory =
     SudokuHistory(timestamp, for {m <- cells
                                   (number, _) <- m} yield Map(number -> Sudoku.minNrOfValueHits))
 
@@ -49,15 +49,15 @@ case class SudokuHistory(timestamp: Long
   }
 
   /** analyses hits and returns numbers if threshold is reached, otherwise 0 */
-  lazy val currentValues: Seq[Int] = cells.map(optBestNumber)
+  lazy val cellValues: Seq[Int] = cells.map(optBestNumber)
 
   /** for each cell there is a value */
   //assert(currentValues.size == Parameters.cellCount)
 
-  lazy val isSolved: Boolean = 405 == currentValues.sum
+  lazy val isSolved: Boolean = 405 == cellValues.sum
 
   /** number of hits and keeping information from previous runs in mind */
-  lazy val nrHits: Int = currentValues.count(_ != 0)
+  lazy val nrHits: Int = cellValues.count(_ != 0)
 
   lazy val isReadyToSolve: Boolean = nrHits >= Sudoku.minNrOfDetectedCells
 
@@ -76,7 +76,7 @@ case class SudokuHistory(timestamp: Long
     if (isSolved) {
       this
     } else
-      SudokuUtils.solve(currentValues.map(x => (x + 48).toChar).toArray, Sudoku.maxSolvingDuration) match {
+      SudokuUtils.solve(cellValues.map(x => (x + 48).toChar).toArray, Sudoku.maxSolvingDuration) match {
         case None =>
           logWarn("Could not solve sudoku.")
           this
@@ -84,7 +84,7 @@ case class SudokuHistory(timestamp: Long
       }
   }
 
-  def asSudokuString: String = currentValues.sliding(9, 9).map(_.mkString).mkString("\n")
+  def asSudokuString: String = cellValues.sliding(9, 9).map(_.mkString).mkString("\n")
 
   /** returns best hit for a given history of a cell, if threshold is not reached it returns 0 */
   def optBestNumber(m: Map[Int, Int]): Int = {

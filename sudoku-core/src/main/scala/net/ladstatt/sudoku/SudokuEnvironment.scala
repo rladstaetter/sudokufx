@@ -19,16 +19,18 @@ object SudokuEnvironment {
    * @return
    */
   def apply(id: String
-            , index: Int
+            , frameNr: Int
             , path: Path
             , corners: Seq[Float]
-            , hitCounters: SudokuHistory): SudokuEnvironment = {
+            , history: SudokuHistory
+            , library: DigitLibrary): SudokuEnvironment = {
     new SudokuEnvironment(id
-      , index
+      , frameNr
       , JavaCV.loadMat(path)
       , corners
       , ContourParams()
-      , hitCounters)
+      , history
+      , library)
   }
 
 }
@@ -39,7 +41,7 @@ case class SudokuEnvironment(id: String
                              , corners: Seq[Float]
                              , contourParams: ContourParams
                              , history: SudokuHistory
-                             , library: DigitLibrary = Parameters.defaultDigitLibrary
+                             , library: DigitLibrary
                              , someSolutionMat: Option[Mat] = None
                              , resultCells: Seq[SCell] = Seq()
                             ) extends CanLog {

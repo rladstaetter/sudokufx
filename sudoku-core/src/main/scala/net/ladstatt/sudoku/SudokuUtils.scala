@@ -48,13 +48,13 @@ object SudokuUtils {
                       , digitLibrary: DigitLibrary
                       , sudokuHistory: SudokuHistory): Seq[SCell] = {
     (for (pos <- cellRange) yield {
-      val value = sudokuHistory.currentValues(pos)
+      val value = sudokuHistory.cellValues(pos)
 
       val x: Option[SCell] =
         if (value != 0) {
-          val someM: Option[Mat] = digitLibrary(value)._2
+          val someM: Option[Mat] = digitLibrary.digits(value).optMat
           (if (someM.isEmpty) {
-            digitLibrary(value)._2
+            digitLibrary.digits(value).optMat
           } else someM)
             .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.cells(pos)))
         } else None
@@ -114,7 +114,7 @@ object SudokuUtils {
      * @return
      */
     def determineMatParams(): Option[(Size, Int)] = {
-      digitLibrary.values.flatMap(_._2).headOption.map(m => (m.size, m.`type`))
+      digitLibrary.digits.values.flatMap(_.optMat).headOption.map(m => (m.size, m.`type`))
     }
 
     for ((size, matType) <- determineMatParams()) yield {
@@ -123,47 +123,6 @@ object SudokuUtils {
       opencv_imgproc.putText(mat, number.toString, new Point((size.width * 0.3).toInt, (size.height * 0.9).toInt), opencv_imgproc.FONT_HERSHEY_TRIPLEX, 2, new Scalar(0, 0, 0, 255))
       mat
     }
-  }
-
-  /*
-    def mergeHits(hitHistory: Seq[Map[Int, Int]], detections: Seq[Int]): Seq[Map[Int, Int]] = {
-      val hits =
-        (for ((frequencies, index) <- detections.zipWithIndex) yield {
-          index -> (frequencies + (value -> (frequencies(value) + 1)))
-        }).toMap
-      val cellAmbiguities = hits.values.map(m => m.size).count(_ > Parameters.ambiguitiesCount)
-      if (cellAmbiguities > Parameters.ambiCount) {
-        logError(s"Too many ambiguities ($cellAmbiguities), resetting .. ")
-        SudokuState.DefaultState.hitCounters
-      } else {
-        hits
-      }
-    }
-  */
-
-  def mergeDigitLibrary(sudokuCanvas: Mat,
-                        digitLibrary: DigitLibrary,
-                        detectedCells: Seq[SCell]): DigitLibrary = {
-
-    /**
-     * The filter returns only cells which contain 'better match' cells.
-     *
-     * If there are cells containing '0' detected they are ignored.
-     */
-    val qualityFilter: PartialFunction[SCell, Boolean] = {
-      case c => (c.detectedValue != 0) && (c.quality < digitLibrary(c.detectedValue)._1) // lower means "better"
-    }
-
-    val hits: Seq[SCell] = detectedCells.filter(qualityFilter)
-    val grouped: Map[Int, Seq[SCell]] = hits.groupBy(f => f.detectedValue)
-    //    import Ordering.Double.TotalOrdering
-    val optimal: Map[Int, SCell] = grouped.map { case (i, cells) => i -> cells.maxBy(c => c.quality)(Ordering.Double.TotalOrdering) }
-
-    digitLibrary ++
-      (for (c <- optimal.values if digitLibrary(c.detectedValue)._1 > c.quality) yield {
-        val newData = Some(copyMat(sudokuCanvas.apply(c.roi)))
-        c.detectedValue -> ((c.quality, newData))
-      }).toMap
   }
 
 

@@ -4,7 +4,7 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
-<VBox prefHeight="830.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1"
+<VBox prefHeight="830.0" prefWidth="1500.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="net.ladstatt.sudoku.SudokuFXController">
     <Accordion>
         <panes>
@@ -66,13 +66,13 @@
     </Accordion>
     <BorderPane>
         <left>
-            <ImageView fx:id="videoView" fitWidth="850.0" pickOnBounds="true" preserveRatio="true"/>
+            <ImageView fx:id="videoView" fitWidth="1000.0" pickOnBounds="true" preserveRatio="true"/>
         </left>
         <right>
             <VBox>
                 <children>
-                    <ImageView fx:id="normalizedView" fitWidth="430.0" pickOnBounds="true" preserveRatio="true"/>
-                    <ImageView fx:id="solutionView" fitWidth="430.0" pickOnBounds="true" preserveRatio="true"/>
+                    <ImageView fx:id="normalizedView" fitWidth="500.0" pickOnBounds="true" preserveRatio="true"/>
+                    <ImageView fx:id="solutionView" fitWidth="500.0" pickOnBounds="true" preserveRatio="true"/>
                 </children>
             </VBox>
         </right>

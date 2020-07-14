@@ -2,14 +2,9 @@ package net.ladstatt.sudoku
 
 import org.bytedeco.opencv.opencv_core.{Mat, Size}
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
-import scala.language.postfixOps
-
-
 object Parameters {
 
-  val defaultDigitLibrary: DigitLibrary = Map().withDefaultValue((Double.MaxValue, None))
+  val defaultDigitLibrary: DigitLibrary = DigitLibrary(Map())
 
 
   // least number of matches necessary to identify one number
@@ -46,6 +41,7 @@ object Parameters {
 
   /** size of internal representation of sudoku */
   val size1280x720 = new Size(1280, 720)
+
   /** has to be a def since we get trouble with memory allocation / corruption with JavaCV */
   def normalizedCorners: Mat = JavaCV.mkCorners(size1280x720.width, size1280x720.height)
 

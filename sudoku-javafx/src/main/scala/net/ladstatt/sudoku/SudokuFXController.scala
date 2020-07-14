@@ -22,7 +22,6 @@ import rx.lang.scala.{Observable, Subscriber}
 
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 
@@ -61,13 +60,27 @@ class SudokuFXController extends Initializable with JfxUtils {
   // @FXML var polyArea: AnchorPane = _
 
 
-  val lastSolution = new SimpleObjectProperty[SolvedSudoku]()
+  val digitLibraryProperty = new SimpleObjectProperty[DigitLibrary](Parameters.defaultDigitLibrary)
+  val solvedSudokuProperty = new SimpleObjectProperty[SolvedSudoku]()
 
-  def clearSolution(): Unit = setLastSolution(null)
+  def setDigitLibrary(m: DigitLibrary): Unit = {
+    /*
+        for ((n, hit) <- m) {
+          println(s"Number : $n ${hit.age}/${hit.quality}")
+        }*/
+    digitLibraryProperty.set(m)
+  }
 
-  def setLastSolution(solution: SolvedSudoku): Unit = lastSolution.set(solution)
+  def getDigitLibrary: DigitLibrary = digitLibraryProperty.get()
 
-  def getLastSolution: SolvedSudoku = lastSolution.get()
+  def clearSolution(): Unit = {
+    setDigitLibrary(Parameters.defaultDigitLibrary)
+    setSolvedSudoku(null)
+  }
+
+  def setSolvedSudoku(solution: SolvedSudoku): Unit = solvedSudokuProperty.set(solution)
+
+  def getSolvedSudoku: SolvedSudoku = solvedSudokuProperty.get()
 
 
   val frameNumberProperty = new SimpleIntegerProperty(this, "frameNumberProperty", 0)
@@ -129,15 +142,15 @@ class SudokuFXController extends Initializable with JfxUtils {
         // can be null if :
         // - first call
         // - last solution was reset by user
-        Option(getLastSolution) match {
+        Option(getSolvedSudoku) match {
           case None =>
             // , create default Sudoku instance and fill it with current frame
-            SudokuEnvironment(s"sudoku", index, frame, Seq[Float](), params, SudokuHistory())
+            SudokuEnvironment(s"sudoku", index, frame, Seq[Float](), params, SudokuHistory(), getDigitLibrary)
           case Some(lastSolution) =>
             // provide history of search such that we can differ between cells which are always identified
             // and those who aren't. By choosing those cells with the most 'stable' configuration we assume
             // that image recognition provided correct results
-            SudokuEnvironment("sudoku", index, frame, Seq[Float](), params, lastSolution.sudokuHistory, lastSolution.library)
+            SudokuEnvironment("sudoku", index, frame, Seq[Float](), params, lastSolution.sudokuHistory, getDigitLibrary)
         }
     }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
@@ -161,26 +174,29 @@ class SudokuFXController extends Initializable with JfxUtils {
         setVideoView(env.grayed)
       //setNormalizedView(env.dilated)
       case Some(sudoku) =>
-        // setNormalizedView(sudoku.normalized)
+        // update libary, set global property
+        setDigitLibrary(sudoku.digitLibrary)
+        setNormalizedView(JavaCV.copyMat(sudoku.normalized))
         // todo: if sudoku is already solved, we would just have to apply warp
         // transformations to current image
         if (sudoku.isSolved) {
           cnt = cnt - 1
           if (cnt == 0) {
-            cnt = 300
+            cnt = 1000
             clearSolution()
           }
           println(sudoku.history.asSudokuString)
           println()
-        } else
+        } else {
           setVideoView(env.frame)
+        }
         sudoku.trySolve match {
           case Some(solvedSudoku) =>
             println(solvedSudoku.sudokuHistory.asSudokuString)
             setVideoView(solvedSudoku.frameWithSolution)
             // TODO triggers exception
-            //solvedSudoku.optCNormalized.foreach(setSolutionView)
-            setLastSolution(solvedSudoku)
+            solvedSudoku.optCNormalized.foreach(setSolutionView)
+            setSolvedSudoku(solvedSudoku)
           case None =>
             logTrace("Could not solve sudoku, resetting sudoku state.")
             setVideoView(env.inverted)
@@ -190,7 +206,7 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   }
 
-  def resetState(): Unit = setLastSolution(null)
+  def resetState(): Unit = setSolvedSudoku(null)
 
   def shutdown(): Unit = {
     setCameraActive(false)
@@ -601,7 +617,7 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
     //initNumberFlowPane(numberFlowPane)
     //    modeButtons.selectedToggleProperty.addListener(mkChangeListener(onModeChange))
 
-    for (i <- 0 to 9) {
+    for (_ <- 0 to 9) {
       digitToolBar.getItems.add(new ImageView)
     }
 
@@ -619,8 +635,7 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
   def asImage(m: Mat): Image = JavaCVPainter.toImage(m)
 
   def displayDigitLibrary(digitLibrary: DigitLibrary): Unit = {
-    for ((i, (q, optM)) <- digitLibrary) {
-      println(i)
+    for ((i, DigitEntry(detectedValue, timestamp, quality, optM)) <- digitLibrary.digits) {
       optM match {
         case None => logError(s"No data found for digit $i")
         case Some(m) =>
