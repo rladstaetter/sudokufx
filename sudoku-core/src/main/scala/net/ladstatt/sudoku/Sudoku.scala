@@ -12,10 +12,11 @@ import scala.language.postfixOps
 object Sudoku {
 
   val targetPath: Path = Paths.get("target/sessions").resolve(System.currentTimeMillis().toString)
+
   /**
    * the maximum time the algorithm should search for a solution
    */
-  val maxSolvingDuration: FiniteDuration = 1000 millis
+  val maxSolvingDuration: FiniteDuration = 1500 millis
 
   /** if set to true, take input from testsession */
   val debug = false
@@ -158,12 +159,17 @@ object SolvedSudoku {
                       , digitLibrary: DigitLibrary): Mat = {
 
     (cellValues zip cellRois).foldLeft(normalized) {
-      case (norm, (s, r)) =>
-        val cell =
-          digitLibrary.digits(s).optMat match {
-            case None => SudokuUtils.mkFallback(s, digitLibrary).get
-            case Some(s) => s
+      case (norm, (detectedValue, r)) =>
+        val cell = {
+          if (digitLibrary.contains(detectedValue)) {
+            digitLibrary.digits(detectedValue).optMat match {
+              case None => SudokuUtils.mkFallback(detectedValue, digitLibrary).get
+              case Some(s) => s
+            }
+          } else {
+            SudokuUtils.mkFallback(detectedValue, digitLibrary).get
           }
+        }
         copyTo(norm, cell, r)
     }
     /*

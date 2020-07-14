@@ -3,6 +3,8 @@ package net.ladstatt.sudoku
 import net.ladstatt.core.CanLog
 
 import scala.annotation.tailrec
+import scala.concurrent.duration.{FiniteDuration, _}
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 
@@ -40,16 +42,19 @@ object BruteForceSolver extends CanLog {
    * and it will return the solved sudoku (without zeros)
    *
    */
-  def solve(mmx: SudokuDigitSolution, maxDuration: Long): Option[SudokuDigitSolution] = timeR({
-    val before = System.currentTimeMillis()
+  def solve(mmx: String, maxDuration: Long): Option[Seq[Int]] = {
+    solveIt(mmx.map(_.asDigit), maxDuration millis)
+  }
+
+  def solveIt(mmx: Seq[Int], maxDuration: FiniteDuration): Option[Seq[Int]] = timeR({
+    val deadline = maxDuration.fromNow
     var cnt = 0
-    val mx: Array[Array[Char]] = mmx.sliding(9, 9).toArray
+    val mx: Array[Array[Int]] = mmx.toArray.sliding(9, 9).toArray
 
     def isCancelled = {
       cnt = cnt + 1
-      val duration = System.currentTimeMillis() - before
-      if (duration > maxDuration) {
-        logWarn(s"CANCEL for sudoku calculation (duration $duration ms > maxduration $maxDuration), count $cnt.)")
+      if (deadline.isOverdue()) {
+        logWarn(s"CANCEL for sudoku calculation, count $cnt.)")
         true
       } else false
     }
@@ -57,7 +62,7 @@ object BruteForceSolver extends CanLog {
     // The board is represented by an array of strings (arrays of chars),
     // held in a global variable mx. The program begins by reading 9 lines
     // of input to fill the board
-    val solution: SudokuDigitSolution = Array.fill(Parameters.cellCount)('A')
+    val solution: Array[Int] = Array.fill(Parameters.cellCount)(0)
 
     def populateSolution(): Unit = {
       val mxx = mx.flatten
@@ -70,7 +75,7 @@ object BruteForceSolver extends CanLog {
     // testing the row, column and 3x3 square containing the given
     // coordinate
     @tailrec
-    def invalid(i: Int, x: Int, y: Int, n: Char): Boolean =
+    def invalid(i: Int, x: Int, y: Int, n: Int): Boolean =
       i < 9 && (mx(y)(i) == n || mx(i)(x) == n ||
         mx(y / 3 * 3 + i / 3)(x / 3 * 3 + i % 3) == n || invalid(i + 1, x, y, n))
 
@@ -91,16 +96,16 @@ object BruteForceSolver extends CanLog {
           case (9, _) => search(0, y + 1, f, accu) // next row
           case (0, 9) => f(accu) // found a solution
           case (_, _) =>
-            if (mx(y)(x) != '0') {
+            if (mx(y)(x) != 0) {
               search(x + 1, y, f, accu)
             } else {
               fold((accu: Int, n: Int) =>
-                if (invalid(0, x, y, (n + 48).toChar)) {
+                if (invalid(0, x, y, n)) {
                   accu
                 } else {
-                  mx(y)(x) = (n + 48).toChar
+                  mx(y)(x) = n
                   val newaccu = search(x + 1, y, f, accu)
-                  mx(y)(x) = '0'
+                  mx(y)(x) = 0
                   newaccu
                 }, accu, 1, 10)
             }
@@ -120,13 +125,11 @@ object BruteForceSolver extends CanLog {
       solution
     } match {
       case Success(s) =>
-        val digits = s.map(_.asDigit).toSeq
-        if (405 == digits.sum.toLong)
+        val digits = s.toSeq
+        if (s.length == 81 && 405 == digits.sum.toLong)
           Some(s)
         else {
           logWarn("Found solution, but is invalid.")
-          //println(digits)
-          //logWarn(SudokuHistory(digits).asSudokuString)
           None
         }
       case Failure(e) =>

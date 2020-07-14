@@ -76,7 +76,7 @@ case class SudokuHistory(timestamp: Long
     if (isSolved) {
       this
     } else
-      SudokuUtils.solve(cellValues.map(x => (x + 48).toChar).toArray, Sudoku.maxSolvingDuration) match {
+      SudokuUtils.solve(cellValues, Sudoku.maxSolvingDuration) match {
         case None =>
           logWarn("Could not solve sudoku.")
           this

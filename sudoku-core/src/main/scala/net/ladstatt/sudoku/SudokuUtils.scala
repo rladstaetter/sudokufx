@@ -22,27 +22,10 @@ case class PInt(x: Int, y: Int) {
  */
 object SudokuUtils {
 
-  def solve(solutionCandidate: SudokuDigitSolution
+  def solve(solutionCandidate: Seq[Int]
             , maxDuration: FiniteDuration): Option[SudokuHistory] = {
-    BruteForceSolver.solve(solutionCandidate, maxDuration.toMillis).map(solution => SudokuHistory(solution.map(_.asDigit).toSeq, Sudoku.minNrOfValueHits))
+    BruteForceSolver.solveIt(solutionCandidate, maxDuration).map(solution => SudokuHistory(solution, Sudoku.minNrOfValueHits))
   }
-
-  def withCap(cap: Int)(v: Int): Boolean = v >= cap
-
-  def mkSudokuMatrix(hitCounts: Seq[Map[Int, Int]], cap: Int): SudokuDigitSolution = mkVM(hitCounts)(withCap(cap)(_))
-
-  def mkIntermediateSudokuMatrix(hitCounts: Seq[Map[Int, Int]]): SudokuDigitSolution = mkVM(hitCounts)(_ => true)
-
-  def mkVM(hitCounts: Seq[Map[Int, Int]])(p: Int => Boolean): SudokuDigitSolution = {
-    //hitCounts.map { case (value,frequency) => }
-    val h =
-      for (i <- cellRange) yield {
-        //((for ((value, frequency) <- hitCounts(i) if p(frequency)) yield value).headOption.getOrElse(0) + 48).toChar
-        (Random.shuffle(for ((value, frequency) <- hitCounts(i) if p(frequency)) yield value).headOption.getOrElse(0) + 48).toChar
-      }
-    h.toArray
-  }
-
 
   def toSolutionCells(frameNr: Int
                       , digitLibrary: DigitLibrary

@@ -16,8 +16,8 @@ class SolverSpec extends AnyWordSpecLike {
       |814253769
       |695417382""".stripMargin.replaceAll("\n", "")
 
-  def solveReadableSudoku(sudokuWithNewLines: String): Option[SudokuDigitSolution] = {
-    BruteForceSolver.solve(sudokuWithNewLines.replaceAll("\n", "").toCharArray, Sudoku.maxSolvingDuration.toMillis)
+  def solveReadableSudoku(sudokuWithNewLines: String): Option[Seq[Int]] = {
+    BruteForceSolver.solveIt(sudokuWithNewLines.replaceAll("\n", "").map(_.asDigit), Sudoku.maxSolvingDuration)
   }
 
   "testSum" in {
@@ -37,25 +37,25 @@ class SolverSpec extends AnyWordSpecLike {
         |094103200
         |070600903
         |""".stripMargin
-    assert(solveReadableSudoku(detectedNumbers).isDefined)
+      assert(solveReadableSudoku(detectedNumbers).isDefined)
   }
-/*
-  "testSolving" in {
-    Try {
-      val solvedSudokus: Array[Option[SudokuDigitSolution]] =
-        for (sudokuAsString <- SudokuTestContext.easySudokus.split("========"))
-          yield solveReadableSudoku(sudokuAsString)
+  /*
+    "testSolving" in {
+      Try {
+        val solvedSudokus: Array[Option[SudokuDigitSolution]] =
+          for (sudokuAsString <- SudokuTestContext.easySudokus.split("========"))
+            yield solveReadableSudoku(sudokuAsString)
 
-      for (fs <- solvedSudokus.flatten) {
-        assert(405 == fs.map(_.asDigit).sum.toLong)
+        for (fs <- solvedSudokus.flatten) {
+          assert(405 == fs.map(_.asDigit).sum.toLong)
+        }
+      } match {
+        case Success(_) =>
+        case Failure(e) => fail(e.getMessage)
       }
-    } match {
-      case Success(_) =>
-      case Failure(e) => fail(e.getMessage)
-    }
 
-  }
-*/
+    }
+  */
   /**
    * Test shows what happens if we try to solve an malformed input
    */
@@ -72,7 +72,7 @@ class SolverSpec extends AnyWordSpecLike {
         |005010300""".stripMargin
 
     solveReadableSudoku(sudokuInput) match {
-      case Some(s) => assert(405 != s.map(_.asDigit).sum.toLong)
+      case Some(s) => assert(405 != s.sum.toLong)
       case None =>
     }
   }

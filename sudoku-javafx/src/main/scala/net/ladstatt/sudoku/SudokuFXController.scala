@@ -522,12 +522,6 @@ def display(result: SudokuResult): Future[Unit] = execOnUIThread {
     ()
   }
 
-  def displayResult(solution: SudokuDigitSolution, labels: Seq[Label]): Unit = {
-    for ((label, s) <- labels zip solution) {
-      label.setText(s.toString)
-    }
-  }
-
 
   /**
    * updates UI to show for each cell (there are 81 of them) which number was detected how often
