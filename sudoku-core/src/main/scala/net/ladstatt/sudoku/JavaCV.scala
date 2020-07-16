@@ -4,7 +4,7 @@ import java.nio.file.{Files, Path}
 import java.nio.{ByteBuffer, DoubleBuffer, FloatBuffer, IntBuffer}
 import java.util.UUID
 
-import net.ladstatt.core.CanLog
+import net.ladstatt.core.{CanLog, CollectionUtils}
 import org.apache.commons.io.IOUtils
 import org.bytedeco.javacpp.{BytePointer, FloatPointer}
 import org.bytedeco.opencv.global._
@@ -140,19 +140,19 @@ object JavaCV extends CanLog {
   lazy val Kernel: Mat = {
     opencv_imgproc.getStructuringElement(MORPH_RECT, new Size(3, 3))
   }
-/*
-  def loadMat2(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = {
-    val is = matCp.inputStream(clazz)
-    var nRead = 0
-    val data = new Array[Byte](16 * 1024)
-    val buffer = new Nothing
-    while ( {
-      (nRead = is.read(data, 0, data.length)) != -1
-    }) buffer.write(data, 0, nRead)
-    val bytes = buffer.toByteArray
-    val mat = imdecode(new Nothing(bytes), CV_LOAD_IMAGE_UNCHANGED)
-  }
-  */
+  /*
+    def loadMat2(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = {
+      val is = matCp.inputStream(clazz)
+      var nRead = 0
+      val data = new Array[Byte](16 * 1024)
+      val buffer = new Nothing
+      while ( {
+        (nRead = is.read(data, 0, data.length)) != -1
+      }) buffer.write(data, 0, nRead)
+      val bytes = buffer.toByteArray
+      val mat = imdecode(new Nothing(bytes), CV_LOAD_IMAGE_UNCHANGED)
+    }
+    */
   /** loads a mat from classpath */
   def loadMat(clazz: Class[_], matCp: MatCp, codec: Int = opencv_imgcodecs.IMREAD_COLOR): Mat = synchronized {
     if (matCp.existsUsingClassLoader(clazz)) {
@@ -202,6 +202,38 @@ object JavaCV extends CanLog {
   def copyTo(canvas: Mat, data: Mat, roi: Rect): Mat = {
     val cellTarget = new Mat(canvas, roi)
     data.copyTo(cellTarget)
+    canvas
+  }
+
+  // TODO update colors
+  def color(freq4Index: Map[Int, Int], cap: Int): Scalar = {
+    val n = freq4Index.values.max.toDouble
+    val r = freq4Index.size match {
+      case 1 => 0
+      case 2 => 100
+      case 3 => 200
+      case _ => 255
+    }
+    new Scalar(0, (n % cap) * 255 / cap, r.toDouble, 255.0)
+  }
+  /**
+   * paints green borders around the cells
+   *
+   * @param canvas
+   * @param rects
+   * @param hitCounts
+   * @return
+   */
+  def paintCorners(canvas: Mat,
+                   rects: Seq[Rect],
+                   hitCounts: Seq[Map[Int, Int]],
+                   cap: Int): Mat = {
+
+    CollectionUtils.traverseWithIndex(rects)((_, i) => {
+      paintRect(canvas, rects(i), color(hitCounts(i), cap), 1)
+    }
+    )
+
     canvas
   }
 
@@ -373,10 +405,12 @@ object JavaCV extends CanLog {
                , pos: Int
                , parentFolder: Path
                , res: Mat): Boolean = {
-    val path = parentFolder.resolve(frameNr.toString).resolve(pos.toString).resolve(operation).resolve(s"$id-${
-      UUID.randomUUID().toString
-    }.png")
-    writeMat(path, res)
+    if (Sudoku.writeCellDebug) {
+      val path = parentFolder.resolve(frameNr.toString).resolve(pos.toString).resolve(operation).resolve(s"$id-${
+        UUID.randomUUID().toString
+      }.png")
+      writeMat(path, res)
+    } else true
   }
 
   def doitWith(id: String, frameNr: Int, pos: Int, name: String, op: Mat => Mat, parentFolder: Path)(mat: Mat): Mat = {
@@ -392,9 +426,6 @@ object JavaCV extends CanLog {
    */
   def matchTemplate(candidate: Mat
                     , template: Mat
-                    , id: String
-                    , pos: Int
-                    , path: Path
                     , number: Int): (Int, Double) = {
 
 

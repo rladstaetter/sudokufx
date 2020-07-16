@@ -12,12 +12,13 @@ import scala.language.postfixOps
 
 object SSession {
   def apply(id: String, path: Path): SSession = {
+    val prefixLength = "frame-".length
     val postFixLength = ".png".length
     val files: stream.Stream[Path] =
       Files.list(path).sorted((p1: Path, p2: Path) => {
-        p1.getFileName.toString.dropRight(postFixLength).toInt.compareTo(
-          p2.getFileName.toString.dropRight(postFixLength).toInt)
-      })// .limit(50)
+        p1.getFileName.toString.dropRight(postFixLength).substring(prefixLength).toInt.compareTo(
+          p2.getFileName.toString.dropRight(postFixLength).substring(prefixLength).toInt)
+      }) // .limit(50)
     SSession(id, files, 0 millis)
   }
 }

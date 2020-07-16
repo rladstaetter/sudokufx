@@ -23,13 +23,13 @@ case class PInt(x: Int, y: Int) {
 object SudokuUtils {
 
   def solve(solutionCandidate: Seq[Int]
-            , maxDuration: FiniteDuration): Option[SudokuHistory] = {
-    BruteForceSolver.solveIt(solutionCandidate, maxDuration).map(solution => SudokuHistory(solution, Sudoku.minNrOfValueHits))
+            , maxDuration: FiniteDuration): Option[SudokuState] = {
+    BruteForceSolver.solveIt(solutionCandidate, maxDuration).map(solution => SudokuState(solution, Sudoku.minNrOfValueHits))
   }
 
   def toSolutionCells(frameNr: Int
                       , digitLibrary: DigitLibrary
-                      , sudokuHistory: SudokuHistory): Seq[SCell] = {
+                      , sudokuHistory: SudokuState): Seq[SCell] = {
     (for (pos <- cellRange) yield {
       val value = sudokuHistory.cellValues(pos)
 
@@ -39,47 +39,13 @@ object SudokuUtils {
           (if (someM.isEmpty) {
             digitLibrary.digits(value).optMat
           } else someM)
-            .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.cells(pos)))
+            .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.hitHistory(pos)))
         } else None
       x
     }).flatten
   }
 
 
-  /**
-   * paints green borders around the cells
-   *
-   * @param canvas
-   * @param rects
-   * @param hitCounts
-   * @return
-   */
-  def paintCorners(canvas: Mat,
-                   rects: Seq[Rect],
-                   hitCounts: Seq[Map[Int, Int]],
-                   cap: Int): Mat = {
-
-
-    // TODO update colors
-    def color(freq4Index: Map[Int, Int], cap: Int): Scalar = {
-      val n = freq4Index.values.max.toDouble
-      val r = freq4Index.size match {
-        case 1 => 0
-        case 2 => 100
-        case 3 => 200
-        case _ => 255
-      }
-      new Scalar(0, (n % cap) * 255 / cap, r.toDouble, 255.0)
-    }
-
-
-    CollectionUtils.traverseWithIndex(rects)((_, i) => {
-      paintRect(canvas, rects(i), color(hitCounts(i), cap), 1)
-    }
-    )
-
-    canvas
-  }
 
   /**
    * provides a fallback if there is no digit detected for this number.

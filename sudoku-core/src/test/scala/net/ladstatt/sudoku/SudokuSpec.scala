@@ -19,8 +19,8 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
 
   "SudokuHistory" should {
     "equals works" in {
-      assert(SudokuHistory() == SudokuHistory())
-      assert(SudokuHistory().equals(SudokuHistory()))
+      assert(SudokuState() == SudokuState())
+      assert(SudokuState().equals(SudokuState()))
     }
     "equals test2" in assert(Sudokus.sudokuSolved == Sudokus.sudokuSolved)
     "equals test3" in assert(Sudokus.s1ReadyToSolve == Sudokus.s1ReadyToSolve)
@@ -28,9 +28,8 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     "reference sudoku has 81 hits" in assert(sudokuSolved.nrHits == 81)
     "a solved sudoku returns itself again" in assert(sudokuSolved.solved == sudokuSolved)
     "an unsolved sudoku turns into a solved one" in {
-      val s1Solved: SudokuHistory = s1ReadyToSolve.solved
+      val s1Solved: SudokuState = s1ReadyToSolve.solved
       val solvedSudoku = Sudokus.sudokuSolved
-      assert(s1Solved.timestamp == solvedSudoku.timestamp)
       assert(s1Solved.asSudokuString == solvedSudoku.assumeReadyToSolve.asSudokuString)
       assert(s1Solved.equals(solvedSudoku))
     }
@@ -38,7 +37,8 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
   }
   val base = Paths.get("src/test/resources/net/ladstatt/sudoku/testdata/cells/")
 
-  /** with my current testdata, i don't acheive 100% recognition rate for every number ... :/  */
+
+  /** with my current testdata, i don't achieve 100% recognition rate for every number ... :/  */
   "SCell exact image recognition" should {
     "recognize exactly 1" in detectExactly(base, 1)
     "recognize exactly 2" in detectExactly(base, 2)
@@ -78,12 +78,20 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     assert(cells.forall(c => c.detectedValue == number || c.detectedValue == 0))
   }
 
+  def fromPath(p: Path, frameNr: Int, pos: Int): SCell = {
+    SCell(p.getFileName.toString, frameNr, pos, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0))
+  }
+
   private def detect(base: Path, number: Int): Seq[SCell] = {
     val files = Files.list(base.resolve(number.toString)).iterator.asScala.toSeq
     val cells: Seq[SCell] =
       (for ((p, i) <- files.zipWithIndex) yield {
-        println(p.getFileName.toString)
-        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0))
+        // println(p.getFileName.toString)
+        val s = fromPath(p, 0, i)
+        if (s.detectedValue != number) {
+          logError(s"${p.toAbsolutePath.toString} should be recognized as $number but was ${s.detectedValue}")
+        }
+        s
       })
     cells
   }
@@ -96,7 +104,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     val res: Map[Int, Int] =
     files.zipWithIndex.foldLeft(Map[Int, Int]().withDefaultValue(0)) {
       case (acc, (p, i)) =>
-        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc).updatedHits
+        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc).hits
     }
     println(res)
     val (detectedNumber, _) =

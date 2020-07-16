@@ -22,7 +22,7 @@ object SudokuEnvironment {
             , frameNr: Int
             , path: Path
             , corners: Seq[Float]
-            , history: SudokuHistory
+            , history: SudokuState
             , library: DigitLibrary): SudokuEnvironment = {
     new SudokuEnvironment(id
       , frameNr
@@ -40,7 +40,7 @@ case class SudokuEnvironment(id: String
                              , frame: Mat
                              , corners: Seq[Float]
                              , contourParams: ContourParams
-                             , history: SudokuHistory
+                             , history: SudokuState
                              , library: DigitLibrary
                              , someSolutionMat: Option[Mat] = None
                              , resultCells: Seq[SCell] = Seq()

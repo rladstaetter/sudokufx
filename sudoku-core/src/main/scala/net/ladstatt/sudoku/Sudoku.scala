@@ -19,13 +19,16 @@ object Sudoku {
   val maxSolvingDuration: FiniteDuration = 1500 millis
 
   /** if set to true, take input from testsession */
-  val debug = false
+  val useTestSession = false
+
+  /** if true write debug info for cell */
+  val writeCellDebug: Boolean = true
 
   /** if set to true, sudokufx will write debug files / images */
   val writeFiles = false
 
   /** don't try to solve sudoku until a certain amount of cells containing numbers are detected */
-  val minNrOfDetectedCells = 25
+  val minNrOfDetectedCells = 20
 
   /**
    * for a given cell, detect at least minNrOfValueHits times a number 'to be sure' that it is really
@@ -33,9 +36,10 @@ object Sudoku {
    **/
   val minNrOfValueHits = 20
 
-  /* a hit has to reach this quality in order to be used as a value */
-  val minQuality = 20000000
-  //val minQuality = 15500000
+  /* a hit has to reach this quality in order to be used as a value (lower is better)*/
+  //val minQuality = 25000000
+  //val minQuality = 20000000
+  val minQuality = 15500000
   // val minQuality = 12500000
   //val minQuality = 3500000
 
@@ -43,7 +47,7 @@ object Sudoku {
             , frameNr: Int
             , frame: Mat
             , detectedCorners: Mat
-            , history: SudokuHistory
+            , history: SudokuState
             , library: DigitLibrary): Sudoku = {
     val normalized = JavaCV.warp(frame, detectedCorners)
     /*
@@ -71,10 +75,10 @@ object Sudoku {
     val cellRois: Seq[Rect] = Parameters.cellRange.map(JavaCV.mkRect(_, JavaCV.mkCellSize(normalized.size)))
 
     val cells: Seq[SCell] = cellRois.zipWithIndex.map {
-      case (r, i) => SCell(id, frameNr, i, normalized.apply(r), r, history.cells(i))
+      case (r, i) => SCell(id, frameNr, i, normalized.apply(r), r, history.hitHistory(i))
     }
     val updatedLibrary = library.add(normalized, cells.filter(_.detectedValue != 0))
-    val updatedHistory = history.add(SudokuHistory(0, cells.map(_.updatedHits)))
+    val updatedHistory = history.add(SudokuState(cells.map(_.detectedValue), cells.map(_.hits)))
 
     Sudoku(id
       , frameNr
@@ -103,7 +107,7 @@ case class Sudoku(id: String
                   , detectedCorners: Mat
                   , cellRois: Seq[Rect]
                   , cells: Seq[SCell]
-                  , history: SudokuHistory
+                  , history: SudokuState
                   , digitLibrary: DigitLibrary) {
 
   val isSolved: Boolean = history.isSolved
@@ -126,9 +130,15 @@ case class Sudoku(id: String
     if (history.isReadyToSolve) {
       logInfo("Trying to solve:")
       logInfo("\n" + history.asSudokuString)
-      val solvedSudoku: SudokuHistory = history.solved
+      val solvedSudoku: SudokuState = history.solved
       if (solvedSudoku.isSolved) {
-        Option(SolvedSudoku(frameNr, frame, normalized, detectedCorners, cellRois, solvedSudoku, digitLibrary))
+        Option(SolvedSudoku(frameNr
+          , frame
+          , normalized
+          , detectedCorners
+          , cellRois
+          , history.solved
+          , digitLibrary))
       } else {
         logWarn("Could not verify solution, resetting ...")
         /*        Option(SolvedSudoku(inputFrame
@@ -154,23 +164,26 @@ case class Sudoku(id: String
 object SolvedSudoku {
 
   def normalizeCanvas(normalized: Mat
-                      , cellValues: Seq[Int]
+                      , sudokuState: SudokuState
                       , cellRois: Seq[Rect]
                       , digitLibrary: DigitLibrary): Mat = {
-
-    (cellValues zip cellRois).foldLeft(normalized) {
-      case (norm, (detectedValue, r)) =>
-        val cell = {
-          if (digitLibrary.contains(detectedValue)) {
-            digitLibrary.digits(detectedValue).optMat match {
-              case None => SudokuUtils.mkFallback(detectedValue, digitLibrary).get
-              case Some(s) => s
+    ((sudokuState.cells zip sudokuState.cellValues) zip cellRois).foldLeft(normalized) {
+      case (norm, ((orig, detectedValue), r)) =>
+        if (orig != 0) {
+          norm
+        } else {
+          val cell = {
+            if (digitLibrary.contains(detectedValue)) {
+              digitLibrary.digits(detectedValue).optMat match {
+                case None => SudokuUtils.mkFallback(detectedValue, digitLibrary).get
+                case Some(s) => s
+              }
+            } else {
+              SudokuUtils.mkFallback(detectedValue, digitLibrary).get
             }
-          } else {
-            SudokuUtils.mkFallback(detectedValue, digitLibrary).get
           }
+          copyTo(norm, cell, r)
         }
-        copyTo(norm, cell, r)
     }
     /*
         for ((s, r) <- cellValues zip cellRois if s != 0) {
@@ -191,9 +204,11 @@ object SolvedSudoku {
             , normalized: Mat
             , detectedCorners: Mat
             , cellRois: Seq[Rect]
-            , solvedSudoku: SudokuHistory
+            , solvedSudoku: SudokuState
             , digitLibrary: DigitLibrary): SolvedSudoku = {
-    val cNormalized: Mat = normalizeCanvas(normalized, solvedSudoku.cellValues, cellRois, digitLibrary)
+    val cNormalized: Mat = normalizeCanvas(normalized, solvedSudoku, cellRois, digitLibrary)
+    paintCorners(cNormalized, cellRois, solvedSudoku.hitHistory, 4)
+
     JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-solvedCanvasNormalized.png"), cNormalized)
 
     val warped: Mat = JavaCV.unwarp(cNormalized, detectedCorners)
@@ -212,4 +227,4 @@ object SolvedSudoku {
 case class SolvedSudoku(frameWithSolution: Mat
                         , optCNormalized: Option[Mat]
                         , detectedCorners: Mat
-                        , sudokuHistory: SudokuHistory)
+                        , sudokuHistory: SudokuState)

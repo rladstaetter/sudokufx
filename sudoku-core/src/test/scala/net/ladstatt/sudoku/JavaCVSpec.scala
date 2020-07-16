@@ -1,23 +1,9 @@
 package net.ladstatt.sudoku
 
-import java.nio.file.Paths
-import java.nio.{ByteBuffer, IntBuffer}
-
 import net.ladstatt.core.CanLog
 import org.bytedeco.opencv.global.{opencv_imgcodecs, opencv_imgproc}
 import org.bytedeco.opencv.opencv_core.Mat
 import org.scalatest.wordspec.AnyWordSpecLike
-
-/*
-import java.io.File
-
-import net.ladstatt.sudoku.{Parameters, SCell}
-import org.bytedeco.opencv.opencv_core.{Point, Rect}
-import org.opencv.core.MatOfPoint
-import org.opencv.imgcodecs.Imgcodecs
-import org.scalatest.wordspec.AnyWordSpecLike
-*/
-
 
 /**
  * Created by lad on 22.02.16.
@@ -57,7 +43,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
       someRect match {
         case None => fail()
         case Some(cellMat) =>
-          TemplateLibrary.detectNumber("id", 0, 0, Sudoku.targetPath, cellMat)
+          TemplateLibrary.detectNumber(cellMat)
       }
 
     val out = JavaCV.removeBorderArtefacts(m)
@@ -88,20 +74,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
     //    JavaCV.writeMat(Sudoku.targetPath.resolve("centroids.png"), centroids)
   }
 
-  private def dodance(ibf: IntBuffer): Unit = {
-    //println("size:" + ibf.array().size)
-    val a = Array(0, 0, 0, 0, 0)
-    ibf.get(a)
-    //println(a.toSeq.mkString(","))
-    val Array(x, y, w, h, area) = a
-    /*val x = ibf.get(0).toInt
-      val y = ibf.get(1).toInt
-      val w = ibf.get(2).toInt
-      val h = ibf.get(3).toInt
-      val area = ibf.get(4).toInt
-      */
-    println(s"x $x y $y  w $w  h $h  area:$area")
-  }
+
 
 
   /*
@@ -298,6 +271,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
     }
 
     */
+  /*
   private def printByteBf(labels: Mat) = {
     val width = labels.size().width()
     val height = labels.size().height()
@@ -320,6 +294,6 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
       }
       println()
     }
-  }
+  }*/
 
 }

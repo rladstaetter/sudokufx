@@ -1,9 +1,6 @@
 package net.ladstatt.sudoku
 
-import java.nio.file.Path
-
 import net.ladstatt.core.ClasspathAddress
-import net.ladstatt.sudoku.JavaCV.writeMat
 import org.bytedeco.opencv.global.opencv_imgproc
 import org.bytedeco.opencv.opencv_core.{Mat, Size}
 
@@ -53,15 +50,12 @@ object TemplateLibrary {
    * @return returns the best match for given mat when compared to the template library
    */
   def detectNumber(library: Seq[Mat], templateSize: Size)
-                  (id: String
-                   , frameNr: Int
-                   , pos: Int
-                   , path: Path
-                   , candidate: Mat): (Int, Double) = {
+                  (candidate: Mat): (Int, Double) = {
     //writeMat(s"7_candidate", id, frameNr, pos, path, candidate)
 
     val (width, height) = (candidate.size.width, candidate.size.height)
 
+    // JavaCV.writeMat(Sudoku.targetPath.resolve(s"SCell-candidate.png"), candidate)
     // idea: only resize candidate if it is bigger than template to save time
     // a list of numbers with their quality
     val hayStack: Seq[(Int, Double)] =
@@ -69,37 +63,33 @@ object TemplateLibrary {
       val number = idx + 1
       if (needle.size().width > width || needle.size().height > height) {
         val resizedNeedle = JavaCV.resize(needle, new Size(width, height))
-       // writeMat(s"8_candidate-needleresized", id, frameNr, pos, path, resizedNeedle)
-        JavaCV.matchTemplate(candidate, resizedNeedle, id, pos, path, number)
+        // JavaCV.writeMat(Sudoku.targetPath.resolve(s"SCell-needle-resized-$number.png"), resizedNeedle)
+        JavaCV.matchTemplate(candidate, resizedNeedle, number)
       } else {
-       // writeMat(s"8_candidate-needle", id, frameNr, pos, path, needle)
-        JavaCV.matchTemplate(candidate, needle, id, pos, path, number)
+        // JavaCV.writeMat(Sudoku.targetPath.resolve(s"SCell-needle.png-$number.png"), needle)
+        JavaCV.matchTemplate(candidate, needle, number)
       }
     }
     for ((i, quality) <- hayStack) {
-      // println(s"Number $i : Quality " + f"$quality%1.0f")
+      println(s"Number $i : Quality " + f"$quality%1.0f")
     }
-    val (number, quality) = hayStack.sortWith((a, b) => a._2 < b._2).head
+    // only use options with a certain quality
+    val (number: Int, quality: Double) = hayStack
+      /*.filter {
+      case (_, q) => q > Sudoku.minQuality
+    }*/
+      .sortWith {
+      case (a, b) => a._2 < b._2
+    }.headOption.getOrElse((0, 0.0))
 
-    // println(s"took $number: " + f"$quality%1.0f")
+    println(s"took $number: " + f"$quality%1.0f")
     (number, quality)
 
-    if (quality > Sudoku.minQuality) {
-      (0, 0)
-    } else {
-      (number, quality)
-    }
-
   }
 
-  def min(a: Int, b: Int): Int = if (b < a) b else a
+  val detector: Mat => (Int, Double) = detectNumber(classicClasspathTemplatesZipped, templateSize)
 
-  def detectNumber(id: String
-                  , frameNr:Int
-                   , pos: Int
-                   , path: Path
-                   , candidate: Mat): (Int, Double) = {
-    detectNumber(classicClasspathTemplatesZipped, templateSize)(id, frameNr, pos, path, candidate)
-  }
+  def detectNumber(candidate: Mat): (Int, Double) = detector(candidate)
+
 
 }

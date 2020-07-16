@@ -27,6 +27,6 @@ case class Label(i: Int
                  , a: Int) {
 
   def touches(width: Int, height: Int): Boolean = {
-    x == 0 || y == 0 || x + w == width || y + h == height
+    x <= width * 0.1 || y == height * 0.1 || x + w >= 0.9 * width || y + h >= 0.9 * height
   }
 }

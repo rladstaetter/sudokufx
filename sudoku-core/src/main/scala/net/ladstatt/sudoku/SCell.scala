@@ -93,7 +93,7 @@ case class SCell(id: String
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   val cellData = new Mat(cell, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
 
-  val blurred = JavaCV.doitWith(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, targetPath)(cellData)
+  val blurred = JavaCV.doitWith(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, targetPath)(cell)
   val equalized = JavaCV.doitWith(id, frameNr, pos, "3-equalized", JavaCV.equalizeHist, targetPath)(blurred)
   val thresholed = JavaCV.doitWith(id, frameNr, pos, "4-threshold", JavaCV.threshold, targetPath)(equalized)
   val bitNotted = JavaCV.doitWith(id, frameNr, pos, "5-bitnotted", JavaCV.bitwiseNot, targetPath)(thresholed)
@@ -107,15 +107,15 @@ case class SCell(id: String
 
   val (detectedValue, quality) =
     optNumberCellMat.map {
-      m => TemplateLibrary.detectNumber(id, frameNr, pos, targetPath, m)
+      m => TemplateLibrary.detectNumber(m)
     }.getOrElse((0, 0.0))
-/*
-  if (detectedValue == 7) {
-    JavaCV.writeMat(targetPath.resolve(detectedValue.toString).resolve(s"$detectedValue-$frameNr.png"), origMat)
-  }
-*/
+  /*
+    if (detectedValue == 7) {
+      JavaCV.writeMat(targetPath.resolve(detectedValue.toString).resolve(s"$detectedValue-$frameNr.png"), origMat)
+    }
+  */
   /** adds current hit to history, ignoring 0 */
-  val updatedHits: Map[Int, Int] = {
+  val hits: Map[Int, Int] = {
     if (detectedValue == 0) {
       hitHistory
     } else {
@@ -125,7 +125,7 @@ case class SCell(id: String
 
   /** returns Some(value) if a certain threshold of hits are made for this cell, else None */
   val optValue: Option[Int] =
-    updatedHits.toSeq.find {
+    hits.toSeq.find {
       case (_, numberOfHits) => numberOfHits > Sudoku.minNrOfValueHits
     }.map(_._1)
 

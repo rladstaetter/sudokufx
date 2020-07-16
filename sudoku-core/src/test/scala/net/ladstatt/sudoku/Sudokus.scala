@@ -11,8 +11,8 @@ object Sudokus {
   val frame2 = Paths.get(pathPrefix + "frame2.png")
 
   /** the real deal. Test sudoku looks like this. Ideally, the algorithm should detect exactly those numbers */
-  val s1ReadyToSolve: SudokuHistory =
-    SudokuHistory(
+  val s1ReadyToSolve: SudokuState =
+    SudokuState(
       """|608001020
          |009302580
          |000890300
@@ -34,8 +34,8 @@ object Sudokus {
       , s1ReadyToSolve.assumeReadyToSolve
       , Parameters.defaultDigitLibrary)
 
-  val sudokuSolved: SudokuHistory =
-    SudokuHistory(
+  val sudokuSolved: SudokuState =
+    SudokuState(
       """|638451729
          |719362584
          |452897316
@@ -95,7 +95,7 @@ object Sudokus {
         , 719.0f, 170.0f
         , 738.0f, 571.0f
         , 349.0f, 588.0f
-      ), history = SudokuHistory()
+      ), history = SudokuState()
       , Parameters.defaultDigitLibrary)
 
   /** a map with paths to original images and coordinates of sudoku area to detect */

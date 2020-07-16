@@ -10,12 +10,11 @@ import _root_.javafx.scene._
 import _root_.javafx.scene.control._
 import javafx.animation.FadeTransition
 import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleObjectProperty}
-import javafx.geometry.Pos
 import javafx.scene.effect.{BlendMode, DropShadow}
 import javafx.scene.image._
 import javafx.scene.layout.FlowPane
 import javafx.scene.paint.Color
-import javafx.scene.shape.{Polyline, Rectangle}
+import javafx.scene.shape.Polyline
 import org.bytedeco.javacv.OpenCVFrameGrabber
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.{Observable, Subscriber}
@@ -113,6 +112,7 @@ class SudokuFXController extends Initializable with JfxUtils {
         while (getCameraActive) {
           Try(SudokuFXApp.javaCvConverter.convert(frameGrabber.grab())) match {
             case Success(m) =>
+
               subscriber.onNext(m)
             case Failure(e) =>
               e.printStackTrace()
@@ -126,8 +126,8 @@ class SudokuFXController extends Initializable with JfxUtils {
   }
 
 
-  val s1 = SSession("session 1"
-    , Paths.get("/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/session1"))
+  val s1 = SSession("session 1", Paths.get("/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/session1"))
+  val s2 = SSession("session 2", Paths.get("/Users/lad/Documents/sudokufx/sudoku-core/src/test/resources/net/ladstatt/sudoku/session2"))
 
 
   def getCurrentParams = ContourParams(contourModeChoiceBox.getValue, contourMethodChoiceBox.getValue, contourRatioChoiceBox.getValue)
@@ -138,6 +138,7 @@ class SudokuFXController extends Initializable with JfxUtils {
       case (frame, index) =>
         //val fName = Sudoku.targetPath.resolve("session").resolve(index.toString + ".png")
         // JavaCV.writeMat(fName, frame)
+        JavaCV.writeMat(Sudoku.targetPath.resolve(s"frame-$index.png"), frame)
         val params: ContourParams = getCurrentParams
         // can be null if :
         // - first call
@@ -145,22 +146,22 @@ class SudokuFXController extends Initializable with JfxUtils {
         Option(getSolvedSudoku) match {
           case None =>
             // , create default Sudoku instance and fill it with current frame
-            SudokuEnvironment(s"sudoku", index, frame, Seq[Float](), params, SudokuHistory(), getDigitLibrary)
+            SudokuEnvironment(s"sudoku", index, frame, Seq[Float](), params, SudokuState(), getDigitLibrary)
           case Some(lastSolution) =>
             // provide history of search such that we can differ between cells which are always identified
             // and those who aren't. By choosing those cells with the most 'stable' configuration we assume
             // that image recognition provided correct results
             SudokuEnvironment("sudoku", index, frame, Seq[Float](), params, lastSolution.sudokuHistory, getDigitLibrary)
         }
-    }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
+    } .delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
 
 
   }
 
 
   val envObservable: Observable[SudokuEnvironment] = {
-    if (Sudoku.debug) {
-      mkObservable(s1.subscribe)
+    if (Sudoku.useTestSession) {
+      mkObservable(s2.subscribe)
     } else mkObservable(fromWebCam)
   }
 
@@ -192,7 +193,7 @@ class SudokuFXController extends Initializable with JfxUtils {
         }
         sudoku.trySolve match {
           case Some(solvedSudoku) =>
-            println(solvedSudoku.sudokuHistory.asSudokuString)
+           // println(solvedSudoku.sudokuHistory.asSudokuString)
             setVideoView(solvedSudoku.frameWithSolution)
             // TODO triggers exception
             solvedSudoku.optCNormalized.foreach(setSolutionView)
@@ -300,269 +301,10 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   def setVideoView(mat: Mat): Unit = videoView.setImage(JavaCVPainter.toImage(mat))
 
-  def setNormalizedView(mat: Mat): Unit = normalizedView.setImage(JavaCVPainter.toImage(mat))
+  def setNormalizedView(mat: Mat): Unit = () // normalizedView.setImage(JavaCVPainter.toImage(mat))
 
-  def setSolutionView(mat: Mat): Unit = solutionView.setImage(JavaCVPainter.toImage(mat))
+  def setSolutionView(mat: Mat): Unit = () // solutionView.setImage(JavaCVPainter.toImage(mat))
 
-  /*
-    def mkRange(a: Double, b: Double, nrCells: Int = 9): Seq[Double] = {
-      if (a == b) {
-        List.fill(10)(a)
-      } else {
-        val r: Seq[BigDecimal] = BigDecimal(a) to BigDecimal(b) by BigDecimal((b - a) / nrCells)
-        if (r.size == 9) {
-          List.concat(r.map(_.toDouble), List(b))
-        } else {
-          r.map(_.toDouble)
-        }
-      }
-    }
-
-    def splitRange(ax: Double, ay: Double, bx: Double, by: Double): Seq[(Double, Double)] = {
-      mkRange(ax, bx) zip mkRange(ay, by)
-    }
-
-    def mkCellCorner: Circle = {
-      val c = new Circle
-      c.setRadius(3)
-      c.setStroke(Color.GOLD)
-      c.setFill(Color.INDIANRED)
-      c
-    }
-  */
-
-  /**
-   * returns coordinates of the 100 cell corners
-   */
-  /*
-def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
-  val Seq(ul, ur, lr, ll) = corners
-  val left = splitRange(ul.x, ul.y, ll.x, ll.y)
-  val right = splitRange(ur.x, ur.y, lr.x, lr.y)
-  if (left.size == 10) {
-    if (right.size == 10) {
-      (for (i <- 0 to 9) yield {
-        splitRange(left(i)._1, left(i)._2, right(i)._1, right(i)._2).toArray
-      }).flatten
-    } else {
-      logError(s"Right column had not 10 points, but ${right.size}. [$ur,$lr]")
-      Seq()
-    }
-  } else {
-    logError(s"Left column had not 10 points, but ${left.size}. [$ul,$ll]")
-    Seq()
-  }
-} */
-
-  /**
-   * reduces 100 corners to 81 boundaries
-   */
-  /*
-def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
-
-  def extractBound(index: Int): Seq[java.lang.Double] = {
-    IndexedSeq(cellCorners(index)._1, cellCorners(index)._2,
-      cellCorners(index + 1)._1, cellCorners(index + 1)._2,
-      cellCorners(index + 11)._1, cellCorners(index + 11)._2,
-      cellCorners(index + 10)._1, cellCorners(index + 10)._2,
-      cellCorners(index)._1, cellCorners(index)._2)
-  }
-
-  val exclusions = 9 to 79 by 10
-  for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
-}
-*/
-
-  /*
-    def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
-      val polys =
-        contours.map {
-          c =>
-            val p = new Polygon()
-            c.toList.asScala.foldLeft(p)((acc, p) => {
-              acc.getPoints.addAll(p.x, p.y)
-              acc
-            })
-            p.setStroke(Color.AQUAMARINE)
-            p
-        }
-      execOnUIThread({
-        polyArea.getChildren.clear()
-        polyArea.getChildren.addAll(polys.asJava)
-        ()
-      })
-    }
-  */
-  /*
-    def updateCellBounds(border: Seq[Point], cellBounds: Array[Polyline]): Unit = {
-      val cellCorners = mkCellCorners(border)
-      if (cellCorners.size == 100) {
-        val boundCoordinates = mkCellBounds(cellCorners)
-        if (boundCoordinates.size == 81) {
-          for (i <- 0 to 80) {
-            val line = cellBounds(i)
-            line.getPoints.clear()
-            line.getPoints.addAll(boundCoordinates(i).asJava)
-          }
-        } else {
-          logError(s"Found ${boundCoordinates.size} bounds, expected 81 (border size: ${border.size})!")
-        }
-      } else {
-        logError(s"Only found ${cellCorners.size} corners, expected 100 (border size: ${border.size})!")
-      }
-    }
-
-    def updateCellCorners(corners: Seq[Point], cellCorners: Array[Circle]): Unit = {
-      mkCellCorners(corners).zipWithIndex.foreach {
-        case ((x, y), index) =>
-          cellCorners(index).setCenterX(x)
-          cellCorners(index).setCenterY(y)
-          mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play()
-      }
-    }
-    def updateBorder(corners: List[Point]): Unit = {
-      sudokuBorder.getPoints.clear()
-      // sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners).asJava)
-      // borderFadeTransition.play()
-    }
-  */
-  /*
-    def updateVideo(fp: FramePipeline, solutionMat: Mat): Unit = {
-      for {
-        selectedToggle <- Option(viewButtons.getSelectedToggle)
-        processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
-      } yield {
-        processingStage match {
-          case InputStage => setVideoView(fp.frame)
-          case GrayedStage => setVideoView(fp.grayed)
-          case BlurredStage => setVideoView(fp.blurred)
-          case ThresholdedStage => setVideoView(fp.thresholded)
-          case InvertedStage => setVideoView(fp.inverted)
-          case DilatedStage => setVideoView(fp.dilated)
-          case ErodedStage => setVideoView(fp.eroded)
-          case SolutionStage => setVideoView(solutionMat)
-        }
-      }
-    }
-  */
-  /*
-def display(result: SudokuResult): Future[Unit] = execOnUIThread {
-  for {
-    selectedToggle <- Option(viewButtons.getSelectedToggle)
-    processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
-  } yield {
-    updateDisplay(result)
-  }
-
-      setAnalysisMouseTransparent(false)
-
-      // updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren.asScala.toSeq))
-      result match {
-        case success: SSuccess if success.someSolution.isDefined =>
-          updateStatus(mkFps(success.inputFrame.pipeline.start), Color.GREEN)
-        case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
-          updateStatus(mkFps(onlyCorners.inputFrame.pipeline.start), Color.ORANGE)
-        // updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
-        // updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
-        case SFailure(_, SCandidate(_, framePipeline, _, SudokuState.DefaultState)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
-      }
-
-}
-   */
-
-
-  def initResultPane(resultPane: FlowPane): Boolean = {
-    def mkSolutionPane(): Seq[Label] = {
-      val cells = 1 to 81
-      for (_ <- cells) yield {
-        val l = new Label("0")
-        l.setAlignment(Pos.CENTER)
-        l.setStyle("-fx-border-color:yellow;-fx-border-width:1px;-fx-border-style:solid")
-        l.setMinHeight(20.0)
-        l.setMaxHeight(20.0)
-        l.setMinWidth(20.0)
-        l.setMaxWidth(20.0)
-        l
-      }
-    }
-
-    resultPane.setPrefWrapLength(20.0 * 9)
-    resultPane.setMaxWidth(20.0 * 9)
-    resultPane.getChildren.addAll(mkSolutionPane().asJava)
-  }
-
-  def initStatsPane(flowPane: FlowPane): Unit = {
-    val cellWidth = 40.0
-    flowPane.setStyle("-fx-border-color:red;-fx-border-width:1px;-fx-border-style:solid;")
-    flowPane.setMaxWidth(9 * (cellWidth + 2) - 16)
-    flowPane.setMinWidth(9 * (cellWidth + 2) - 16)
-    flowPane.setPrefWrapLength(9 * (cellWidth + 2))
-
-    val cells = 1 to 81
-    val numbers = 0 to 9
-    val cellz =
-      for (_ <- cells) yield {
-        val fp = new FlowPane()
-        fp.setStyle("-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
-        fp.setMinWidth(cellWidth)
-        fp.setMinHeight(cellWidth)
-        fp.setMaxWidth(cellWidth)
-        fp.setMaxHeight(cellWidth)
-        fp.setClip(new Rectangle(cellWidth, cellWidth))
-        fp.setAlignment(Pos.CENTER)
-        val icells = numbers.map(n => {
-          val l = new Label(n.toString)
-          l.setStyle("-fx-font-size:5px")
-          l
-        })
-        fp.getChildren.addAll(icells.asJava)
-        fp
-      }
-    flowPane.getChildren.addAll(cellz.asJava)
-    ()
-  }
-
-
-  /**
-   * updates UI to show for each cell (there are 81 of them) which number was detected how often
-   * In each flowpane there are 9 labels (representing each number)
-   */
-  /*
-def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]): Unit = {
-
-  // change colors of flowpanes such that if there are more than one hits it
-  // the pane should change to a orange color
-  def colory(count: Int): String = {
-    count match {
-      case 1 => "-fx-background-color:green;"
-      case 2 => "-fx-background-color:orange;"
-      case _ => "-fx-background-color:red;"
-    }
-  }
-
-  val sortedHitCountValues = hitCounts.sortWith {
-    case (a, b) => a._1 < b._1
-  }.map(_._2)
-
-  for {
-    (cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
-    (v, distribution) <- cellContent.toSeq
-  } {
-    val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
-    cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${
-      fontSize
-    }px;")
-  }
-
-  // if there are ambiguities, display them in red
-  for ((cellDisplay, cellContent) <- displayItems zip sortedHitCountValues) {
-    val cssColor = colory(cellContent.size)
-    cellDisplay.setStyle(s"$cssColor;-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
-  }
-
-
-}
-*/
 
   def initNumberFlowPane(numberFlowPane: FlowPane): Unit = {
     numberFlowPane.setMinWidth(3 * 142.0)
@@ -633,9 +375,271 @@ def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]):
       optM match {
         case None => logError(s"No data found for digit $i")
         case Some(m) =>
-          digitToolBar.getItems.get(i).asInstanceOf[ImageView].setImage(asImage(m))
+          println("quality:" + quality)
+          val image = asImage(m)
+          digitToolBar.getItems.get(i).asInstanceOf[ImageView].setImage(image)
       }
     }
   }
 
 }
+
+/*
+    def mkRange(a: Double, b: Double, nrCells: Int = 9): Seq[Double] = {
+      if (a == b) {
+        List.fill(10)(a)
+      } else {
+        val r: Seq[BigDecimal] = BigDecimal(a) to BigDecimal(b) by BigDecimal((b - a) / nrCells)
+        if (r.size == 9) {
+          List.concat(r.map(_.toDouble), List(b))
+        } else {
+          r.map(_.toDouble)
+        }
+      }
+    }
+
+    def splitRange(ax: Double, ay: Double, bx: Double, by: Double): Seq[(Double, Double)] = {
+      mkRange(ax, bx) zip mkRange(ay, by)
+    }
+
+    def mkCellCorner: Circle = {
+      val c = new Circle
+      c.setRadius(3)
+      c.setStroke(Color.GOLD)
+      c.setFill(Color.INDIANRED)
+      c
+    }
+  */
+
+/**
+ * returns coordinates of the 100 cell corners
+ */
+/*
+def mkCellCorners(corners: Seq[Point]): Seq[(Double, Double)] = {
+val Seq(ul, ur, lr, ll) = corners
+val left = splitRange(ul.x, ul.y, ll.x, ll.y)
+val right = splitRange(ur.x, ur.y, lr.x, lr.y)
+if (left.size == 10) {
+  if (right.size == 10) {
+    (for (i <- 0 to 9) yield {
+      splitRange(left(i)._1, left(i)._2, right(i)._1, right(i)._2).toArray
+    }).flatten
+  } else {
+    logError(s"Right column had not 10 points, but ${right.size}. [$ur,$lr]")
+    Seq()
+  }
+} else {
+  logError(s"Left column had not 10 points, but ${left.size}. [$ul,$ll]")
+  Seq()
+}
+} */
+
+/**
+ * reduces 100 corners to 81 boundaries
+ */
+/*
+def mkCellBounds(cellCorners: Seq[(Double, Double)]): Seq[Seq[java.lang.Double]] = {
+
+def extractBound(index: Int): Seq[java.lang.Double] = {
+  IndexedSeq(cellCorners(index)._1, cellCorners(index)._2,
+    cellCorners(index + 1)._1, cellCorners(index + 1)._2,
+    cellCorners(index + 11)._1, cellCorners(index + 11)._2,
+    cellCorners(index + 10)._1, cellCorners(index + 10)._2,
+    cellCorners(index)._1, cellCorners(index)._2)
+}
+
+val exclusions = 9 to 79 by 10
+for (i <- 0 to 88 if !exclusions.contains(i)) yield extractBound(i)
+}
+*/
+
+/*
+  def displayContours(contours: Seq[MatOfPoint]): Future[Unit] = {
+    val polys =
+      contours.map {
+        c =>
+          val p = new Polygon()
+          c.toList.asScala.foldLeft(p)((acc, p) => {
+            acc.getPoints.addAll(p.x, p.y)
+            acc
+          })
+          p.setStroke(Color.AQUAMARINE)
+          p
+      }
+    execOnUIThread({
+      polyArea.getChildren.clear()
+      polyArea.getChildren.addAll(polys.asJava)
+      ()
+    })
+  }
+*/
+/*
+  def updateCellBounds(border: Seq[Point], cellBounds: Array[Polyline]): Unit = {
+    val cellCorners = mkCellCorners(border)
+    if (cellCorners.size == 100) {
+      val boundCoordinates = mkCellBounds(cellCorners)
+      if (boundCoordinates.size == 81) {
+        for (i <- 0 to 80) {
+          val line = cellBounds(i)
+          line.getPoints.clear()
+          line.getPoints.addAll(boundCoordinates(i).asJava)
+        }
+      } else {
+        logError(s"Found ${boundCoordinates.size} bounds, expected 81 (border size: ${border.size})!")
+      }
+    } else {
+      logError(s"Only found ${cellCorners.size} corners, expected 100 (border size: ${border.size})!")
+    }
+  }
+
+  def updateCellCorners(corners: Seq[Point], cellCorners: Array[Circle]): Unit = {
+    mkCellCorners(corners).zipWithIndex.foreach {
+      case ((x, y), index) =>
+        cellCorners(index).setCenterX(x)
+        cellCorners(index).setCenterY(y)
+        mkFadeTransition(500, cellCorners(index), 1.0, 0.0).play()
+    }
+  }
+  def updateBorder(corners: List[Point]): Unit = {
+    sudokuBorder.getPoints.clear()
+    // sudokuBorder.getPoints.addAll(convert2PolyLinePoints(corners).asJava)
+    // borderFadeTransition.play()
+  }
+*/
+/*
+  def updateVideo(fp: FramePipeline, solutionMat: Mat): Unit = {
+    for {
+      selectedToggle <- Option(viewButtons.getSelectedToggle)
+      processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
+    } yield {
+      processingStage match {
+        case InputStage => setVideoView(fp.frame)
+        case GrayedStage => setVideoView(fp.grayed)
+        case BlurredStage => setVideoView(fp.blurred)
+        case ThresholdedStage => setVideoView(fp.thresholded)
+        case InvertedStage => setVideoView(fp.inverted)
+        case DilatedStage => setVideoView(fp.dilated)
+        case ErodedStage => setVideoView(fp.eroded)
+        case SolutionStage => setVideoView(solutionMat)
+      }
+    }
+  }
+*/
+/*
+def display(result: SudokuResult): Future[Unit] = execOnUIThread {
+for {
+  selectedToggle <- Option(viewButtons.getSelectedToggle)
+  processingStage <- Option(selectedToggle.getUserData).map(_.asInstanceOf[ProcessingStage])
+} yield {
+  updateDisplay(result)
+}
+
+    setAnalysisMouseTransparent(false)
+
+    // updateDigitLibraryView(getCurrentSudokuState.library, as[ImageView](numberFlowPane.getChildren.asScala.toSeq))
+    result match {
+      case success: SSuccess if success.someSolution.isDefined =>
+        updateStatus(mkFps(success.inputFrame.pipeline.start), Color.GREEN)
+      case onlyCorners: SSuccess if onlyCorners.someSolution.isEmpty =>
+        updateStatus(mkFps(onlyCorners.inputFrame.pipeline.start), Color.ORANGE)
+      // updateCellBounds(onlyCorners.sudokuFrame.corners, analysisCellBounds)
+      // updateCellCorners(onlyCorners.sudokuFrame.corners, analysisCellCorners)
+      case SFailure(_, SCandidate(_, framePipeline, _, SudokuState.DefaultState)) => updateStatus(mkFps(framePipeline.start), Color.AQUA)
+    }
+
+}
+ */
+
+/*
+  def initResultPane(resultPane: FlowPane): Boolean = {
+    def mkSolutionPane(): Seq[Label] = {
+      val cells = 1 to 81
+      for (_ <- cells) yield {
+        val l = new Label("0")
+        l.setAlignment(Pos.CENTER)
+        l.setStyle("-fx-border-color:yellow;-fx-border-width:1px;-fx-border-style:solid")
+        l.setMinHeight(20.0)
+        l.setMaxHeight(20.0)
+        l.setMinWidth(20.0)
+        l.setMaxWidth(20.0)
+        l
+      }
+    }
+
+    resultPane.setPrefWrapLength(20.0 * 9)
+    resultPane.setMaxWidth(20.0 * 9)
+    resultPane.getChildren.addAll(mkSolutionPane().asJava)
+  }
+
+  def initStatsPane(flowPane: FlowPane): Unit = {
+    val cellWidth = 40.0
+    flowPane.setStyle("-fx-border-color:red;-fx-border-width:1px;-fx-border-style:solid;")
+    flowPane.setMaxWidth(9 * (cellWidth + 2) - 16)
+    flowPane.setMinWidth(9 * (cellWidth + 2) - 16)
+    flowPane.setPrefWrapLength(9 * (cellWidth + 2))
+
+    val cells = 1 to 81
+    val numbers = 0 to 9
+    val cellz =
+      for (_ <- cells) yield {
+        val fp = new FlowPane()
+        fp.setStyle("-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
+        fp.setMinWidth(cellWidth)
+        fp.setMinHeight(cellWidth)
+        fp.setMaxWidth(cellWidth)
+        fp.setMaxHeight(cellWidth)
+        fp.setClip(new Rectangle(cellWidth, cellWidth))
+        fp.setAlignment(Pos.CENTER)
+        val icells = numbers.map(n => {
+          val l = new Label(n.toString)
+          l.setStyle("-fx-font-size:5px")
+          l
+        })
+        fp.getChildren.addAll(icells.asJava)
+        fp
+      }
+    flowPane.getChildren.addAll(cellz.asJava)
+    ()
+  }
+*/
+
+/**
+ * updates UI to show for each cell (there are 81 of them) which number was detected how often
+ * In each flowpane there are 9 labels (representing each number)
+ */
+/*
+def displayHitCounts(hitCounts: Seq[Map[Int,Int]], displayItems: Seq[FlowPane]): Unit = {
+
+// change colors of flowpanes such that if there are more than one hits it
+// the pane should change to a orange color
+def colory(count: Int): String = {
+  count match {
+    case 1 => "-fx-background-color:green;"
+    case 2 => "-fx-background-color:orange;"
+    case _ => "-fx-background-color:red;"
+  }
+}
+
+val sortedHitCountValues = hitCounts.sortWith {
+  case (a, b) => a._1 < b._1
+}.map(_._2)
+
+for {
+  (cellDisplay, cellContent) <- displayItems zip sortedHitCountValues
+  (v, distribution) <- cellContent.toSeq
+} {
+  val fontSize = if (distribution < Parameters.topCap) distribution else Parameters.topCap
+  cellDisplay.getChildren.get(v).setStyle(s"-fx-font-size:${
+    fontSize
+  }px;")
+}
+
+// if there are ambiguities, display them in red
+for ((cellDisplay, cellContent) <- displayItems zip sortedHitCountValues) {
+  val cssColor = colory(cellContent.size)
+  cellDisplay.setStyle(s"$cssColor;-fx-border-color:black;-fx-border-width:1px;-fx-border-style:solid;")
+}
+
+
+}
+*/
