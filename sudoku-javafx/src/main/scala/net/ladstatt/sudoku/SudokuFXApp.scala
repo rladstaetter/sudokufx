@@ -7,7 +7,7 @@ package net.ladstatt.sudoku
 import _root_.javafx.scene._
 import _root_.javafx.stage.Stage
 import javafx.application.Application
-import javafx.scene.layout.VBox
+import javafx.scene.layout.{BorderPane, VBox}
 import org.bytedeco.javacv.OpenCVFrameConverter
 
 import scala.util.{Failure, Success, Try}
@@ -31,7 +31,7 @@ class SudokuFX extends Application with JfxUtils {
       stage.setTitle("SudokuFX")
 
       val fxmlLoader = mkFxmlLoader("/net/ladstatt/sudoku/sudokufx.fxml")
-      val parent = fxmlLoader.load[VBox]()
+      val parent = fxmlLoader.load[BorderPane]()
       val controller = fxmlLoader.getController[SudokuFXController]
       val scene = new Scene(parent)
       stage.setScene(scene)
