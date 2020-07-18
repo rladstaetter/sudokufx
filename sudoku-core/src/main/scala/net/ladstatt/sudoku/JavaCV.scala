@@ -199,9 +199,10 @@ object JavaCV extends CanLog {
     dest
   }
 
+  // copies data to canvas, using data as mask as well, to given roi in canvas
   def copyTo(canvas: Mat, data: Mat, roi: Rect): Mat = {
     val cellTarget = new Mat(canvas, roi)
-    data.copyTo(cellTarget)
+    data.copyTo(cellTarget, data)
     canvas
   }
 
@@ -216,6 +217,7 @@ object JavaCV extends CanLog {
     }
     new Scalar(0, (n % cap) * 255 / cap, r.toDouble, 255.0)
   }
+
   /**
    * paints green borders around the cells
    *
@@ -448,34 +450,6 @@ object JavaCV extends CanLog {
     dest
   }
 
-  // def resizeFuture(source: Mat, size: Size): Future[Mat] = Future(resize(source, size))
-
-  /*
-    def warp2(imageMat: Mat, upLeft: Point, upRight: Point, downLeft: Point, downRight: Point): Mat = {
-      val originalImgWidth = imageMat.size.width
-      val originalImgHeight = imageMat.size.height
-      val srcCorners = new FloatPointer(upLeft.x, upLeft.y, upRight.x, upRight.y, downRight.x, downRight.y, downLeft.x, downLeft.y)
-      val dstCorners = new FloatPointer(0, 0, originalImgWidth.toInt, 0, originalImgWidth.toInt, originalImgHeight.toInt, 0, originalImgHeight.toInt)
-      val src = new Mat(new Size(2, 4), CV_32F, srcCorners)
-      val dst = new Mat(new Size(2, 4), CV_32F, dstCorners)
-      val perspective = getPerspectiveTransform(src, dst)
-      val result = new Mat
-      warpPerspective(imageMat, result, perspective, new Size(originalImgWidth.toInt, originalImgHeight.toInt))
-      src.release()
-      dst.release()
-      srcCorners.deallocate()
-      dstCorners.deallocate()
-      result
-    }
-  */
-  def p(n: String, w: Int, h: Int) = println(s"$n: $w / $h")
-
-  def convertTo32F(m: Mat): Mat = {
-    val dest = new Mat
-    m.convertTo(dest, CV_32F)
-    dest
-  }
-
   /**
    * warps image from to make feature extraction's life easier (time intensive call)
    */
@@ -619,22 +593,6 @@ object JavaCV extends CanLog {
     //println(s"!!!: ${A.x}, ${A.y}, ${B.x}, ${B.y}, ${C.x}, ${C.y}, ${D.x}, ${D.y}")
     new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
   }
-
-
-  /**
-   * sort points in following order:
-   * topleft, topright, bottomright, bottomleft
-   */
-  /*
-def mkSortedCorners(points: MatOfPoint2f): Seq[Point] = {
-  val pointsAsList = points.toList
-  val sortBySum = pointsAsList.asScala.sortWith((l, r) => (l.x + l.y) < (r.x + r.y))
-  val sortByDifference = pointsAsList.asScala.sortWith((l, r) => (l.y - l.x) < (r.y - r.x))
-  val (topleft, bottomright) = (sortBySum.head, sortBySum.reverse.head)
-  val (topright, bottomleft) = (sortByDifference.head, sortByDifference.reverse.head)
-  Seq(topleft, topright, bottomright, bottomleft)
-}
-*/
 
   def threshold(input: Mat): Mat = {
     val output = new Mat

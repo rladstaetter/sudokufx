@@ -42,11 +42,7 @@ object BruteForceSolver extends CanLog {
    * and it will return the solved sudoku (without zeros)
    *
    */
-  def solve(mmx: String, maxDuration: Long): Option[Seq[Int]] = {
-    solveIt(mmx.map(_.asDigit), maxDuration millis)
-  }
-
-  def solveIt(mmx: Seq[Int], maxDuration: FiniteDuration): Option[Seq[Int]] = timeR({
+   def solve(mmx: Seq[Int], maxDuration: FiniteDuration): Option[Seq[Int]] = timeR({
     val deadline = maxDuration.fromNow
     var cnt = 0
     val mx: Array[Array[Int]] = mmx.toArray.sliding(9, 9).toArray

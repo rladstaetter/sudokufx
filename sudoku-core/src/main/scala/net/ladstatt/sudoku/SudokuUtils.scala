@@ -24,7 +24,7 @@ object SudokuUtils {
 
   def solve(solutionCandidate: Seq[Int]
             , maxDuration: FiniteDuration): Option[SudokuState] = {
-    BruteForceSolver.solveIt(solutionCandidate, maxDuration).map(solution => SudokuState(solution, Sudoku.minNrOfValueHits))
+    BruteForceSolver.solve(solutionCandidate, maxDuration).map(solution => SudokuState(solution, Sudoku.minNrOfValueHits))
   }
 
   def toSolutionCells(frameNr: Int

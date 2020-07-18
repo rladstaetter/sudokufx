@@ -22,7 +22,7 @@ object Sudoku {
   val useTestSession = false
 
   /** if true write debug info for cell */
-  val writeCellDebug: Boolean = true
+  val writeCellDebug: Boolean = false
 
   /** if set to true, sudokufx will write debug files / images */
   val writeFiles = false
@@ -163,10 +163,10 @@ case class Sudoku(id: String
 
 object SolvedSudoku {
 
-  def normalizeCanvas(normalized: Mat
-                      , sudokuState: SudokuState
-                      , cellRois: Seq[Rect]
-                      , digitLibrary: DigitLibrary): Mat = {
+  def populateWithSolution(normalized: Mat
+                           , sudokuState: SudokuState
+                           , cellRois: Seq[Rect]
+                           , digitLibrary: DigitLibrary): Mat = {
     ((sudokuState.cells zip sudokuState.cellValues) zip cellRois).foldLeft(normalized) {
       case (norm, ((orig, detectedValue), r)) =>
         if (orig != 0) {
@@ -175,8 +175,8 @@ object SolvedSudoku {
           val cell = {
             if (digitLibrary.contains(detectedValue)) {
               digitLibrary.digits(detectedValue).optMat match {
-                case None => SudokuUtils.mkFallback(detectedValue, digitLibrary).get
                 case Some(s) => s
+                case None => SudokuUtils.mkFallback(detectedValue, digitLibrary).get
               }
             } else {
               SudokuUtils.mkFallback(detectedValue, digitLibrary).get
@@ -185,18 +185,6 @@ object SolvedSudoku {
           copyTo(norm, cell, r)
         }
     }
-    /*
-        for ((s, r) <- cellValues zip cellRois if s != 0) {
-          val cell: Mat = {
-            digitLibrary(s)._2 match {
-              case None => SudokuUtils.mkFallback(s, digitLibrary).get
-              case Some(s) => s
-            }
-          }
-          copyTo(normalized, cell, r)
-        }
-        // will be mutated during for loop
-        normalized*/
   }
 
   def apply(frameNr: Int
@@ -204,22 +192,22 @@ object SolvedSudoku {
             , normalized: Mat
             , detectedCorners: Mat
             , cellRois: Seq[Rect]
-            , solvedSudoku: SudokuState
+            , sudokuState: SudokuState
             , digitLibrary: DigitLibrary): SolvedSudoku = {
-    val cNormalized: Mat = normalizeCanvas(normalized, solvedSudoku, cellRois, digitLibrary)
-    paintCorners(cNormalized, cellRois, solvedSudoku.hitHistory, 4)
+    val sudokuNormalizedWithSolution: Mat = populateWithSolution(normalized, sudokuState, cellRois, digitLibrary)
+    // paintCorners(sudokuNormalizedWithSolution, cellRois, sudokuState.hitHistory, 4)
 
-    JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-solvedCanvasNormalized.png"), cNormalized)
+    JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-solvedCanvasNormalized.png"), sudokuNormalizedWithSolution)
 
-    val warped: Mat = JavaCV.unwarp(cNormalized, detectedCorners)
+    val warped: Mat = JavaCV.unwarp(sudokuNormalizedWithSolution, detectedCorners)
     JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-warped.png"), warped)
     val solutionMat: Mat = JavaCV.copySrcToDestWithMask(warped, inputFrame, warped)
     JavaCV.writeMat(Sudoku.targetPath.resolve(s"$frameNr-solution.png"), solutionMat)
 
     SolvedSudoku(solutionMat
-      , Option(cNormalized)
+      , Option(sudokuNormalizedWithSolution)
       , detectedCorners
-      , solvedSudoku)
+      , sudokuState)
   }
 
 }
