@@ -4,12 +4,15 @@ package net.ladstatt.sudoku
  * Copyright (c) 2013-2016, Robert Ladstätter @rladstaetter
  **/
 
+import java.nio.file.{Files, Path, Paths}
+
 import _root_.javafx.scene._
 import _root_.javafx.stage.Stage
 import javafx.application.Application
-import javafx.scene.layout.{BorderPane, VBox}
+import javafx.scene.layout.BorderPane
 import org.bytedeco.javacv.OpenCVFrameConverter
 
+import scala.jdk.CollectionConverters
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -26,13 +29,28 @@ object SudokuFXApp {
 
 class SudokuFX extends Application with JfxUtils {
 
+  import CollectionConverters._
+
   override def start(stage: Stage): Unit =
     Try {
       stage.setTitle("SudokuFX")
+      val params = getParameters.getRaw.asScala
+      val sessionsPath = Paths.get(params.headOption.getOrElse("target/sessions"))
 
       val fxmlLoader = mkFxmlLoader("/net/ladstatt/sudoku/sudokufx.fxml")
       val parent = fxmlLoader.load[BorderPane]()
       val controller = fxmlLoader.getController[SudokuFXController]
+
+      controller.setSessionsPath(sessionsPath)
+      params.tail.headOption match {
+        case Some(sessionNr) =>
+          controller.setSession(sessionNr.toLong)
+          controller.setImageInput(FromFile)
+        case None =>
+          controller.setSession(nextSessionNumber(sessionsPath))
+          controller.setImageInput(FromVideo)
+      }
+
       val scene = new Scene(parent)
       stage.setScene(scene)
 
@@ -50,6 +68,9 @@ class SudokuFX extends Application with JfxUtils {
 
     }
 
+  private def nextSessionNumber(sessionsPath: Path): Long = {
+    Files.list(sessionsPath).count + 1
+  }
 }
 
 

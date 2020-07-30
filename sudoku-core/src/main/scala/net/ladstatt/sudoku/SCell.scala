@@ -1,5 +1,7 @@
 package net.ladstatt.sudoku
 
+import java.nio.file.Path
+
 import net.ladstatt.sudoku.JavaCV.findContours
 import org.bytedeco.opencv.global.opencv_imgproc
 import org.bytedeco.opencv.opencv_core.{Mat, Point, Range, Rect}
@@ -43,7 +45,7 @@ object SCell {
         //        println("maxArea: " + maxArea)
         val contourAreaBiggerThanMinArea = boundingContourArea > minArea
         val contourAreaSmallerThanMaxArea = boundingContourArea < maxArea
-        val contourContainsCenter = boundingRect.contains(cellCenter)
+        // val contourContainsCenter = boundingRect.contains(cellCenter)
         if (contourAreaBiggerThanMinArea &&
           contourAreaSmallerThanMaxArea // &&          contourContainsCenter
         ) {
@@ -81,9 +83,9 @@ case class SCell(id: String
                  , pos: Int
                  , origMat: Mat
                  , roi: Rect
-                 , hitHistory: Map[Int, Int]) {
+                 , hitHistory: Map[Int, Int]
+                 , sessionPath: Path) {
 
-  import Sudoku._
 
   val (width, height) = (origMat.size.width, origMat.size.height)
   val cellMat: Mat = init(origMat)
@@ -93,15 +95,15 @@ case class SCell(id: String
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   val cellData = new Mat(cell, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
 
-  val blurred = JavaCV.doitWith(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, targetPath)(cell)
-  val equalized = JavaCV.doitWith(id, frameNr, pos, "3-equalized", JavaCV.equalizeHist, targetPath)(blurred)
-  val thresholed = JavaCV.doitWith(id, frameNr, pos, "4-threshold", JavaCV.threshold, targetPath)(equalized)
-  val bitNotted = JavaCV.doitWith(id, frameNr, pos, "5-bitnotted", JavaCV.bitwiseNot, targetPath)(thresholed)
-  val borderRemoved = JavaCV.doitWith(id, frameNr, pos, "6-borderremoved", JavaCV.removeBorderArtefacts, targetPath)(bitNotted)
+  val blurred = JavaCV.doitWith(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, sessionPath)(cell)
+  val equalized = JavaCV.doitWith(id, frameNr, pos, "3-equalized", JavaCV.equalizeHist, sessionPath)(blurred)
+  val thresholed = JavaCV.doitWith(id, frameNr, pos, "4-threshold", JavaCV.threshold, sessionPath)(equalized)
+  val bitNotted = JavaCV.doitWith(id, frameNr, pos, "5-bitnotted", JavaCV.bitwiseNot, sessionPath)(thresholed)
+  val borderRemoved = JavaCV.doitWith(id, frameNr, pos, "6-borderremoved", JavaCV.removeBorderArtefacts, sessionPath)(bitNotted)
 
-  def init(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "0-cellMat", m => m, targetPath)(m)
+  def init(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "0-cellMat", m => m, sessionPath)(m)
 
-  def gray(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "1-grayed", JavaCV.toGray, targetPath)(m)
+  def gray(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "1-grayed", JavaCV.toGray, sessionPath)(m)
 
   val optNumberCellMat: Option[Mat] = SCell.optNumberMat(borderRemoved)
 
@@ -109,11 +111,7 @@ case class SCell(id: String
     optNumberCellMat.map {
       m => TemplateLibrary.detectNumber(m)
     }.getOrElse((0, 0.0))
-  /*
-    if (detectedValue == 7) {
-      JavaCV.writeMat(targetPath.resolve(detectedValue.toString).resolve(s"$detectedValue-$frameNr.png"), origMat)
-    }
-  */
+
   /** adds current hit to history, ignoring 0 */
   val hits: Map[Int, Int] = {
     if (detectedValue == 0) {

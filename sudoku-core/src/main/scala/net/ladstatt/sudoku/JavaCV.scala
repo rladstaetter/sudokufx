@@ -329,7 +329,7 @@ object JavaCV extends CanLog {
   }
 
   def mkCorners(width: Int, height: Int): Mat = {
-    val p = new FloatPointer(0, 0, width, 0, width, height, 0, height)
+    val p = new FloatPointer(0F, 0F, width.toFloat, 0F, width.toFloat, height.toFloat, 0F, height.toFloat)
     new Mat(new Size(2, 4), opencv_core.CV_32F, p)
   }
 

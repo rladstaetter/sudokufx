@@ -1,9 +1,11 @@
 package net.ladstatt.sudoku
 
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 object Sudokus {
 
+  private val sessionsPath: Path = Paths.get("target/sessions")
+  val sessionPath: Path = sessionsPath.resolve(System.currentTimeMillis().toString)
 
   private val pathPrefix = "src/test/resources/net/ladstatt/sudoku/testdata/"
 
@@ -32,7 +34,8 @@ object Sudokus {
         , 1172f, 711f
         , 804f, 640f)
       , s1ReadyToSolve.assumeReadyToSolve
-      , Parameters.defaultDigitLibrary)
+      , Parameters.defaultDigitLibrary
+      , sessionPath)
 
   val sudokuSolved: SudokuState =
     SudokuState(
@@ -57,7 +60,8 @@ object Sudokus {
         , 1172f, 711f
         , 804f, 640f)
       , s1ReadyToSolve
-      , Parameters.defaultDigitLibrary)
+      , Parameters.defaultDigitLibrary
+      , sessionPath)
 
   /** what the image processing thinks it sees for frame1 */
   /*
@@ -96,7 +100,8 @@ object Sudokus {
         , 738.0f, 571.0f
         , 349.0f, 588.0f
       ), history = SudokuState()
-      , Parameters.defaultDigitLibrary)
+      , Parameters.defaultDigitLibrary
+      , sessionPath)
 
   /** a map with paths to original images and coordinates of sudoku area to detect */
   lazy val validSudokus: Seq[SudokuEnvironment] = Seq(sudoku1Empty, sudoku2CurrentBest)

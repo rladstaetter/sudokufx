@@ -34,7 +34,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
    * a little less intelligent and effective, would be floodfill which was used before this function.
    *
    **/
-  "JavaCV.connectedComponentWithStats" in {
+  "JavaCV.connectedComponentWithStats" ignore {
     val matCp = MatCp("/net/ladstatt/sudoku/cell/1-with-artifacts.png")
     val m = JavaCV.loadMat(getClass, matCp, opencv_imgcodecs.IMREAD_GRAYSCALE)
 
@@ -48,7 +48,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
 
     val out = JavaCV.removeBorderArtefacts(m)
 
-    JavaCV.writeMat(Sudoku.targetPath.resolve("out.png"), out)
+    JavaCV.writeMat(Sudokus.sessionPath.resolve("out.png"), out)
     /*
         if (notTouchingBorder.nonEmpty) {
           notTouchingBorder.foldLeft(opencv_core.notEquals(notTouchingBorder.head)) {

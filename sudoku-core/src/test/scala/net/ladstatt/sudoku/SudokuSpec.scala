@@ -16,7 +16,6 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
 
   import Sudokus._
 
-
   "SudokuHistory" should {
     "equals works" in {
       assert(SudokuState() == SudokuState())
@@ -79,7 +78,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
   }
 
   def fromPath(p: Path, frameNr: Int, pos: Int): SCell = {
-    SCell(p.getFileName.toString, frameNr, pos, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0))
+    SCell(p.getFileName.toString, frameNr, pos, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0), sessionPath)
   }
 
   private def detect(base: Path, number: Int): Seq[SCell] = {
@@ -104,7 +103,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     val res: Map[Int, Int] =
     files.zipWithIndex.foldLeft(Map[Int, Int]().withDefaultValue(0)) {
       case (acc, (p, i)) =>
-        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc).hits
+        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc,sessionPath).hits
     }
     println(res)
     val (detectedNumber, _) =
@@ -156,7 +155,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         solvedSudoku =>
           solvedSudoku.optCNormalized match {
             case Some(value) =>
-              JavaCV.writeMat(Sudoku.targetPath.resolve("cNormalized.png"), value)
+              assert(JavaCV.writeMat(sessionPath.resolve("cNormalized.png"), value))
             case None =>
               fail()
           }
@@ -165,8 +164,8 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     "solve exact number at ease" in {
       solve(sudoku1ReadyToSolve, {
         value =>
-          assert(value.sudokuHistory.isSolved)
-          assert(value.sudokuHistory == Sudokus.sudokuSolved)
+          assert(value.sudokuState.isSolved)
+          assert(value.sudokuState == Sudokus.sudokuSolved)
       })
     }
 
@@ -180,7 +179,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         val res = new Mat()
         opencv_imgproc.warpPerspective(m, res, transformationMatrix, Parameters.size1280x720)
         if ((i % 100) == 0) {
-          JavaCV.writeMat(Sudoku.targetPath.resolve(s"$i-warped.png"), res)
+          JavaCV.writeMat(sessionPath.resolve(s"$i-warped.png"), res)
         }
       }
     }
@@ -193,7 +192,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/testdata/frame1.png"))
         val res = JavaCV.warpP(m, transformationMatrix)
         if ((i % 25) == 0) {
-          JavaCV.writeMat(Sudoku.targetPath.resolve(s"$i-warped.png"), res)
+          JavaCV.writeMat(sessionPath.resolve(s"$i-warped.png"), res)
         }
       }
     }
@@ -220,7 +219,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
             case None => fail("Could not solve " + envComputed.id + " successfully.")
             case Some(r) =>
               // yeS!
-              println(r.sudokuHistory.asSudokuString)
+              println(r.sudokuState.asSudokuString)
           }
         case None => fail()
       }

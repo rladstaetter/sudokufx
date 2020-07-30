@@ -29,7 +29,8 @@ object SudokuUtils {
 
   def toSolutionCells(frameNr: Int
                       , digitLibrary: DigitLibrary
-                      , sudokuHistory: SudokuState): Seq[SCell] = {
+                      , sudokuHistory: SudokuState
+                      , targetPath: Path): Seq[SCell] = {
     (for (pos <- cellRange) yield {
       val value = sudokuHistory.cellValues(pos)
 
@@ -39,12 +40,11 @@ object SudokuUtils {
           (if (someM.isEmpty) {
             digitLibrary.digits(value).optMat
           } else someM)
-            .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.hitHistory(pos)))
+            .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.hitHistory(pos), targetPath))
         } else None
       x
     }).flatten
   }
-
 
 
   /**

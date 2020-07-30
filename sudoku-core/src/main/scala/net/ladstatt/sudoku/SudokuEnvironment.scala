@@ -23,14 +23,18 @@ object SudokuEnvironment {
             , path: Path
             , corners: Seq[Float]
             , history: SudokuState
-            , library: DigitLibrary): SudokuEnvironment = {
+            , library: DigitLibrary
+            , sessionPath: Path): SudokuEnvironment = {
     new SudokuEnvironment(id
       , frameNr
       , JavaCV.loadMat(path)
       , corners
       , ContourParams()
       , history
-      , library)
+      , library
+      , None
+      , Seq()
+      , sessionPath)
   }
 
 }
@@ -41,9 +45,10 @@ case class SudokuEnvironment(id: String
                              , corners: Seq[Float]
                              , contourParams: ContourParams
                              , history: SudokuState
-                             , library: DigitLibrary
-                             , someSolutionMat: Option[Mat] = None
-                             , resultCells: Seq[SCell] = Seq()
+                             , digitLibrary: DigitLibrary
+                             , someSolutionMat: Option[Mat]
+                             , resultCells: Seq[SCell]
+                             , sessionPath: Path
                             ) extends CanLog {
 
 
@@ -66,7 +71,7 @@ case class SudokuEnvironment(id: String
   /** frames without rectangles get filtered out to a None, otherwise start processing Sudoku */
   lazy val optSudoku: Option[Sudoku] = {
     someRectangle.map(detectedCorners => {
-      Sudoku(id, frameNr, frame, detectedCorners, history, library)
+      Sudoku(id, frameNr, frame, detectedCorners, history, digitLibrary, sessionPath)
     })
   }
 
