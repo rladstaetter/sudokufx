@@ -49,7 +49,7 @@ object TemplateLibrary {
    *
    * @return returns the best match for given mat when compared to the template library
    */
-  def detectNumber(library: Seq[Mat], templateSize: Size)
+  def detectNumber(library: Seq[Mat])
                   (candidate: Mat): (Int, Double) = {
     //writeMat(s"7_candidate", id, frameNr, pos, path, candidate)
 
@@ -70,9 +70,11 @@ object TemplateLibrary {
         JavaCV.matchTemplate(candidate, needle, number)
       }
     }
+    /*
     for ((i, quality) <- hayStack) {
       println(s"Number $i : Quality " + f"$quality%1.0f")
     }
+     */
     // only use options with a certain quality
     val (number: Int, quality: Double) = hayStack
       /*.filter {
@@ -82,12 +84,12 @@ object TemplateLibrary {
       case (a, b) => a._2 < b._2
     }.headOption.getOrElse((0, 0.0))
 
-    println(s"took $number: " + f"$quality%1.0f")
+    // println(s"took $number: " + f"$quality%1.0f")
     (number, quality)
 
   }
 
-  val detector: Mat => (Int, Double) = detectNumber(classicClasspathTemplatesZipped, templateSize)
+  val detector: Mat => (Int, Double) = detectNumber(classicClasspathTemplatesZipped)
 
   def detectNumber(candidate: Mat): (Int, Double) = detector(candidate)
 

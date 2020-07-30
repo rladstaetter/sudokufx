@@ -3,7 +3,7 @@ package net.ladstatt.sudoku
 import net.ladstatt.core.CanLog
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -42,7 +42,7 @@ object BruteForceSolver extends CanLog {
    * and it will return the solved sudoku (without zeros)
    *
    */
-   def solve(mmx: Seq[Int], maxDuration: FiniteDuration): Option[Seq[Int]] = timeR({
+  def solve(mmx: Seq[Int], maxDuration: FiniteDuration): Option[Seq[Int]] = timeR({
     val deadline = maxDuration.fromNow
     var cnt = 0
     val mx: Array[Array[Int]] = mmx.toArray.sliding(9, 9).toArray
@@ -123,7 +123,7 @@ object BruteForceSolver extends CanLog {
       case Success(s) =>
         val digits = s.toSeq
         if (s.length == 81 && 405 == digits.sum.toLong)
-          Some(s)
+          Some(s.toIndexedSeq)
         else {
           logWarn("Found solution, but is invalid.")
           None

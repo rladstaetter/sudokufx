@@ -1,13 +1,12 @@
 package net.ladstatt.sudoku
 
-import net.ladstatt.core.CollectionUtils
-import net.ladstatt.sudoku.JavaCV._
+import java.nio.file.Path
+
 import net.ladstatt.sudoku.Parameters._
 import org.bytedeco.opencv.global.opencv_imgproc
 import org.bytedeco.opencv.opencv_core._
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Random
 
 case class PFloat(x: Float, y: Float) {
   val dist = Math.sqrt(x * x + y * y)

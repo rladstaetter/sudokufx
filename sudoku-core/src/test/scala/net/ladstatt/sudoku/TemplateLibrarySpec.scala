@@ -59,7 +59,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
       }
     }
     "detectNumber 1" in {
-      val (detectedNr, quality) = TemplateLibrary.detectNumber(ts.head)
+      val (detectedNr, _) = TemplateLibrary.detectNumber(ts.head)
       assert(1 == detectedNr)
     }
 
@@ -68,7 +68,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
      */
     "detectNumber works" in {
       for ((m, i) <- ts.zipWithIndex) {
-        val (detectedNr, quality) = TemplateLibrary.detectNumber(m)
+        val (detectedNr, _) = TemplateLibrary.detectNumber(m)
         assert(detectedNr == (i + 1))
       }
     }

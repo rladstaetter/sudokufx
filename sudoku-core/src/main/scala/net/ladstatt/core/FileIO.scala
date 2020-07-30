@@ -33,6 +33,7 @@ object FileIO extends CanLog {
               case None => // all done
             }
             createDirectories(parentPath)
+            ()
           }
         case None => // all done
       }
