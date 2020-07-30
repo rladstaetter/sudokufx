@@ -2,6 +2,7 @@
 .cache
 .hydra/
 .idea/
+*.iml
 
 target/
 runs
