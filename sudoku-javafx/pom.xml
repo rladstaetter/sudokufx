@@ -29,12 +29,6 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
         </dependency>
-        <!--
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-swing</artifactId>
-        </dependency>
--->
         <dependency>
             <groupId>net.ladstatt.sudoku</groupId>
             <artifactId>sudoku-core</artifactId>
@@ -58,32 +52,19 @@
             <artifactId>rxscala_${scala.major.version}</artifactId>
             <version>0.27.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-javafx</artifactId>
+            <version>11.3.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-material-pack</artifactId>
+            <version>11.5.0</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
-            <!--
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>net.ladstatt.sudoku.SudokuFXApp</mainClass>
-                        </manifest>
-                    </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -91,6 +72,7 @@
                 <configuration>
                     <mainClass>net.ladstatt.sudoku.SudokuFXApp</mainClass>
                     <includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+                    <commandlineArgs>/Users/lad/temp/sudokufx/sessions</commandlineArgs>
                 </configuration>
             </plugin>
             <plugin>
