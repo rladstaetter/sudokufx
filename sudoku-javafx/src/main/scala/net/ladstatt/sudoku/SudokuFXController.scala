@@ -1,13 +1,14 @@
 package net.ladstatt.sudoku
 
 import java.net.URL
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import java.util.ResourceBundle
 import java.util.concurrent.TimeUnit
 
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene.control._
-import javafx.beans.property.{SimpleBooleanProperty, SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
+import javafx.beans.binding.Bindings
+import javafx.beans.property.{SimpleIntegerProperty, SimpleLongProperty, SimpleObjectProperty}
 import javafx.beans.value.{ChangeListener, ObservableValue}
 import javafx.scene.image._
 import javafx.scene.layout.FlowPane
@@ -20,17 +21,19 @@ import scala.util.{Failure, Success, Try}
 
 
 class SudokuFXController extends Initializable with JfxUtils {
+
+
+  lazy val openCVGrabberProperty = new SimpleObjectProperty[OpenCVFrameGrabber](new OpenCVFrameGrabber(0))
+
+  def setOpenCVGrabberProperty(grabber: OpenCVFrameGrabber): Unit = openCVGrabberProperty.set(grabber)
+
+  def getOpenCVGrabberProperty(): OpenCVFrameGrabber = openCVGrabberProperty.get()
+
   val imageInputProperty = new SimpleObjectProperty[ImageInput]()
 
-  def setImageInput(imageInput: ImageInput): Unit = imageInputProperty.set(imageInput)
+  private def setImageInput(imageInput: ImageInput): Unit = imageInputProperty.set(imageInput)
 
   def getImageInput() = imageInputProperty.get()
-
-  val sessionProperty = new SimpleLongProperty()
-
-  def setSession(session: Long): Unit = sessionProperty.set(session)
-
-  def getSession(): Long = sessionProperty.get()
 
 
   val sessionsPathProperty = new SimpleObjectProperty[Path]()
@@ -38,6 +41,16 @@ class SudokuFXController extends Initializable with JfxUtils {
   def setSessionsPath(targetPath: Path): Unit = sessionsPathProperty.set(targetPath)
 
   def getSessionPath(): Path = sessionsPathProperty.get.resolve(getSession.toString)
+
+  val sessionProperty = new SimpleLongProperty()
+
+  def setSession(session: Long): Unit = sessionProperty.set(session)
+
+  def getSession(): Long = sessionProperty.get()
+
+  def nextSessionNumber(sessionsPath: Path): Long = {
+    Files.list(sessionsPath.toAbsolutePath).count + 1
+  }
 
   @FXML var numberFlowPane: FlowPane = _
 
@@ -47,7 +60,56 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   // current digits which are to be displayed
   @FXML var digitToolBar: ToolBar = _
+  @FXML var commands: ToolBar = _
+  @FXML var inputChannelChoiceBox: ChoiceBox[ImageInput] = _
 
+  @FXML var startButton: Button = _
+  @FXML var stopButton: Button = _
+  @FXML var webcamButton: ToggleButton = _
+  @FXML var fsButton: ToggleButton = _
+  @FXML var showNormalizedButton: ToggleButton = _
+  @FXML var showResultButton: ToggleButton = _
+  @FXML var showLibraryButton: ToggleButton = _
+
+
+  @FXML def activateCamera(): Unit = setImageInput(FromVideo)
+
+  @FXML def useFileSystem(): Unit = setImageInput(FromFile)
+
+  @FXML def startProcessing(): Unit = {
+    getImageInput() match {
+      case FromFile =>
+        mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)(Duration(1000, TimeUnit.MILLISECONDS))
+          .subscribe(
+            onResult,
+            t => t.printStackTrace(),
+            () => {
+              logInfo("File stream stopped...")
+            })
+      case FromVideo =>
+        getOpenCVGrabberProperty().start()
+        mkObservable(fromWebCam(getOpenCVGrabberProperty()))(Duration(250, TimeUnit.MILLISECONDS))
+          .subscribe(
+            onResult,
+            t => t.printStackTrace(),
+            () => {
+              logInfo("Videostream stopped...")
+            })
+    }
+
+  }
+
+  @FXML def stopProcessing(): Unit = {
+    getImageInput() match {
+      case FromFile =>
+        fsButton.setSelected(false)
+      case FromVideo =>
+        webcamButton.setSelected(false)
+        // getOpenCVGrabberProperty().stop()
+      case _ =>
+    }
+
+  }
 
   val digitLibraryProperty = new SimpleObjectProperty[DigitLibrary](Parameters.defaultDigitLibrary)
   val solvedSudokuProperty = new SimpleObjectProperty[SolvedSudoku]()
@@ -74,12 +136,7 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   def setFrameNumber(i: Int): Unit = frameNumberProperty.set(i)
 
-
-  val cameraActiveProperty = new SimpleBooleanProperty(true)
-
-  def setCameraActive(isActive: Boolean): Unit = cameraActiveProperty.set(isActive)
-
-  def getCameraActive: Boolean = cameraActiveProperty.get
+  def getCameraActive: Boolean = webcamButton.isSelected
 
 
   /**
@@ -93,6 +150,8 @@ class SudokuFXController extends Initializable with JfxUtils {
         while (getCameraActive) {
           Try(SudokuFXApp.javaCvConverter.convert(frameGrabber.grab())) match {
             case Success(m) =>
+              println("width:" + m.size().width())
+              println("height:" + m.size.height)
               subscriber.onNext(m)
             case Failure(e) =>
               e.printStackTrace()
@@ -109,26 +168,21 @@ class SudokuFXController extends Initializable with JfxUtils {
     SSession(s"session $session", sessionsPath.resolve(session.toString))
   }
 
-  def mkObservable(fn: Subscriber[Mat] => Unit): Observable[SudokuEnvironment] = {
+  def mkObservable(fn: Subscriber[Mat] => Unit)(delay : Duration): Observable[SudokuEnvironment] = {
     Observable[Mat](fn).zipWithIndex.map {
       case (frame, index) =>
-        //val fName = Sudoku.targetPath.resolve("session").resolve(index.toString + ".png")
-        // JavaCV.writeMat(fName, frame)
         JavaCV.writeMat(getSessionPath().resolve(s"frame-$index.png"), frame)
-        val params: ContourParams = ContourParams()
-        // can be null if :
+        // can be null if:
         // - first call
         // - last solution was reset by user
         Option(getSolvedSudoku) match {
           case None =>
             // create default Sudoku instance and fill it with current frame
-            SudokuEnvironment("sudoku", index, frame, Seq[Float](), params, SudokuState(), getDigitLibrary, None, Seq(), getSessionPath())
+            SudokuEnvironment("sudoku", index, frame, Seq[Float](), ContourParams(), SudokuState(), getDigitLibrary, None, Seq(), getSessionPath())
           case Some(lastSolution) =>
-            SudokuEnvironment("sudoku", index, frame, Seq[Float](), params, lastSolution.sudokuState, getDigitLibrary, Option(lastSolution.frameWithSolution), Seq(), getSessionPath())
+            SudokuEnvironment("sudoku", index, frame, Seq[Float](), ContourParams(), lastSolution.sudokuState, getDigitLibrary, Option(lastSolution.frameWithSolution), Seq(), getSessionPath())
         }
-    }.delaySubscription(Duration(2000, TimeUnit.MILLISECONDS))
-
-
+    } .delaySubscription(delay)
   }
 
 
@@ -140,16 +194,19 @@ class SudokuFXController extends Initializable with JfxUtils {
       case None =>
         //logTrace("No sudoku / rectangle found ... ")
         setVideoView(env.grayed)
-      //setNormalizedView(env.dilated)
       case Some(sudoku) =>
         // update libary, set global property
         setDigitLibrary(sudoku.digitLibrary)
-        setNormalizedView(JavaCV.copyMat(sudoku.normalized))
+        if (showNormalizedButton.isSelected) {
+          setNormalizedView(JavaCV.copyMat(sudoku.normalized))
+        } else {
+          // todo hide normalized view
+        }
         // todo: if sudoku is already solved, we would just have to apply warp
         // transformations to current image
         if (sudoku.isSolved) {
           cnt = cnt - 1
-        //  println("count:" + cnt)
+          //  println("count:" + cnt)
           if (cnt <= 0) {
             cnt = 100
             clearSolution()
@@ -164,7 +221,9 @@ class SudokuFXController extends Initializable with JfxUtils {
             // println(solvedSudoku.sudokuHistory.asSudokuString)
             setVideoView(solvedSudoku.frameWithSolution)
             // TODO triggers exception
-            solvedSudoku.optCNormalized.foreach(setSolutionView)
+            if (showResultButton.isSelected) {
+              solvedSudoku.optCNormalized.foreach(setSolutionView)
+            }
             setSolvedSudoku(solvedSudoku)
           case None =>
             logTrace("Could not solve sudoku, resetting sudoku state.")
@@ -176,7 +235,7 @@ class SudokuFXController extends Initializable with JfxUtils {
   }
 
   def shutdown(): Unit = {
-    setCameraActive(false)
+    getOpenCVGrabberProperty().release()
   }
 
   def initializeCapturing(): Unit = {
@@ -191,33 +250,68 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   def setSolutionView(mat: Mat): Unit = solutionView.setImage(JavaCVPainter.toImage(mat))
 
+  def initStartStop(): Unit = {
+    startButton.disableProperty.bind(Bindings.or(webcamButton.selectedProperty(), fsButton.selectedProperty()).not())
+    stopButton.disableProperty.bind(Bindings.or(webcamButton.selectedProperty(), fsButton.selectedProperty()).not())
+  }
+
   override def initialize(location: URL, resources: ResourceBundle): Unit = {
 
     initializeCapturing()
 
-    for (_ <- 0 to 9) {
-      digitToolBar.getItems.add(new ImageView)
-    }
+    initDigitToolbar()
 
+    initStartStop()
+/*
     imageInputProperty.addListener(new ChangeListener[ImageInput] {
       override def changed(observableValue: ObservableValue[_ <: ImageInput], oldVal: ImageInput, newVal: ImageInput): Unit = {
-        (newVal match {
-          case FromFile =>
+        ((Option(oldVal), newVal) match {
+          // start with from file
+          case (None, FromFile) => mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
+          case (None, FromVideo) =>
+            getOpenCVGrabberProperty().start()
+            mkObservable(fromWebCam(getOpenCVGrabberProperty()))
+          case (Some(FromFile), FromVideo) =>
+            getOpenCVGrabberProperty().start()
+            mkObservable(fromWebCam(getOpenCVGrabberProperty()))
+          case (Some(FromFile), FromFile) =>
             mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-          case FromVideo =>
-            val grabber = new OpenCVFrameGrabber(0)
-            grabber.start()
-            mkObservable(fromWebCam(grabber))
+          case (Some(FromVideo), FromFile) =>
+            getOpenCVGrabberProperty().stop()
+            mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
+          case (Some(FromVideo), FromVideo) =>
+            getOpenCVGrabberProperty().start()
+            mkObservable(fromWebCam(getOpenCVGrabberProperty()))
         }).subscribe(
           onResult,
           t => t.printStackTrace(),
           () => {
             logInfo("Videostream stopped...")
-            System.exit(0)
           })
+      }
+    })*/
+
+    initCommandsToolbar()
+
+  }
+
+  private def initCommandsToolbar(): Unit = {
+    inputChannelChoiceBox.getItems.addAll(FromVideo, FromFile)
+    inputChannelChoiceBox.setConverter(new ImageInputStringConverter)
+
+    inputChannelChoiceBox.getSelectionModel.selectedItemProperty.addListener(new ChangeListener[ImageInput] {
+      override def changed(observable: ObservableValue[_ <: ImageInput], oldValue: ImageInput, newValue: ImageInput): Unit = {
+        // setImageInput(newValue)
       }
     })
 
+    // inputChannelChoiceBox.setValue(FromFile)
+  }
+
+  private def initDigitToolbar(): Unit = {
+    for (_ <- 0 to 9) {
+      digitToolBar.getItems.add(new ImageView)
+    }
   }
 
   def asImage(m: Mat): Image = JavaCVPainter.toImage(m)
@@ -227,10 +321,16 @@ class SudokuFXController extends Initializable with JfxUtils {
       optM match {
         case None => logError(s"No data found for digit $i")
         case Some(m) =>
-          println("quality:" + quality)
-          val image = asImage(m)
-          digitToolBar.setVisible(true)
-          digitToolBar.getItems.get(i).asInstanceOf[ImageView].setImage(image)
+          //println("quality:" + quality)
+          if (showResultButton.isSelected) {
+            val image = asImage(m)
+            digitToolBar.setVisible(true)
+            digitToolBar.getItems.get(i).asInstanceOf[ImageView].setImage(image)
+          } else {
+            if (digitToolBar.isVisible) {
+              digitToolBar.setVisible(false)
+            }
+          }
       }
     }
   }

@@ -11,7 +11,7 @@ object JavaCVPainter {
 
   val formatByte: WritablePixelFormat[ByteBuffer] = PixelFormat.getByteBgraPreInstance
 
-  def toImage(mat: Mat): WritableImage = synchronized {
+  def toImage(mat: Mat): WritableImage =  {
     val javaCVMat = new Mat
     opencv_imgproc.cvtColor(mat, javaCVMat, COLOR_BGR2BGRA)
     val pb = new PixelBuffer(mat.size().width, mat.size.height, javaCVMat.createBuffer(), formatByte)

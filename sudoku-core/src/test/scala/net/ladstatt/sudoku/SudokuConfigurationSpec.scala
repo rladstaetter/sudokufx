@@ -14,7 +14,7 @@ class SudokuConfigurationSpec extends AnyWordSpecLike {
       val solved: SudokuState = config.solved
       assert(solved.isSolved)
       assert(solved != config)
-      println(solved.asSudokuString)
+      // println(solved.asSudokuString)
     }
 
   }

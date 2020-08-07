@@ -63,40 +63,6 @@ object JavaCV extends CanLog {
 
   }
 
-  def floodFillCorners(m: Mat): Mat = {
-    val s = m.size
-
-    if (s.width > 1 && s.height > 1) {
-      val a = floodFill(m, leftTop, blackScalar)
-      val leftLow = new Point(s.height - 1, 1)
-      val b = floodFill(m, leftLow, blackScalar)
-
-      /*
-            val rightTop = new Point(1,s.width - 40)
-            val c = floodFill(m, rightTop, blackScalar)
-            val rightLow = new Point(s.height - 1, 1)
-            val d = floodFill(m, rightLow, blackScalar)
-      */
-
-      /*
-      val floodFilled: Mat =
-        //Seq(leftTop).foldLeft(m) {
-           Seq(leftTop, rightTop, leftLow, rightLow).foldLeft(m) {
-          case (acc, point) => floodFill(acc, point, blackScalar)
-        }
-      */
-      m
-    } else {
-      logError("check input for floodFillCorners!")
-      m
-    }
-  }
-
-  def floodFill(m: Mat, p: Point, color: Scalar): Mat = {
-    opencv_imgproc.floodFill(m, p, color)
-    m
-  }
-
   def imdecode(b: ByteBuffer, width: Int, height: Int): Mat = {
     val mat = new Mat(width, height, opencv_core.CV_8UC1)
     new Mat(width, height, CV_8U, new BytePointer(b))

@@ -36,19 +36,18 @@ class SudokuFX extends Application with JfxUtils {
       stage.setTitle("SudokuFX")
       val params = getParameters.getRaw.asScala
       val sessionsPath = Paths.get(params.headOption.getOrElse("target/sessions"))
-
+      Files.createDirectories(sessionsPath)
       val fxmlLoader = mkFxmlLoader("/net/ladstatt/sudoku/sudokufx.fxml")
       val parent = fxmlLoader.load[BorderPane]()
       val controller = fxmlLoader.getController[SudokuFXController]
 
       controller.setSessionsPath(sessionsPath)
-      params.tail.headOption match {
-        case Some(sessionNr) =>
-          controller.setSession(sessionNr.toLong)
-          controller.setImageInput(FromFile)
-        case None =>
-          controller.setSession(nextSessionNumber(sessionsPath))
-          controller.setImageInput(FromVideo)
+      if (params.size == 2) {
+        val sessionNr = params.tail.head
+        controller.setSession(sessionNr.toLong)
+        //controller.setImageInput(FromFile)
+      } else {
+        startVideo(sessionsPath, controller)
       }
 
       val scene = new Scene(parent)
@@ -68,9 +67,12 @@ class SudokuFX extends Application with JfxUtils {
 
     }
 
-  private def nextSessionNumber(sessionsPath: Path): Long = {
-    Files.list(sessionsPath).count + 1
+  private def startVideo(sessionsPath: Path, controller: SudokuFXController): Unit = {
+    //controller.setSession(controller.nextSessionNumber(sessionsPath))
+    //controller.setImageInput(FromVideo)
   }
+
+
 }
 
 

@@ -22,7 +22,7 @@ object SSession {
         p1.getFileName.toString.dropRight(postFixLength).substring(prefixLength).toInt.compareTo(
           p2.getFileName.toString.dropRight(postFixLength).substring(prefixLength).toInt)
       }) // .limit(50)
-    SSession(id, files, 0 millis)
+    SSession(id, files, 100 millis)
   }
 }
 
@@ -37,6 +37,6 @@ case class SSession(id: String, files: stream.Stream[Path], sleep: FiniteDuratio
       Thread.sleep(sleep.toMillis)
       subscriber.onNext(JavaCV.loadMat(p))
     })
-    subscriber.onCompleted()
+    subscriber.onCompleted() // after looping through all images, exit
   }
 }

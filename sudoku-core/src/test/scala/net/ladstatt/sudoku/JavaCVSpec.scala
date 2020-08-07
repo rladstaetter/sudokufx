@@ -39,7 +39,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
     val m = JavaCV.loadMat(getClass, matCp, opencv_imgcodecs.IMREAD_GRAYSCALE)
 
     val someRect = SCell.optNumberMat(m)
-    val (cell, quality) =
+    val (_, _) =
       someRect match {
         case None => fail()
         case Some(cellMat) =>
@@ -280,7 +280,6 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
       for {w <- 0 until width} {
         print(iBf.get(width * h + w))
       }
-      println()
     }
   }
 
@@ -292,7 +291,6 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
       for {w <- 0 until width} {
         print(iBf.get(width * h + w))
       }
-      println()
     }
   }*/
 
