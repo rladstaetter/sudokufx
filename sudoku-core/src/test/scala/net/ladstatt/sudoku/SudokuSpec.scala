@@ -66,11 +66,9 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     val cells: scala.Seq[_root_.net.ladstatt.sudoku.SCell] = detect(base, number)
     groupAndPrint(cells)
     /*
-    println("***")
     for {(c, hitlist) <- cells.groupBy(s => s.value)
          hit <- hitlist
          } {
-      println(s"$c : ${hit.quality}")
     }
     groupAndPrint(cells.filter(_.value == number))
     */
@@ -85,7 +83,6 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     val files = Files.list(base.resolve(number.toString)).iterator.asScala.toSeq
     val cells: Seq[SCell] =
       (for ((p, i) <- files.zipWithIndex) yield {
-        // println(p.getFileName.toString)
         val s = fromPath(p, 0, i)
         if (s.detectedValue != number) {
           logError(s"${p.toAbsolutePath.toString} should be recognized as $number but was ${s.detectedValue}")
@@ -98,14 +95,11 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
   /** tests that given more than one image, the image recognition yields expectedNumber overall */
   def detectOverall(base: Path, expectedNumber: Int): Assertion = {
     val files = Files.list(base.resolve(expectedNumber.toString)).iterator.asScala.toSeq
-    //    files.foreach(println)
-    //   println(files)
     val res: Map[Int, Int] =
     files.zipWithIndex.foldLeft(Map[Int, Int]().withDefaultValue(0)) {
       case (acc, (p, i)) =>
         SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc,sessionPath).hits
     }
-    println(res)
     val (detectedNumber, _) =
       res.toSeq.sortWith {
         case (a, b) => a._2 > b._2
@@ -116,7 +110,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
   private def groupAndPrint(cells: Seq[SCell]): Unit = {
     val grouped: Map[Int, Seq[SCell]] = cells.groupBy(s => s.detectedValue)
     grouped.foreach {
-      case (value, hits) => println(s"$value -> ${hits.size}")
+      case (value, hits) =>  // println(s"$value -> ${hits.size}")
     }
   }
 
@@ -203,7 +197,6 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
       val envComputed =
         envs.foldLeft(sudoku1Empty) {
           case (acc, env) =>
-            // println("!!!!!!!!!!!!!!")
             env.copy(history = acc.history).optSudoku match {
               case None =>
                 ???
@@ -217,13 +210,10 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         case Some(s) =>
           s.trySolve match {
             case None => fail("Could not solve " + envComputed.id + " successfully.")
-            case Some(r) =>
-              // yeS!
-              println(r.sudokuState.asSudokuString)
+            case Some(_) =>
           }
         case None => fail()
       }
-      println(envComputed.history)
 
     }
   }
