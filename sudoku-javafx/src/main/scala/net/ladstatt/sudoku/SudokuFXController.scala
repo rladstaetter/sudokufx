@@ -4,6 +4,7 @@ import java.net.URL
 import java.nio.file.{Files, Path}
 import java.util.ResourceBundle
 import java.util.concurrent.TimeUnit
+import java.util.stream.Collectors
 
 import _root_.javafx.fxml.{FXML, Initializable}
 import _root_.javafx.scene.control._
@@ -17,8 +18,9 @@ import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.{Observable, Subscriber}
 
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-
 
 class SudokuFXController extends Initializable with JfxUtils {
 
@@ -38,7 +40,9 @@ class SudokuFXController extends Initializable with JfxUtils {
 
   val sessionsPathProperty = new SimpleObjectProperty[Path]()
 
-  def setSessionsPath(targetPath: Path): Unit = sessionsPathProperty.set(targetPath)
+  def setSessionsPath(sessionsPath: Path): Unit = sessionsPathProperty.set(sessionsPath)
+
+  def getSessionsPath(): Path = sessionsPathProperty.get()
 
   def getSessionPath(): Path = sessionsPathProperty.get.resolve(getSession.toString)
 
@@ -61,7 +65,7 @@ class SudokuFXController extends Initializable with JfxUtils {
   // current digits which are to be displayed
   @FXML var digitToolBar: ToolBar = _
   @FXML var commands: ToolBar = _
-  @FXML var inputChannelChoiceBox: ChoiceBox[ImageInput] = _
+  @FXML var sessionChoiceBox: ChoiceBox[ReplaySession] = _
 
   @FXML var startButton: Button = _
   @FXML var stopButton: Button = _
@@ -79,13 +83,17 @@ class SudokuFXController extends Initializable with JfxUtils {
   @FXML def startProcessing(): Unit = {
     getImageInput() match {
       case FromFile =>
-        mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)(Duration(1000, TimeUnit.MILLISECONDS))
-          .subscribe(
-            onResult,
-            t => t.printStackTrace(),
-            () => {
-              logInfo("File stream stopped...")
-            })
+        if (sessionChoiceBox.getItems.size() != 0) {
+            mkObservable(sessionChoiceBox.getValue.session.subscribe)(Duration(1000, TimeUnit.MILLISECONDS))
+              .subscribe(
+                onResult,
+                t => t.printStackTrace(),
+                () => {
+                  logInfo("File stream stopped...")
+                })
+        } else {
+          logError("No sessions found.")
+        }
       case FromVideo =>
         getOpenCVGrabberProperty().start()
         mkObservable(fromWebCam(getOpenCVGrabberProperty()))(Duration(250, TimeUnit.MILLISECONDS))
@@ -105,7 +113,7 @@ class SudokuFXController extends Initializable with JfxUtils {
         fsButton.setSelected(false)
       case FromVideo =>
         webcamButton.setSelected(false)
-        // getOpenCVGrabberProperty().stop()
+      // getOpenCVGrabberProperty().stop()
       case _ =>
     }
 
@@ -165,10 +173,10 @@ class SudokuFXController extends Initializable with JfxUtils {
   }
 
   def loadSession(sessionsPath: Path, session: Long): SSession = {
-    SSession(s"session $session", sessionsPath.resolve(session.toString))
+    SSession(s"session $session", sessionsPath.resolve(session.toString), 0 millis)
   }
 
-  def mkObservable(fn: Subscriber[Mat] => Unit)(delay : Duration): Observable[SudokuEnvironment] = {
+  def mkObservable(fn: Subscriber[Mat] => Unit)(delay: Duration): Observable[SudokuEnvironment] = {
     Observable[Mat](fn).zipWithIndex.map {
       case (frame, index) =>
         JavaCV.writeMat(getSessionPath().resolve(s"frame-$index.png"), frame)
@@ -182,7 +190,7 @@ class SudokuFXController extends Initializable with JfxUtils {
           case Some(lastSolution) =>
             SudokuEnvironment("sudoku", index, frame, Seq[Float](), ContourParams(), lastSolution.sudokuState, getDigitLibrary, Option(lastSolution.frameWithSolution), Seq(), getSessionPath())
         }
-    } .delaySubscription(delay)
+    }.delaySubscription(delay)
   }
 
 
@@ -262,50 +270,55 @@ class SudokuFXController extends Initializable with JfxUtils {
     initDigitToolbar()
 
     initStartStop()
-/*
-    imageInputProperty.addListener(new ChangeListener[ImageInput] {
-      override def changed(observableValue: ObservableValue[_ <: ImageInput], oldVal: ImageInput, newVal: ImageInput): Unit = {
-        ((Option(oldVal), newVal) match {
-          // start with from file
-          case (None, FromFile) => mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-          case (None, FromVideo) =>
-            getOpenCVGrabberProperty().start()
-            mkObservable(fromWebCam(getOpenCVGrabberProperty()))
-          case (Some(FromFile), FromVideo) =>
-            getOpenCVGrabberProperty().start()
-            mkObservable(fromWebCam(getOpenCVGrabberProperty()))
-          case (Some(FromFile), FromFile) =>
-            mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-          case (Some(FromVideo), FromFile) =>
-            getOpenCVGrabberProperty().stop()
-            mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-          case (Some(FromVideo), FromVideo) =>
-            getOpenCVGrabberProperty().start()
-            mkObservable(fromWebCam(getOpenCVGrabberProperty()))
-        }).subscribe(
-          onResult,
-          t => t.printStackTrace(),
-          () => {
-            logInfo("Videostream stopped...")
-          })
-      }
-    })*/
+    /*
+        imageInputProperty.addListener(new ChangeListener[ImageInput] {
+          override def changed(observableValue: ObservableValue[_ <: ImageInput], oldVal: ImageInput, newVal: ImageInput): Unit = {
+            ((Option(oldVal), newVal) match {
+              // start with from file
+              case (None, FromFile) => mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
+              case (None, FromVideo) =>
+                getOpenCVGrabberProperty().start()
+                mkObservable(fromWebCam(getOpenCVGrabberProperty()))
+              case (Some(FromFile), FromVideo) =>
+                getOpenCVGrabberProperty().start()
+                mkObservable(fromWebCam(getOpenCVGrabberProperty()))
+              case (Some(FromFile), FromFile) =>
+                mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
+              case (Some(FromVideo), FromFile) =>
+                getOpenCVGrabberProperty().stop()
+                mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
+              case (Some(FromVideo), FromVideo) =>
+                getOpenCVGrabberProperty().start()
+                mkObservable(fromWebCam(getOpenCVGrabberProperty()))
+            }).subscribe(
+              onResult,
+              t => t.printStackTrace(),
+              () => {
+                logInfo("Videostream stopped...")
+              })
+          }
+        })*/
 
-    initCommandsToolbar()
+    initSessionChoiceBox()
 
   }
 
-  private def initCommandsToolbar(): Unit = {
-    inputChannelChoiceBox.getItems.addAll(FromVideo, FromFile)
-    inputChannelChoiceBox.setConverter(new ImageInputStringConverter)
+  private def initSessionChoiceBox(): Unit = {
 
-    inputChannelChoiceBox.getSelectionModel.selectedItemProperty.addListener(new ChangeListener[ImageInput] {
-      override def changed(observable: ObservableValue[_ <: ImageInput], oldValue: ImageInput, newValue: ImageInput): Unit = {
-        // setImageInput(newValue)
+    sessionChoiceBox.setConverter(new ReplaySessionStringConverter)
+    sessionChoiceBox.disableProperty().bind(fsButton.selectedProperty().not)
+
+    sessionsPathProperty.addListener(new ChangeListener[Path] {
+      override def changed(observable: ObservableValue[_ <: Path], oldValue: Path, newValue: Path): Unit = {
+        sessionChoiceBox.getItems.clear()
+        val sessions = ReplaySession.listAll(getSessionsPath()).collect(Collectors.toList())
+        sessionChoiceBox.getItems.addAll(sessions)
+        if (sessions.size != 0) {
+          sessionChoiceBox.setValue(sessions.get(0))
+        }
       }
     })
 
-    // inputChannelChoiceBox.setValue(FromFile)
   }
 
   private def initDigitToolbar(): Unit = {

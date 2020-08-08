@@ -37,7 +37,7 @@
                             <FontIcon iconLiteral="gmi-unarchive" iconSize="32"/>
                         </graphic>
                     </ToggleButton>
-                    <ChoiceBox fx:id="inputChannelChoiceBox"/>
+                    <ChoiceBox fx:id="sessionChoiceBox"/>
                     <Separator/>
                     <ToggleButton fx:id="showLibraryButton" selected="false">
                         <graphic>

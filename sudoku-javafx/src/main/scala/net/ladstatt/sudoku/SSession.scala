@@ -11,7 +11,7 @@ import scala.language.postfixOps
 
 
 object SSession {
-  def apply(id: String, path: Path): SSession = {
+  def apply(id: String, path: Path, sleep: FiniteDuration): SSession = {
     val framePrefix = "frame-"
     val prefixLength = framePrefix.length
     val postFixLength = ".png".length
@@ -22,7 +22,7 @@ object SSession {
         p1.getFileName.toString.dropRight(postFixLength).substring(prefixLength).toInt.compareTo(
           p2.getFileName.toString.dropRight(postFixLength).substring(prefixLength).toInt)
       }) // .limit(50)
-    SSession(id, files, 100 millis)
+    SSession(id, files, sleep)
   }
 }
 
@@ -30,7 +30,9 @@ object SSession {
  * reads images from a given directory, in the form <nr>.png
  *
  **/
-case class SSession(id: String, files: stream.Stream[Path], sleep: FiniteDuration) {
+case class SSession(id: String
+                    , files: stream.Stream[Path]
+                    , sleep: FiniteDuration) {
 
   def subscribe(subscriber: Subscriber[Mat]): Unit = {
     files.forEach((p: Path) => {
