@@ -1,6 +1,7 @@
 package net.ladstatt.sudoku
 
 import java.nio.file.{Files, Path, Paths}
+import java.util.Comparator
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
@@ -8,8 +9,10 @@ import scala.language.postfixOps
 object ReplaySession {
 
   def listAll(path: Path): java.util.stream.Stream[ReplaySession] = {
-    Files.list(path).map(p => ReplaySession(p, 0 millis)).sorted((o1: ReplaySession, o2: ReplaySession) => {
-      o1.p.toAbsolutePath.toString.compareTo(o2.p.toAbsolutePath.toString)
+    Files.list(path).map(p => ReplaySession(p, 0 millis)).sorted(new Comparator[ReplaySession] {
+      override def compare(o1: ReplaySession, o2: ReplaySession): Int = {
+        o1.p.toAbsolutePath.toString.compareTo(o2.p.toAbsolutePath.toString)
+      }
     })
   }
 

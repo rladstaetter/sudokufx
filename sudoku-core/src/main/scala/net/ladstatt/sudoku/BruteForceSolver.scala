@@ -4,12 +4,11 @@ import net.ladstatt.core.CanLog
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 
 /**
- * The following code is the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
+ * The following code was the first google hit for "scala sudoku solver", adapted to compile with scala 2.10
  * I hope the author doesn't mind me reusing the code.
  *
  * http://scala-programming-language.1934581.n4.nabble.com/25-lines-Sudoku-solver-in-Scala-td1987506.html

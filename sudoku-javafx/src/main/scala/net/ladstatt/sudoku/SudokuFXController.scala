@@ -91,6 +91,7 @@ class SudokuFXController extends Initializable with JfxUtils {
                 () => {
                   logInfo("File stream stopped...")
                 })
+          ()
         } else {
           logError("No sessions found.")
         }
@@ -103,6 +104,7 @@ class SudokuFXController extends Initializable with JfxUtils {
             () => {
               logInfo("Videostream stopped...")
             })
+        ()
     }
 
   }

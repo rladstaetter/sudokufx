@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import net.ladstatt.sudoku.JavaCV.findContours
 import org.bytedeco.opencv.global.opencv_imgproc
-import org.bytedeco.opencv.opencv_core.{Mat, Point, Range, Rect}
+import org.bytedeco.opencv.opencv_core.{Mat, Range, Rect}
 
 
 object SCell {
@@ -23,19 +23,18 @@ object SCell {
 
     val cellArea = floodedRawCell.size().area
     val (minArea, maxArea) = (0.05 * cellArea, 0.8 * cellArea)
-    val cellCenter = new Point(floodedRawCell.size.width / 2, floodedRawCell.size.height / 2)
+    // val cellCenter = new Point(floodedRawCell.size.width / 2, floodedRawCell.size.height / 2)
     // get all countours
     val allContours = findContours(floodedRawCell, opencv_imgproc.RETR_TREE, opencv_imgproc.CHAIN_APPROX_SIMPLE).get()
 
     // filter best contours and apply resulting rect to cellmat
-    findBoundingBox(allContours, minArea, maxArea, cellCenter).map(floodedRawCell.apply)
+    findBoundingBox(allContours, minArea, maxArea).map(floodedRawCell.apply)
 
   }
 
   private def findBoundingBox(detectedContours: Array[Mat]
                               , minArea: Double
-                              , maxArea: Double
-                              , cellCenter: Point): Option[Rect] = {
+                              , maxArea: Double): Option[Rect] = {
     detectedContours.foldLeft[Option[(Double, Mat)]](None) {
       case (acc, contourMat) =>
         val boundingRect = opencv_imgproc.boundingRect(contourMat)

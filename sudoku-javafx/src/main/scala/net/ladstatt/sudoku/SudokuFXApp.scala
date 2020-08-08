@@ -1,10 +1,6 @@
 package net.ladstatt.sudoku
 
-/**
- * Copyright (c) 2013-2016, Robert Ladstätter @rladstaetter
- **/
-
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Paths}
 
 import _root_.javafx.scene._
 import _root_.javafx.stage.Stage
@@ -45,9 +41,6 @@ class SudokuFX extends Application with JfxUtils {
       if (params.size == 2) {
         val sessionNr = params.tail.head
         controller.setSession(sessionNr.toLong)
-        //controller.setImageInput(FromFile)
-      } else {
-        startVideo(sessionsPath, controller)
       }
 
       val scene = new Scene(parent)
@@ -67,10 +60,6 @@ class SudokuFX extends Application with JfxUtils {
 
     }
 
-  private def startVideo(sessionsPath: Path, controller: SudokuFXController): Unit = {
-    //controller.setSession(controller.nextSessionNumber(sessionsPath))
-    //controller.setImageInput(FromVideo)
-  }
 
 
 }

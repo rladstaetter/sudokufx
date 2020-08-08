@@ -64,8 +64,8 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
 
   private def detectExactly(base: Path, number: Int) = {
     val cells: scala.Seq[_root_.net.ladstatt.sudoku.SCell] = detect(base, number)
-    groupAndPrint(cells)
     /*
+    groupAndPrint(cells)
     for {(c, hitlist) <- cells.groupBy(s => s.value)
          hit <- hitlist
          } {
@@ -106,14 +106,14 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
       }.head
     assert(expectedNumber == detectedNumber)
   }
-
+/*
   private def groupAndPrint(cells: Seq[SCell]): Unit = {
     val grouped: Map[Int, Seq[SCell]] = cells.groupBy(s => s.detectedValue)
     grouped.foreach {
       case (value, hits) =>  // println(s"$value -> ${hits.size}")
     }
   }
-
+*/
   "SudokuCanvas" should {
     /**
      * given an input frame, detectSudoku canvas
@@ -150,6 +150,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
           solvedSudoku.optCNormalized match {
             case Some(value) =>
               assert(JavaCV.writeMat(sessionPath.resolve("cNormalized.png"), value))
+              ()
             case None =>
               fail()
           }
@@ -160,6 +161,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         value =>
           assert(value.sudokuState.isSolved)
           assert(value.sudokuState == Sudokus.sudokuSolved)
+          ()
       })
     }
 

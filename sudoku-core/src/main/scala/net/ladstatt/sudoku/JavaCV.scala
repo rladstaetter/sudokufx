@@ -54,7 +54,7 @@ object JavaCV extends CanLog {
       toBeAnalyzed.headOption match {
         case None =>
           opencv_core.equals(labels, -1).asMat
-        case Some(l) => opencv_core.equals(labels, l.i).asMat
+        case Some(l) => opencv_core.equals(labels, l.i.toDouble).asMat
       }
     // printByteBf(hitters)
     val out = new Mat
@@ -186,11 +186,6 @@ object JavaCV extends CanLog {
 
   /**
    * paints green borders around the cells
-   *
-   * @param canvas
-   * @param rects
-   * @param hitCounts
-   * @return
    */
   def paintCorners(canvas: Mat,
                    rects: Seq[Rect],
@@ -212,9 +207,6 @@ object JavaCV extends CanLog {
   /**
    * Given a list of curves, this function returns the curve with the biggest area which is described by the
    * contour.
-   *
-   * @param curveVector
-   * @return
    */
   def extractCurveWithMaxArea(curveVector: MatVector): (Double, Mat) = {
     if (curveVector.size == 0) {
@@ -230,10 +222,6 @@ object JavaCV extends CanLog {
 
   /**
    * Given a mat serving as a canvas, and a mat which contains points, draws a polygon between those points
-   *
-   * @param canvas
-   * @param points
-   * @return
    */
   def drawContours(canvas: Mat
                    , points: Mat): Mat = {
@@ -333,9 +321,6 @@ object JavaCV extends CanLog {
 
   /**
    * wraps equalizeHist from Imgproc
-   *
-   * @param input
-   * @return
    */
   def equalizeHist(input: Mat): Mat = {
     val output = new Mat
@@ -460,9 +445,6 @@ object JavaCV extends CanLog {
 
   /**
    * A Mat which contains lines, with 4 entries
-   *
-   * @param needle
-   * @return
    */
   def has4Sides(needle: Mat): Boolean = {
     val width = needle.size.width
@@ -490,11 +472,6 @@ object JavaCV extends CanLog {
 
   /**
    * copies source to destination Mat with given mask and returns the destination mat.
-   *
-   * @param source
-   * @param destination
-   * @param pattern
-   * @return
    */
   def copySrcToDestWithMask(source: Mat, destination: Mat, pattern: Mat): Mat = {
     source.copyTo(destination, pattern)
@@ -538,8 +515,6 @@ object JavaCV extends CanLog {
    * <li>left lower corner</li>
    * </ul>
    *
-   * @param m
-   * @return
    */
   def sortCorners(m: Mat): Mat = {
     val ps: Seq[PInt] = JavaCV.extractIntPoints(m)
@@ -555,18 +530,19 @@ object JavaCV extends CanLog {
     val B = sortByY.head
     val D = sortByY.tail.head
 
-    val fp = new FloatPointer(A.x, A.y, B.x, B.y, C.x, C.y, D.x, D.y)
-    //println(s"!!!: ${A.x}, ${A.y}, ${B.x}, ${B.y}, ${C.x}, ${C.y}, ${D.x}, ${D.y}")
+    val fp = new FloatPointer(
+      A.x.toFloat, A.y.toFloat,
+      B.x.toFloat, B.y.toFloat,
+      C.x.toFloat, C.y.toFloat,
+      D.x.toFloat, D.y.toFloat)
     new Mat(new Size(2, 4), opencv_core.CV_32F, fp)
   }
 
   def threshold(input: Mat): Mat = {
     val output = new Mat
-    // opencv_imgproc.threshold(input, output, 30, 255, opencv_imgproc.THRESH_BINARY)
     opencv_imgproc.threshold(input, output, 30, 255, opencv_imgproc.THRESH_BINARY)
     output
   }
-
 
   def filter2D(kernel: Mat)(input: Mat): Mat = {
     val out = new Mat

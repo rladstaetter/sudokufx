@@ -6,8 +6,7 @@ import java.util.stream
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.Subscriber
 
-import scala.concurrent.duration.{FiniteDuration, _}
-import scala.language.postfixOps
+import scala.concurrent.duration.FiniteDuration
 
 
 object SSession {

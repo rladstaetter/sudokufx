@@ -4,8 +4,6 @@ import java.nio.file.Path
 import net.ladstatt.sudoku.JavaCV._
 import org.bytedeco.opencv.opencv_core.{Mat, Rect}
 
-import scala.language.postfixOps
-
 object SolvedSudoku {
 
   def populateWithSolution(normalized: Mat

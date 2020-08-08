@@ -9,11 +9,11 @@ import org.bytedeco.opencv.opencv_core._
 import scala.concurrent.duration.FiniteDuration
 
 case class PFloat(x: Float, y: Float) {
-  val dist = Math.sqrt(x * x + y * y)
+  val dist: Double = Math.sqrt(x.toDouble * x.toDouble + y.toDouble * y.toDouble)
 }
 
 case class PInt(x: Int, y: Int) {
-  val dist = Math.sqrt(x * x + y * y)
+  val dist: Double = Math.sqrt(x.toDouble * x.toDouble + y.toDouble * y.toDouble)
 }
 
 /**
