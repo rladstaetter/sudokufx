@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.ChoiceBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.control.Button?>
-<?import org.kordamp.ikonli.javafx.FontIcon?>
-<?import javafx.scene.control.ToggleButton?>
-<?import javafx.scene.control.CheckBox?>
-<?import javafx.scene.control.Separator?>
-
+<?import org.kordamp.ikonli.javafx.*?>
 <BorderPane prefHeight="780.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/10.0.2-internal"
             xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.ladstatt.sudoku.SudokuFXController">
     <top>
@@ -54,6 +47,7 @@
                             <FontIcon iconLiteral="gmi-message" iconSize="32"/>
                         </graphic>
                     </ToggleButton>
+                    <CheckBox fx:id="writeDebugCheckBox" text="write debug data"/>
                 </ToolBar>
             </top>
             <bottom>

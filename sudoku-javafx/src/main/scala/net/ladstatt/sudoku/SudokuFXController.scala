@@ -17,44 +17,16 @@ import org.bytedeco.javacv.OpenCVFrameGrabber
 import org.bytedeco.opencv.opencv_core.Mat
 import rx.lang.scala.{Observable, Subscriber}
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{Duration, _}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class SudokuFXController extends Initializable with JfxUtils {
 
-
   lazy val openCVGrabberProperty = new SimpleObjectProperty[OpenCVFrameGrabber](new OpenCVFrameGrabber(0))
-
-  def setOpenCVGrabberProperty(grabber: OpenCVFrameGrabber): Unit = openCVGrabberProperty.set(grabber)
-
-  def getOpenCVGrabberProperty(): OpenCVFrameGrabber = openCVGrabberProperty.get()
-
   val imageInputProperty = new SimpleObjectProperty[ImageInput]()
-
-  private def setImageInput(imageInput: ImageInput): Unit = imageInputProperty.set(imageInput)
-
-  def getImageInput() = imageInputProperty.get()
-
-
   val sessionsPathProperty = new SimpleObjectProperty[Path]()
-
-  def setSessionsPath(sessionsPath: Path): Unit = sessionsPathProperty.set(sessionsPath)
-
-  def getSessionsPath(): Path = sessionsPathProperty.get()
-
-  def getSessionPath(): Path = sessionsPathProperty.get.resolve(getSession.toString)
-
   val sessionProperty = new SimpleLongProperty()
-
-  def setSession(session: Long): Unit = sessionProperty.set(session)
-
-  def getSession(): Long = sessionProperty.get()
-
-  def nextSessionNumber(sessionsPath: Path): Long = {
-    Files.list(sessionsPath.toAbsolutePath).count + 1
-  }
 
   @FXML var numberFlowPane: FlowPane = _
 
@@ -75,6 +47,8 @@ class SudokuFXController extends Initializable with JfxUtils {
   @FXML var showResultButton: ToggleButton = _
   @FXML var showLibraryButton: ToggleButton = _
 
+  /** if set, sudokufx will write debug files / images */
+  @FXML var writeDebugCheckBox: CheckBox = _
 
   @FXML def activateCamera(): Unit = setImageInput(FromVideo)
 
@@ -84,19 +58,20 @@ class SudokuFXController extends Initializable with JfxUtils {
     getImageInput() match {
       case FromFile =>
         if (sessionChoiceBox.getItems.size() != 0) {
-            mkObservable(sessionChoiceBox.getValue.session.subscribe)(Duration(1000, TimeUnit.MILLISECONDS))
-              .subscribe(
-                onResult,
-                t => t.printStackTrace(),
-                () => {
-                  logInfo("File stream stopped...")
-                })
+          mkObservable(sessionChoiceBox.getValue.session.subscribe)(Duration(1000, TimeUnit.MILLISECONDS))
+            .subscribe(
+              onResult,
+              t => t.printStackTrace(),
+              () => {
+                logInfo("File stream stopped...")
+              })
           ()
         } else {
           logError("No sessions found.")
         }
       case FromVideo =>
         getOpenCVGrabberProperty().start()
+        setSession(nextSessionNumber(getSessionsPath()))
         mkObservable(fromWebCam(getOpenCVGrabberProperty()))(Duration(250, TimeUnit.MILLISECONDS))
           .subscribe(
             onResult,
@@ -181,16 +156,38 @@ class SudokuFXController extends Initializable with JfxUtils {
   def mkObservable(fn: Subscriber[Mat] => Unit)(delay: Duration): Observable[SudokuEnvironment] = {
     Observable[Mat](fn).zipWithIndex.map {
       case (frame, index) =>
-        JavaCV.writeMat(getSessionPath().resolve(s"frame-$index.png"), frame)
+        JavaCV.writeMat(writeDebugCheckBox.isSelected())(getSessionPath().resolve(s"frame-$index.png"), frame)
         // can be null if:
         // - first call
         // - last solution was reset by user
         Option(getSolvedSudoku) match {
           case None =>
             // create default Sudoku instance and fill it with current frame
-            SudokuEnvironment("sudoku", index, frame, Seq[Float](), ContourParams(), SudokuState(), getDigitLibrary, None, Seq(), getSessionPath())
+            SudokuEnvironment(
+              persistData = writeDebugCheckBox.isSelected()
+              , id = "sudoku"
+              , frameNr = index
+              , frame = frame
+              , corners = Seq[Float]()
+              , contourParams = ContourParams()
+              , history = SudokuState()
+              , digitLibrary = getDigitLibrary
+              , someSolutionMat = None
+              , resultCells = Seq()
+              , sessionPath = getSessionPath())
           case Some(lastSolution) =>
-            SudokuEnvironment("sudoku", index, frame, Seq[Float](), ContourParams(), lastSolution.sudokuState, getDigitLibrary, Option(lastSolution.frameWithSolution), Seq(), getSessionPath())
+            SudokuEnvironment(
+              persistData = writeDebugCheckBox.isSelected()
+              , id = "sudoku"
+              , frameNr = index
+              , frame = frame
+              , corners = Seq[Float]()
+              , contourParams = ContourParams()
+              , history = lastSolution.sudokuState
+              , digitLibrary = getDigitLibrary
+              , someSolutionMat = Option(lastSolution.frameWithSolution)
+              , resultCells = Seq()
+              , sessionPath = getSessionPath())
         }
     }.delaySubscription(delay)
   }
@@ -221,15 +218,16 @@ class SudokuFXController extends Initializable with JfxUtils {
             cnt = 100
             clearSolution()
           }
-          println(sudoku.history.asSudokuString)
-          println()
+          //println(sudoku.history.asSudokuString)
+          //println()
         } else {
-          setVideoView(env.frame)
+          //  setVideoView(env.frame)
         }
         sudoku.trySolve match {
           case Some(solvedSudoku) =>
             // println(solvedSudoku.sudokuHistory.asSudokuString)
             setVideoView(solvedSudoku.frameWithSolution)
+            JavaCV.writeMat(true)(getSessionPath().resolve(s"processed-${solvedSudoku.frameNr}.png"), solvedSudoku.frameWithSolution)
             // TODO triggers exception
             if (showResultButton.isSelected) {
               solvedSudoku.optCNormalized.foreach(setSolutionView)
@@ -272,34 +270,6 @@ class SudokuFXController extends Initializable with JfxUtils {
     initDigitToolbar()
 
     initStartStop()
-    /*
-        imageInputProperty.addListener(new ChangeListener[ImageInput] {
-          override def changed(observableValue: ObservableValue[_ <: ImageInput], oldVal: ImageInput, newVal: ImageInput): Unit = {
-            ((Option(oldVal), newVal) match {
-              // start with from file
-              case (None, FromFile) => mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-              case (None, FromVideo) =>
-                getOpenCVGrabberProperty().start()
-                mkObservable(fromWebCam(getOpenCVGrabberProperty()))
-              case (Some(FromFile), FromVideo) =>
-                getOpenCVGrabberProperty().start()
-                mkObservable(fromWebCam(getOpenCVGrabberProperty()))
-              case (Some(FromFile), FromFile) =>
-                mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-              case (Some(FromVideo), FromFile) =>
-                getOpenCVGrabberProperty().stop()
-                mkObservable(loadSession(getSessionPath().getParent, getSession()).subscribe)
-              case (Some(FromVideo), FromVideo) =>
-                getOpenCVGrabberProperty().start()
-                mkObservable(fromWebCam(getOpenCVGrabberProperty()))
-            }).subscribe(
-              onResult,
-              t => t.printStackTrace(),
-              () => {
-                logInfo("Videostream stopped...")
-              })
-          }
-        })*/
 
     initSessionChoiceBox()
 
@@ -310,17 +280,30 @@ class SudokuFXController extends Initializable with JfxUtils {
     sessionChoiceBox.setConverter(new ReplaySessionStringConverter)
     sessionChoiceBox.disableProperty().bind(fsButton.selectedProperty().not)
 
-    sessionsPathProperty.addListener(new ChangeListener[Path] {
-      override def changed(observable: ObservableValue[_ <: Path], oldValue: Path, newValue: Path): Unit = {
-        sessionChoiceBox.getItems.clear()
-        val sessions = ReplaySession.listAll(getSessionsPath()).collect(Collectors.toList())
-        sessionChoiceBox.getItems.addAll(sessions)
-        if (sessions.size != 0) {
-          sessionChoiceBox.setValue(sessions.get(0))
+    // if there is a change to the fsButton, namely fsButton is set to 'selectec' recalculate sessions, in order to
+    // also get new sessions which might have been recorded in the meantime
+    fsButton.selectedProperty().addListener(new ChangeListener[java.lang.Boolean] {
+      override def changed(observable: ObservableValue[_ <: java.lang.Boolean], oldValue: java.lang.Boolean, newValue: java.lang.Boolean): Unit = {
+        if (newValue) {
+          resetSessionsChoiceBox()
         }
       }
     })
+    sessionsPathProperty.addListener(new ChangeListener[Path] {
+      override def changed(observable: ObservableValue[_ <: Path], oldValue: Path, newValue: Path): Unit = {
+        resetSessionsChoiceBox()
+      }
+    })
 
+  }
+
+  private def resetSessionsChoiceBox(): Unit = {
+    sessionChoiceBox.getItems.clear()
+    val sessions = ReplaySession.listAll(getSessionsPath()).collect(Collectors.toList())
+    sessionChoiceBox.getItems.addAll(sessions)
+    if (sessions.size != 0) {
+      sessionChoiceBox.setValue(sessions.get(0))
+    }
   }
 
   private def initDigitToolbar(): Unit = {
@@ -350,4 +333,28 @@ class SudokuFXController extends Initializable with JfxUtils {
     }
   }
 
+  def setOpenCVGrabberProperty(grabber: OpenCVFrameGrabber): Unit = openCVGrabberProperty.set(grabber)
+
+  def getOpenCVGrabberProperty(): OpenCVFrameGrabber = openCVGrabberProperty.get()
+
+
+  private def setImageInput(imageInput: ImageInput): Unit = imageInputProperty.set(imageInput)
+
+  def getImageInput() = imageInputProperty.get()
+
+
+  def setSessionsPath(sessionsPath: Path): Unit = sessionsPathProperty.set(sessionsPath)
+
+  def getSessionsPath(): Path = sessionsPathProperty.get()
+
+  def getSessionPath(): Path = sessionsPathProperty.get.resolve(getSession.toString)
+
+
+  def setSession(session: Long): Unit = sessionProperty.set(session)
+
+  def getSession(): Long = sessionProperty.get()
+
+  def nextSessionNumber(sessionsPath: Path): Long = {
+    Files.list(sessionsPath.toAbsolutePath).count + 1
+  }
 }

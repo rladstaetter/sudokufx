@@ -18,14 +18,17 @@ object SudokuEnvironment {
    * @param path path to frame
    * @return
    */
-  def apply(id: String
+  def apply(persistData: Boolean
+            , id: String
             , frameNr: Int
             , path: Path
             , corners: Seq[Float]
             , history: SudokuState
             , library: DigitLibrary
             , sessionPath: Path): SudokuEnvironment = {
-    new SudokuEnvironment(id
+    new SudokuEnvironment(
+      persistData
+      , id
       , frameNr
       , JavaCV.loadMat(path)
       , corners
@@ -39,7 +42,8 @@ object SudokuEnvironment {
 
 }
 
-case class SudokuEnvironment(id: String
+case class SudokuEnvironment(persistData: Boolean
+                             , id: String
                              , frameNr: Int
                              , frame: Mat
                              , corners: Seq[Float]
@@ -71,7 +75,7 @@ case class SudokuEnvironment(id: String
   /** frames without rectangles get filtered out to a None, otherwise start processing Sudoku */
   lazy val optSudoku: Option[Sudoku] = {
     someRectangle.map(detectedCorners => {
-      Sudoku(id, frameNr, frame, detectedCorners, history, digitLibrary, sessionPath)
+      Sudoku(persistData, id, frameNr, frame, detectedCorners, history, digitLibrary, sessionPath)
     })
   }
 

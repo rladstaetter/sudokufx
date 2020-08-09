@@ -48,7 +48,7 @@ class JavaCVSpec extends AnyWordSpecLike with CanLog {
 
     val out = JavaCV.removeBorderArtefacts(m)
 
-    JavaCV.writeMat(Sudokus.sessionPath.resolve("out.png"), out)
+    JavaCV.writeMat(Sudokus.persistData)(Sudokus.sessionPath.resolve("out.png"), out)
     /*
         if (notTouchingBorder.nonEmpty) {
           notTouchingBorder.foldLeft(opencv_core.notEquals(notTouchingBorder.head)) {

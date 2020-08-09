@@ -21,7 +21,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
     for ((i, m) <- classicTemplatesFromBmps) {
       val t = templatePath(i)
       Files.deleteIfExists(t)
-      assert(JavaCV.writeMat(t, m))
+      assert(JavaCV.writeMat(Sudokus.persistData)(t, m))
     }
   }
 
@@ -52,7 +52,7 @@ class TemplateLibrarySpec extends AnyWordSpecLike {
 
           assert(classicTemplatesFromBmps(index).asByteBuffer().compareTo(reference.asByteBuffer()) == 0, s"""comparison failed for $index image""")
           Files.deleteIfExists(referencePath)
-          assert(JavaCV.writeMat(referencePath, reference))
+          assert(JavaCV.writeMat(Sudokus.persistData)(referencePath, reference))
           val (tArr, rArr) = (Files.readAllBytes(templatePath(index)), Files.readAllBytes(referencePath))
           assert(tArr.sameElements(rArr), s"In run $o, for digit $index, reference was not equal to deserialized data from .csv")
         }

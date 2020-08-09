@@ -26,7 +26,8 @@ object SudokuUtils {
     BruteForceSolver.solve(solutionCandidate, maxDuration).map(solution => SudokuState(solution, Sudoku.minNrOfValueHits))
   }
 
-  def toSolutionCells(frameNr: Int
+  def toSolutionCells(persistData: Boolean
+                      , frameNr: Int
                       , digitLibrary: DigitLibrary
                       , sudokuHistory: SudokuState
                       , targetPath: Path): Seq[SCell] = {
@@ -39,7 +40,7 @@ object SudokuUtils {
           (if (someM.isEmpty) {
             digitLibrary.digits(value).optMat
           } else someM)
-            .map(m => SCell("fixmeid", frameNr, pos, m, new Rect, sudokuHistory.hitHistory(pos), targetPath))
+            .map(m => SCell(persistData, "fixmeid", frameNr, pos, m, new Rect, sudokuHistory.hitHistory(pos), targetPath))
         } else None
       x
     }).flatten

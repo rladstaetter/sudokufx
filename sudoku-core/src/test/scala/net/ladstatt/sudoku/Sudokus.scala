@@ -4,6 +4,7 @@ import java.nio.file.{Path, Paths}
 
 object Sudokus {
 
+  val persistData = false
   private val sessionsPath: Path = Paths.get("target/sessions")
   val sessionPath: Path = sessionsPath.resolve(System.currentTimeMillis().toString)
 
@@ -26,7 +27,8 @@ object Sudokus {
          |070600903""".stripMargin, Sudoku.minNrOfValueHits)
 
   lazy val sudoku1ReadyToSolve =
-    SudokuEnvironment("sudoku1-readytosolve"
+    SudokuEnvironment(persistData
+      , "sudoku1-readytosolve"
       , 1
       , frame1
       , Seq(862f, 283f
@@ -52,7 +54,9 @@ object Sudokus {
 
   /* sudoku with 100% hit rate */
   val sudoku1Empty =
-    SudokuEnvironment("sudoku1"
+    SudokuEnvironment(
+      persistData
+      , "sudoku1"
       , 1
       , frame1
       , Seq(862f, 283f
@@ -91,7 +95,8 @@ object Sudokus {
     */
   /** what the image processing thinks it sees for frame2 */
   lazy val sudoku2CurrentBest =
-    SudokuEnvironment("sudoku2"
+    SudokuEnvironment(persistData
+      ,"sudoku2"
       , 2
       , frame2
       , corners = Seq(

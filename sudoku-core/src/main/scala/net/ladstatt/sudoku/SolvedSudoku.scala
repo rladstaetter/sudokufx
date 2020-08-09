@@ -1,4 +1,5 @@
 package net.ladstatt.sudoku
+
 import java.nio.file.Path
 
 import net.ladstatt.sudoku.JavaCV._
@@ -30,7 +31,8 @@ object SolvedSudoku {
     }
   }
 
-  def apply(frameNr: Int
+  def apply(persistData: Boolean
+            , frameNr: Int
             , inputFrame: Mat
             , normalized: Mat
             , detectedCorners: Mat
@@ -41,14 +43,16 @@ object SolvedSudoku {
     val sudokuNormalizedWithSolution: Mat = populateWithSolution(normalized, sudokuState, cellRois, digitLibrary)
     // paintCorners(sudokuNormalizedWithSolution, cellRois, sudokuState.hitHistory, 4)
 
-    JavaCV.writeMat(targetPath.resolve(s"$frameNr-solvedCanvasNormalized.png"), sudokuNormalizedWithSolution)
+    JavaCV.writeMat(persistData)(targetPath.resolve(s"$frameNr-solvedCanvasNormalized.png"), sudokuNormalizedWithSolution)
 
     val warped: Mat = JavaCV.unwarp(sudokuNormalizedWithSolution, detectedCorners)
-    JavaCV.writeMat(targetPath.resolve(s"$frameNr-warped.png"), warped)
+    JavaCV.writeMat(persistData)(targetPath.resolve(s"$frameNr-warped.png"), warped)
     val solutionMat: Mat = JavaCV.copySrcToDestWithMask(warped, inputFrame, warped)
-    JavaCV.writeMat(targetPath.resolve(s"$frameNr-solution.png"), solutionMat)
+    JavaCV.writeMat(persistData)(targetPath.resolve(s"$frameNr-solution.png"), solutionMat)
 
-    SolvedSudoku(solutionMat
+    SolvedSudoku(
+      frameNr
+      , solutionMat
       , Option(sudokuNormalizedWithSolution)
       , detectedCorners
       , sudokuState)
@@ -56,7 +60,8 @@ object SolvedSudoku {
 
 }
 
-case class SolvedSudoku(frameWithSolution: Mat
+case class SolvedSudoku(frameNr: Int
+                        , frameWithSolution: Mat
                         , optCNormalized: Option[Mat]
                         , detectedCorners: Mat
                         , sudokuState: SudokuState)

@@ -76,7 +76,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
   }
 
   def fromPath(p: Path, frameNr: Int, pos: Int): SCell = {
-    SCell(p.getFileName.toString, frameNr, pos, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0), sessionPath)
+    SCell(Sudokus.persistData,p.getFileName.toString, frameNr, pos, JavaCV.loadMat(p), new Rect(), Map().withDefaultValue(0), sessionPath)
   }
 
   private def detect(base: Path, number: Int): Seq[SCell] = {
@@ -98,7 +98,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
     val res: Map[Int, Int] =
     files.zipWithIndex.foldLeft(Map[Int, Int]().withDefaultValue(0)) {
       case (acc, (p, i)) =>
-        SCell(p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc,sessionPath).hits
+        SCell(Sudokus.persistData,p.getFileName.toString, 0, i, JavaCV.loadMat(p), new Rect(), acc,sessionPath).hits
     }
     val (detectedNumber, _) =
       res.toSeq.sortWith {
@@ -149,7 +149,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         solvedSudoku =>
           solvedSudoku.optCNormalized match {
             case Some(value) =>
-              assert(JavaCV.writeMat(sessionPath.resolve("cNormalized.png"), value))
+              assert(JavaCV.writeMat(Sudokus.persistData)(sessionPath.resolve("cNormalized.png"), value))
               ()
             case None =>
               fail()
@@ -175,7 +175,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         val res = new Mat()
         opencv_imgproc.warpPerspective(m, res, transformationMatrix, Parameters.size1280x720)
         if ((i % 100) == 0) {
-          JavaCV.writeMat(sessionPath.resolve(s"$i-warped.png"), res)
+          JavaCV.writeMat(Sudokus.persistData)(sessionPath.resolve(s"$i-warped.png"), res)
         }
       }
     }
@@ -188,7 +188,7 @@ class SudokuSpec extends AnyWordSpecLike with CanLog {
         val m: Mat = JavaCV.loadMat(getClass, MatCp("/net/ladstatt/sudoku/testdata/frame1.png"))
         val res = JavaCV.warpP(m, transformationMatrix)
         if ((i % 25) == 0) {
-          JavaCV.writeMat(sessionPath.resolve(s"$i-warped.png"), res)
+          JavaCV.writeMat(Sudokus.persistData)(sessionPath.resolve(s"$i-warped.png"), res)
         }
       }
     }

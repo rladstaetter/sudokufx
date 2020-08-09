@@ -14,7 +14,7 @@
         <changelist>-SNAPSHOT</changelist>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala.major.version>2.13</scala.major.version>
-        <scala.full.version>${scala.major.version}.2</scala.full.version>
+        <scala.version>${scala.major.version}.2</scala.version>
         <java.version>11</java.version>
         <openjfx.version>13.0.2</openjfx.version>
     </properties>
@@ -34,7 +34,7 @@
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
-                <version>${scala.full.version}</version>
+                <version>${scala.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.openjfx</groupId>
@@ -161,7 +161,7 @@
                         </execution>
                     </executions>
                     <configuration>
-                        <scalaVersion>${scala.major.version}</scalaVersion>
+                        <scalaVersion>${scala.version}</scalaVersion>
                         <args>
                             <arg>-deprecation</arg>
                             <arg>-encoding</arg>

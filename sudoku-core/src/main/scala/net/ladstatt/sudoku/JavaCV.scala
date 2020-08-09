@@ -143,8 +143,10 @@ object JavaCV extends CanLog {
   }
 
 
-  def writeMat(target: Path, mat: Mat): Boolean = {
-    if (Sudoku.writeFiles) synchronized {
+  def writeMat(persistData: Boolean)
+              (target: Path
+               , mat: Mat): Boolean = {
+    if (persistData) synchronized {
       Files.createDirectories(target.getParent)
       val path = target.toAbsolutePath.toString
       val r = opencv_imgcodecs.imwrite(path, mat)
@@ -337,22 +339,24 @@ object JavaCV extends CanLog {
     mat
   }
 
-  def norm(operation: String
+  def norm(persistData: Boolean)
+          (operation: String
            , id: String
            , frameNr: Int
            , pos: Int
            , path: Path
            , mat: Mat): Mat = {
     val b = gaussianblur(mat)
-    writeMat(s"7_gaussianblur-$operation", id, frameNr, pos, path, b)
+    writeMatt(persistData)(s"7_gaussianblur-$operation", id, frameNr, pos, path, b)
     val dilated = dilate(b)
-    writeMat(s"8_dilated-$operation", id, frameNr, pos, path, b)
+    writeMatt(persistData)(s"8_dilated-$operation", id, frameNr, pos, path, b)
     val thresholded = adaptiveThreshold(dilated, 255, 9)
-    writeMat(s"9_thresholded-$operation", id, frameNr, pos, path, b)
+    writeMatt(persistData)(s"9_thresholded-$operation", id, frameNr, pos, path, b)
     thresholded
   }
 
-  def writeMat(operation: String
+  def writeMatt(persistData: Boolean)
+              (operation: String
                , id: String
                , frameNr: Int
                , pos: Int
@@ -362,13 +366,13 @@ object JavaCV extends CanLog {
       val path = parentFolder.resolve(frameNr.toString).resolve(pos.toString).resolve(operation).resolve(s"$id-${
         UUID.randomUUID().toString
       }.png")
-      writeMat(path, res)
+      writeMat(persistData)(path, res)
     } else true
   }
 
-  def doitWith(id: String, frameNr: Int, pos: Int, name: String, op: Mat => Mat, parentFolder: Path)(mat: Mat): Mat = {
+  def doitWith(persistData: Boolean)(id: String, frameNr: Int, pos: Int, name: String, op: Mat => Mat, parentFolder: Path)(mat: Mat): Mat = {
     val res: Mat = op(mat)
-    JavaCV.writeMat(name, id, frameNr, pos, parentFolder, res)
+    writeMatt(persistData)(name, id, frameNr, pos, parentFolder, res)
     res
   }
 

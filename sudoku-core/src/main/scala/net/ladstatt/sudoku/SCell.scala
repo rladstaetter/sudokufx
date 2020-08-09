@@ -77,7 +77,8 @@ object SCell {
  *                   for example following entry: Map(1 -> 10) means that 10 times a '1' was detected for this
  *                   particular cell
  */
-case class SCell(id: String
+case class SCell(persistData: Boolean
+                 , id: String
                  , frameNr: Int
                  , pos: Int
                  , origMat: Mat
@@ -94,15 +95,15 @@ case class SCell(id: String
   // only search for contours in a subrange of the original cell to get rid of possible border lines
   val cellData = new Mat(cell, new Range((height * 0.1).toInt, (height * 0.9).toInt), new Range((width * 0.1).toInt, (width * 0.9).toInt))
 
-  val blurred = JavaCV.doitWith(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, sessionPath)(cell)
-  val equalized = JavaCV.doitWith(id, frameNr, pos, "3-equalized", JavaCV.equalizeHist, sessionPath)(blurred)
-  val thresholed = JavaCV.doitWith(id, frameNr, pos, "4-threshold", JavaCV.threshold, sessionPath)(equalized)
-  val bitNotted = JavaCV.doitWith(id, frameNr, pos, "5-bitnotted", JavaCV.bitwiseNot, sessionPath)(thresholed)
-  val borderRemoved = JavaCV.doitWith(id, frameNr, pos, "6-borderremoved", JavaCV.removeBorderArtefacts, sessionPath)(bitNotted)
+  val blurred = JavaCV.doitWith(persistData)(id, frameNr, pos, "2-blurred", JavaCV.gaussianblur, sessionPath)(cell)
+  val equalized = JavaCV.doitWith(persistData)(id, frameNr, pos, "3-equalized", JavaCV.equalizeHist, sessionPath)(blurred)
+  val thresholed = JavaCV.doitWith(persistData)(id, frameNr, pos, "4-threshold", JavaCV.threshold, sessionPath)(equalized)
+  val bitNotted = JavaCV.doitWith(persistData)(id, frameNr, pos, "5-bitnotted", JavaCV.bitwiseNot, sessionPath)(thresholed)
+  val borderRemoved = JavaCV.doitWith(persistData)(id, frameNr, pos, "6-borderremoved", JavaCV.removeBorderArtefacts, sessionPath)(bitNotted)
 
-  def init(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "0-cellMat", m => m, sessionPath)(m)
+  def init(m: Mat): Mat = JavaCV.doitWith(persistData)(id, frameNr, pos, "0-cellMat", m => m, sessionPath)(m)
 
-  def gray(m: Mat): Mat = JavaCV.doitWith(id, frameNr, pos, "1-grayed", JavaCV.toGray, sessionPath)(m)
+  def gray(m: Mat): Mat = JavaCV.doitWith(persistData)(id, frameNr, pos, "1-grayed", JavaCV.toGray, sessionPath)(m)
 
   val optNumberCellMat: Option[Mat] = SCell.optNumberMat(borderRemoved)
 

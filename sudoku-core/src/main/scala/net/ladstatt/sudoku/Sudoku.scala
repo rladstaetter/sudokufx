@@ -19,9 +19,6 @@ object Sudoku {
   /** if true write debug info for cell */
   val writeCellDebug: Boolean = false
 
-  /** if set to true, sudokufx will write debug files / images */
-  val writeFiles = false
-
   /** don't try to solve sudoku until a certain amount of cells containing numbers are detected */
   val minNrOfDetectedCells = 20
 
@@ -38,7 +35,8 @@ object Sudoku {
   // val minQuality = 12500000
   //val minQuality = 3500000
 
-  def apply(id: String
+  def apply(persistData: Boolean
+            , id: String
             , frameNr: Int
             , frame: Mat
             , detectedCorners: Mat
@@ -71,12 +69,13 @@ object Sudoku {
     val cellRois: Seq[Rect] = Parameters.cellRange.map(JavaCV.mkRect(_, JavaCV.mkCellSize(normalized.size)))
 
     val cells: Seq[SCell] = cellRois.zipWithIndex.map {
-      case (r, i) => SCell(id, frameNr, i, normalized.apply(r), r, history.hitHistory(i), sessionPath)
+      case (r, i) => SCell(persistData, id, frameNr, i, normalized.apply(r), r, history.hitHistory(i), sessionPath)
     }
     val updatedLibrary = library.add(normalized, cells.filter(_.detectedValue != 0))
     val updatedHistory = history.add(SudokuState(cells.map(_.detectedValue), cells.map(_.hits)))
 
-    Sudoku(id
+    Sudoku(persistData
+      , id
       , frameNr
       , frame
       , normalized
@@ -96,7 +95,8 @@ object Sudoku {
  * @param frame           video input
  * @param detectedCorners corner points of detected sudoku
  */
-case class Sudoku(id: String
+case class Sudoku(persistData: Boolean
+                  , id: String
                   , frameNr: Int
                   , frame: Mat
                   , normalized: Mat
@@ -130,7 +130,7 @@ case class Sudoku(id: String
       logInfo("\n" + history.asSudokuString)
       val solvedSudoku: SudokuState = history.solved
       if (solvedSudoku.isSolved) {
-        Option(SolvedSudoku(
+        Option(SolvedSudoku(persistData,
           frameNr
           , frame
           , normalized
@@ -151,7 +151,9 @@ case class Sudoku(id: String
       }
     } else {
       logTrace("did not yet find enough hits to solve sudoku")
-      Option(SolvedSudoku(frame
+      Option(SolvedSudoku(
+        frameNr
+        , frame
         , None
         , detectedCorners
         , history))
