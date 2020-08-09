@@ -2,34 +2,33 @@
 
 A project which uses OpenCV to solve Sudoku puzzles with a live display of the computed solution.
 
-![a screenshot of the sudokuFX application](/screenshot.png "A screenshot from the project")
+![a screen recording for SudokuFX](/demo.gif "A screen recording for SudokuFX")
 
-Just show your unsolved Sudoku puzzle to the camera, on the display the solution should appear.
+Just show your unsolved Sudoku puzzle to the camera, on the display a solution should appear in a short timeframe. If a Sudoku was not recognized properly the videostream flickers for an instant.
 
-This project only serves educational purposes and shows how to use the OpenCV Java API, for the UI it uses JavaFX. 
+This project only serves educational purposes and shows how to use JavaCV and - under the hood- OpenCV features. Furthermore it showcases a basic usage for a JavaFX UI.
 
-This project contains an android version as well, but it is unmaintained at the moment. 
-
-Target audience are Scala developers who want to play around with Image processing, it would need some polishing
-to get a deployable and usable version.
+Target audience are Java / Scala developers who want to play around with image processing. This project needs still a lot of polishing for an end user, but it could serve for other experiments in this fascinating field. 
 
 # Building
 
-In order to get the project to run you have either install prebuild binaries of OpenCV or build it yourself. There
-are some blog posts about this project on my [blog](http://ladstatt.blogspot.com/). I just recently (time of writing: 
-early 2020) updated dependencies to the latest versions, as such it should be 'no problem' to get it to run on your 
-machine.
+One feature of this project is that it should run out of the box. Given you have installed JDK11 and Maven in a recent version, all you have to do to build it would be to execute
 
-You have to provide paths and version of OpenCV, either download a binary version from [their site](https://opencv.org)
-or build it from scratch. After successfully doing so, you have to invoke maven like this
+    mvn package
+    
+in the root directory.
 
-     mvn initialize -Pinstall-opencv -N
+For executing SudokuFX on the command line, change to the sudoku-javafx directory and enter
 
-which installs the java wrapper to your local maven repository with the correct groupId/artifactId and version coordinates.
+    mvn javafx:run
 
-I've developed it on OsX, I tested it on Windows as well, at most it should run with small modifications. 
+# Documentation
 
-Use at your own risk.
+This project is mainly un - documented, but some blog posts exist, check them out at [http://ladstatt.blogspot.com/](http://ladstatt.blogspot.com/).
+
+SudokuFX was developped on OsX and was tested on Windows as well, chances are that a Linux build would run as well. 
+
+Attention: This project contains an android version, but it is unmaintained at the moment. 
 
 # License
 
