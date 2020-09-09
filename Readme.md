@@ -2,8 +2,6 @@
 
 A project which uses JavaCV (OpenCV) to solve Sudoku puzzles with a live display of the computed solution.
 
-![a screen recording for SudokuFX](/demo.gif "A screen recording for SudokuFX")
-
 Just show your unsolved Sudoku puzzle to the camera, on the display a solution should appear in a short timeframe. If a Sudoku was not recognized properly the videostream flickers for an instant.
 
 This project only serves educational purposes and shows how to use JavaCV and - under the hood- OpenCV features and JavaFX GUI programming.
